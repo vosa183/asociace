@@ -31,7 +31,7 @@
         .logo-container img { height: 60px; width: auto; }
         
         nav ul { display: flex; list-style: none; gap: 1.5rem; }
-        nav a { text-decoration: none; color: var(--primary); font-weight: 600; }
+        nav a { text-decoration: none; color: var(--primary); font-weight: 600; cursor: pointer; }
 
         .hero {
             background: linear-gradient(rgba(26, 54, 93, 0.9), rgba(26, 54, 93, 0.9));
@@ -42,15 +42,26 @@
         
         .card { background: var(--white); padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 2rem; }
         
-        .auth-section { border-top: 4px solid var(--accent); }
+        .auth-container { display: flex; gap: 2rem; flex-wrap: wrap; }
+        .auth-box { flex: 1; min-width: 300px; border-top: 4px solid var(--accent); }
+        
         input { width: 100%; padding: 0.8rem; margin: 0.5rem 0 1rem; border-radius: 6px; border: 1px solid #ddd; }
         button { background: var(--primary); color: white; border: none; padding: 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; }
         button:hover { background: var(--secondary); }
+        .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
+        .btn-outline:hover { background: var(--primary); color: white; }
 
         .rules-list { list-style: none; margin-top: 1rem; }
         .rules-list li::before { content: "♦ "; color: var(--secondary); font-weight: bold; }
 
+        #dashboard-section { display: none; }
+        .user-info { background: #e2e8f0; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-weight: bold; }
+
         footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #718096; }
+        
+        .msg { margin-top: 1rem; font-weight: bold; text-align: center; }
+        .error { color: red; }
+        .success { color: green; }
     </style>
 </head>
 <body>
@@ -63,39 +74,64 @@
     <nav>
         <ul>
             <li><a href="#pravidla">Pravidla</a></li>
-            <li><a href="#prihlaseni">Vstup pro členy</a></li>
+            <li id="nav-login"><a href="#prihlaseni">Vstup pro členy</a></li>
+            <li id="nav-logout" style="display: none;"><a onclick="signOut()">Odhlásit se</a></li>
         </ul>
     </nav>
 </header>
 
-<section class="hero">
+<section class="hero" id="hero-section">
     <h2>Tradiční česká hra v moderním kabátě</h2>
     <p>Oficiální portál pro správu hráčů, turnajů a statistik.</p>
 </section>
 
 <div class="container">
-    <section id="pravidla" class="card">
-        <h3>Oficiální pravidla asociace</h3>
-        <ul class="rules-list">
-            <li><strong>Nic se nevrací:</strong> Hra má spád, žádné vracení do hry neexistuje.</li>
-            <li><strong>Sedmička:</strong> Po odehrání sedmičky si následující hráč líže karty (přebíjení povoleno).</li>
-            <li><strong>Eso:</strong> Po odehrání esa následující hráč stojí (přebíjení povoleno).</li>
-            <li><strong>Přebíjení:</strong> Všechny speciální karty se dají přebíjet stejnou hodnotou.</li>
-        </ul>
+    
+    <section id="dashboard-section" class="card" style="border-top: 4px solid var(--secondary);">
+        <h2>Osobní zóna člena</h2>
+        <div class="user-info">
+            Přihlášen jako: <span id="user-email">načítám...</span>
+        </div>
+        <p>Zde si brzy budete moci přidat rodinné příslušníky s jejich unikátním ID a sledovat statistiky z turnajů.</p>
     </section>
 
-    <section id="prihlaseni" class="card auth-section">
-        <h3>Registrace nového člena</h3>
-        <p style="font-size: 0.9rem; margin-bottom: 1rem;">Po registraci si budete moci v profilu přidat sebe i své rodinné příslušníky.</p>
-        <form id="regForm">
-            <label>E-mail</label>
-            <input type="email" id="regEmail" required placeholder="vas@email.cz">
-            <label>Heslo</label>
-            <input type="password" id="regPassword" required placeholder="******">
-            <button type="submit">Vytvořit účet asociace</button>
-        </form>
-        <div id="msg" style="margin-top: 1rem; font-weight: bold; text-align: center;"></div>
-    </section>
+    <div id="public-section">
+        <section id="pravidla" class="card">
+            <h3>Oficiální pravidla asociace</h3>
+            <ul class="rules-list">
+                <li><strong>Nic se nevrací:</strong> Hra má spád, žádné vracení do hry neexistuje.</li>
+                <li><strong>Sedmička:</strong> Po odehrání sedmičky si následující hráč líže karty (přebíjení povoleno).</li>
+                <li><strong>Eso:</strong> Po odehrání esa následující hráč stojí (přebíjení povoleno).</li>
+                <li><strong>Přebíjení:</strong> Všechny speciální karty se dají přebíjet stejnou hodnotou.</li>
+            </ul>
+        </section>
+
+        <section id="prihlaseni" class="auth-container">
+            <div class="card auth-box">
+                <h3>Přihlášení</h3>
+                <form id="loginForm">
+                    <label>E-mail</label>
+                    <input type="email" id="loginEmail" required>
+                    <label>Heslo</label>
+                    <input type="password" id="loginPassword" required>
+                    <button type="submit">Přihlásit se</button>
+                </form>
+                <div id="loginMsg" class="msg"></div>
+            </div>
+
+            <div class="card auth-box" style="border-top-color: var(--primary);">
+                <h3>Nová registrace</h3>
+                <form id="regForm">
+                    <label>E-mail</label>
+                    <input type="email" id="regEmail" required>
+                    <label>Heslo (min 6 znaků)</label>
+                    <input type="password" id="regPassword" required>
+                    <button type="submit" class="btn-outline">Vytvořit účet</button>
+                </form>
+                <div id="regMsg" class="msg"></div>
+            </div>
+        </section>
+    </div>
 </div>
 
 <footer>
@@ -107,11 +143,48 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
     const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
+    // Prvky na stránce
+    const publicSection = document.getElementById('public-section');
+    const dashboardSection = document.getElementById('dashboard-section');
+    const navLogin = document.getElementById('nav-login');
+    const navLogout = document.getElementById('nav-logout');
+    const userEmailSpan = document.getElementById('user-email');
+
+    // Funkce pro změnu zobrazení podle toho, zda je uživatel přihlášen
+    function updateUI(user) {
+        if (user) {
+            publicSection.style.display = 'none';
+            dashboardSection.style.display = 'block';
+            navLogin.style.display = 'none';
+            navLogout.style.display = 'block';
+            userEmailSpan.innerText = user.email;
+        } else {
+            publicSection.style.display = 'block';
+            dashboardSection.style.display = 'none';
+            navLogin.style.display = 'block';
+            navLogout.style.display = 'none';
+        }
+    }
+
+    // Kontrola při načtení stránky, jestli už není uživatel náhodou přihlášen z minula
+    supabase.auth.getSession().then(({ data: { session } }) => {
+        updateUI(session?.user);
+    });
+
+    // Posluchač změn (když se někdo přihlásí/odhlásí)
+    supabase.auth.onAuthStateChange((_event, session) => {
+        updateUI(session?.user);
+    });
+
+    // Odeslání registrace
     document.getElementById('regForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('regEmail').value;
         const password = document.getElementById('regPassword').value;
-        const msgDiv = document.getElementById('msg');
+        const msgDiv = document.getElementById('regMsg');
+
+        msgDiv.innerText = 'Zpracovávám...';
+        msgDiv.className = 'msg';
 
         const { data, error } = await supabase.auth.signUp({
             email: email,
@@ -119,13 +192,42 @@
         });
 
         if (error) {
-            msgDiv.style.color = 'red';
             msgDiv.innerText = 'Chyba: ' + error.message;
+            msgDiv.className = 'msg error';
         } else {
-            msgDiv.style.color = 'green';
-            msgDiv.innerText = 'Účet vytvořen! Zkontrolujte e-mail (pokud je zapnuto potvrzení).';
+            msgDiv.innerText = 'Úspěšně zaregistrováno!';
+            msgDiv.className = 'msg success';
         }
     });
+
+    // Odeslání přihlášení
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPassword').value;
+        const msgDiv = document.getElementById('loginMsg');
+
+        msgDiv.innerText = 'Přihlašuji...';
+        msgDiv.className = 'msg';
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password,
+        });
+
+        if (error) {
+            msgDiv.innerText = 'Špatný e-mail nebo heslo.';
+            msgDiv.className = 'msg error';
+        } else {
+            msgDiv.innerText = '';
+        }
+    });
+
+    // Odhlášení
+    async function signOut() {
+        const { error } = await supabase.auth.signOut();
+        if (error) console.error('Chyba při odhlášení:', error);
+    }
 </script>
 
 </body>
