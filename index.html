@@ -31,7 +31,7 @@
         /* Kontejner pro přepínání záložek */
         main { max-width: 1000px; margin: 3rem auto; padding: 0 1.5rem; min-height: 60vh; }
         
-        /* Skrytí sekcí - TOHLE DĚLÁ TO KOUZLO */
+        /* Skrytí sekcí */
         .page-section { display: none; animation: fadeIn 0.3s ease; }
         .page-section.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
@@ -68,17 +68,17 @@
 
 <header>
     <div class="logo-container" onclick="switchTab('home')">
-        <img src="logo.png" alt="Logo">
+        <img src="./logo.png" alt="Logo">
         <h1>Česká asociace prší</h1>
     </div>
     <nav>
         <ul>
-            <li><a onclick="switchTab('home')" id="nav-home" class="active">Úvod</a></li>
-            <li><a onclick="switchTab('rules')" id="nav-rules">Pravidla</a></li>
-            <li><a onclick="switchTab('host')" id="nav-host">Pořádejte turnaj</a></li>
-            <li id="menu-auth"><a onclick="switchTab('auth')" id="nav-auth">Pro členy</a></li>
-            <li id="menu-profile" style="display:none;"><a onclick="switchTab('dashboard')" id="nav-dashboard">Můj profil</a></li>
-            <li id="menu-logout" style="display:none;"><a onclick="signOut()" style="color: var(--secondary);">Odhlásit</a></li>
+            <li><a href="javascript:void(0);" onclick="switchTab('home')" id="nav-home" class="active">Úvod</a></li>
+            <li><a href="javascript:void(0);" onclick="switchTab('rules')" id="nav-rules">Pravidla</a></li>
+            <li><a href="javascript:void(0);" onclick="switchTab('host')" id="nav-host">Pořádejte turnaj</a></li>
+            <li id="menu-auth"><a href="javascript:void(0);" onclick="switchTab('auth')" id="nav-auth">Pro členy</a></li>
+            <li id="menu-profile" style="display:none;"><a href="javascript:void(0);" onclick="switchTab('dashboard')" id="nav-dashboard">Můj profil</a></li>
+            <li id="menu-logout" style="display:none;"><a href="javascript:void(0);" onclick="signOut()" style="color: var(--secondary);">Odhlásit</a></li>
         </ul>
     </nav>
 </header>
@@ -197,61 +197,48 @@
 </footer>
 
 <script>
-    // Nastavení Supabase
     const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
     const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null;
 
-    // Funkce pro přepínání záložek
     function switchTab(tabId) {
-        // Skryje všechny sekce
         document.querySelectorAll('.page-section').forEach(sec => sec.classList.remove('active'));
-        // Zobrazí tu vybranou
         document.getElementById(tabId).classList.add('active');
         
-        // Upraví vzhled menu (šedé podbarvení aktivní záložky)
         document.querySelectorAll('nav a').forEach(link => link.classList.remove('active'));
         const activeLink = document.getElementById('nav-' + tabId);
         if (activeLink) activeLink.classList.add('active');
     }
 
-    // Funkce, která rozhoduje, co smí uživatel vidět
     async function checkAuthState(user) {
         currentUser = user;
         
         if (user) {
-            // Je přihlášený -> schovat menu "Pro členy", ukázat "Můj profil" a "Odhlásit"
             document.getElementById('menu-auth').style.display = 'none';
             document.getElementById('menu-profile').style.display = 'block';
             document.getElementById('menu-logout').style.display = 'block';
 
-            // Má vyplněný profil v databázi?
             const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
             
             if (data && data.full_name) {
-                // Má jméno -> vyplníme data do nástěnky
                 document.getElementById('dash-name').innerText = data.full_name;
                 document.getElementById('dash-id').innerText = data.player_id_card;
                 document.getElementById('dash-email').innerText = user.email;
                 
-                // Pokud je v sekci auth nebo profile-setup, hodíme ho na nástěnku
                 const currentTab = document.querySelector('.page-section.active').id;
                 if (currentTab === 'auth' || currentTab === 'profile-setup') {
                     switchTab('dashboard');
                 }
             } else {
-                // Nemá jméno -> nutíme ho vyplnit profil
                 switchTab('profile-setup');
             }
         } else {
-            // Není přihlášený -> základní menu
             document.getElementById('menu-auth').style.display = 'block';
             document.getElementById('menu-profile').style.display = 'none';
             document.getElementById('menu-logout').style.display = 'none';
             
-            // Pokud byl na soukromých záložkách, vyhodíme ho na úvod
             const currentTab = document.querySelector('.page-section.active').id;
             if (currentTab === 'dashboard' || currentTab === 'profile-setup') {
                 switchTab('home');
@@ -259,11 +246,9 @@
         }
     }
 
-    // Sleduje, jestli se někdo přihlásil/odhlásil
     supabase.auth.getSession().then(({ data: { session } }) => checkAuthState(session?.user));
     supabase.auth.onAuthStateChange((_event, session) => checkAuthState(session?.user));
 
-    // Odeslání Registrace
     document.getElementById('regForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const msg = document.getElementById('regMsg');
@@ -278,7 +263,6 @@
         else { msg.className = 'msg success'; msg.innerText = 'Účet vytvořen! Prosím vyčkejte...'; }
     });
 
-    // Odeslání Přihlášení
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const msg = document.getElementById('loginMsg');
@@ -293,7 +277,6 @@
         else { msg.style.display = 'none'; }
     });
 
-    // Odeslání doplnění profilu
     document.getElementById('profileForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const msg = document.getElementById('profMsg');
@@ -313,11 +296,10 @@
             msg.className = 'msg error'; msg.innerText = 'Chyba ukládání: ' + error.message;
         } else {
             msg.style.display = 'none';
-            checkAuthState(currentUser); // Tohle ho přepne rovnou na Dashboard
+            checkAuthState(currentUser);
         }
     });
 
-    // Odhlášení
     async function signOut() {
         await supabase.auth.signOut();
     }
