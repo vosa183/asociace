@@ -12,221 +12,282 @@
             --accent: #ed8936;
             --bg: #f7fafc;
             --white: #ffffff;
+            --text-dark: #2d3748;
+            --gray: #e2e8f0;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        body { background: var(--bg); color: #2d3748; line-height: 1.6; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', system-ui, sans-serif; }
+        body { background: var(--bg); color: var(--text-dark); line-height: 1.6; }
 
+        /* Navigace */
         header {
             background: var(--white);
             padding: 1rem 2rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
             position: sticky; top: 0; z-index: 1000;
         }
 
-        .logo-container { display: flex; align-items: center; gap: 1rem; }
+        .logo-container { display: flex; align-items: center; gap: 1rem; cursor: pointer; }
         .logo-container img { height: 60px; width: auto; }
+        .logo-container h1 { font-size: 1.4rem; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; }
         
-        nav ul { display: flex; list-style: none; gap: 1.5rem; }
-        nav a { text-decoration: none; color: var(--primary); font-weight: 600; cursor: pointer; }
+        nav ul { display: flex; list-style: none; gap: 2rem; }
+        nav a { text-decoration: none; color: var(--primary); font-weight: 600; cursor: pointer; padding: 0.5rem 1rem; border-radius: 6px; transition: 0.2s; }
+        nav a:hover, nav a.active { background: var(--gray); color: var(--secondary); }
 
-        .hero {
-            background: linear-gradient(rgba(26, 54, 93, 0.9), rgba(26, 54, 93, 0.9));
-            color: white; padding: 4rem 2rem; text-align: center;
-        }
+        /* Hlavní kontejner pro sekce */
+        main { max-width: 1100px; margin: 3rem auto; padding: 0 1.5rem; min-height: 60vh; }
+        .page-section { display: none; animation: fadeIn 0.4s ease-in-out; }
+        .page-section.active { display: block; }
 
-        .container { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Karta design */
+        .card { background: var(--white); padding: 3rem; border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); margin-bottom: 2rem; }
+        .card h2 { color: var(--primary); border-bottom: 3px solid var(--secondary); padding-bottom: 0.5rem; margin-bottom: 2rem; font-size: 2rem; }
+
+        /* Úvod */
+        .hero-banner { background: linear-gradient(135deg, var(--primary), #2a4365); color: white; padding: 4rem; border-radius: 16px; text-align: center; margin-bottom: 2rem; }
+        .hero-banner h2 { border: none; color: white; font-size: 2.5rem; margin-bottom: 1rem; }
+        .hero-banner p { font-size: 1.2rem; opacity: 0.9; max-width: 600px; margin: 0 auto; }
+
+        /* Pravidla */
+        .rules-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }
+        .rule-item { background: var(--gray); padding: 1.5rem; border-radius: 12px; border-left: 5px solid var(--secondary); }
+        .rule-item h4 { color: var(--primary); font-size: 1.2rem; margin-bottom: 0.5rem; }
+
+        /* Formuláře */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 3rem; }
+        label { display: block; font-weight: bold; margin-bottom: 0.5rem; color: var(--primary); }
+        input, textarea { width: 100%; padding: 1rem; margin-bottom: 1.5rem; border-radius: 8px; border: 1px solid #cbd5e0; font-size: 1rem; }
+        button { background: var(--primary); color: white; border: none; padding: 1rem 2rem; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; font-size: 1.1rem; }
+        button:hover { background: var(--secondary); transform: translateY(-2px); }
         
-        .card { background: var(--white); padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 2rem; }
-        
-        .auth-container { display: flex; gap: 2rem; flex-wrap: wrap; }
-        .auth-box { flex: 1; min-width: 300px; border-top: 4px solid var(--accent); }
-        
-        input { width: 100%; padding: 0.8rem; margin: 0.5rem 0 1rem; border-radius: 6px; border: 1px solid #ddd; }
-        button { background: var(--primary); color: white; border: none; padding: 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; }
-        button:hover { background: var(--secondary); }
-        .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); }
-        .btn-outline:hover { background: var(--primary); color: white; }
+        .msg { margin-top: 1rem; font-weight: bold; text-align: center; padding: 1rem; border-radius: 8px; display: none; }
+        .error { background: #fed7d7; color: #c53030; display: block; }
+        .success { background: #c6f6d5; color: #2f855a; display: block; }
 
-        .rules-list { list-style: none; margin-top: 1rem; }
-        .rules-list li::before { content: "♦ "; color: var(--secondary); font-weight: bold; }
-
-        #dashboard-section { display: none; }
-        .user-info { background: #e2e8f0; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-weight: bold; }
-
-        footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #718096; }
-        
-        .msg { margin-top: 1rem; font-weight: bold; text-align: center; }
-        .error { color: red; }
-        .success { color: green; }
+        footer { text-align: center; padding: 3rem 1rem; color: #718096; border-top: 1px solid var(--gray); margin-top: auto; }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="logo-container">
-        <img src="logo.jpg" alt="Asociace Prší">
-        <h1 style="font-size: 1.2rem; color: var(--primary);">Česká asociace prší</h1>
+    <div class="logo-container" onclick="showSection('home')">
+        <img src="logo.png" alt="Asociace Prší">
+        <h1>Česká asociace prší</h1>
     </div>
     <nav>
         <ul>
-            <li><a href="#pravidla">Pravidla</a></li>
-            <li id="nav-login"><a href="#prihlaseni">Vstup pro členy</a></li>
-            <li id="nav-logout" style="display: none;"><a onclick="signOut()">Odhlásit se</a></li>
+            <li><a onclick="showSection('home')" id="nav-home" class="active">Úvod</a></li>
+            <li><a onclick="showSection('rules')" id="nav-rules">Pravidla</a></li>
+            <li><a onclick="showSection('host')" id="nav-host">Pořádejte turnaj</a></li>
+            <li id="nav-login-btn"><a onclick="showSection('auth')" id="nav-auth">Pro členy</a></li>
+            <li id="nav-logout-btn" style="display: none;"><a onclick="signOut()">Odhlásit se</a></li>
         </ul>
     </nav>
 </header>
 
-<section class="hero" id="hero-section">
-    <h2>Tradiční česká hra v moderním kabátě</h2>
-    <p>Oficiální portál pro správu hráčů, turnajů a statistik.</p>
-</section>
-
-<div class="container">
-    
-    <section id="dashboard-section" class="card" style="border-top: 4px solid var(--secondary);">
-        <h2>Osobní zóna člena</h2>
-        <div class="user-info">
-            Přihlášen jako: <span id="user-email">načítám...</span>
+<main>
+    <section id="home" class="page-section active">
+        <div class="hero-banner">
+            <h2>Tradiční česká hra na profesionální úrovni</h2>
+            <p>Jsme spolek spojující komunitu hráčů. Staráme se o jednotná pravidla, organizaci turnajů a vedení historických statistik našich členů.</p>
         </div>
-        <p>Zde si brzy budete moci přidat rodinné příslušníky s jejich unikátním ID a sledovat statistiky z turnajů.</p>
+        <div class="card">
+            <h2 style="font-size: 1.5rem; border: none; margin-bottom: 1rem;">Novinky a turnaje</h2>
+            <p>Připravujeme pro vás revoluční systém pro správu "hráčských rodin", elektronické registrace a platby přes QR kódy. První celostátní turnaj bude vypsán již brzy!</p>
+        </div>
     </section>
 
-    <div id="public-section">
-        <section id="pravidla" class="card">
-            <h3>Oficiální pravidla asociace</h3>
-            <ul class="rules-list">
-                <li><strong>Nic se nevrací:</strong> Hra má spád, žádné vracení do hry neexistuje.</li>
-                <li><strong>Sedmička:</strong> Po odehrání sedmičky si následující hráč líže karty (přebíjení povoleno).</li>
-                <li><strong>Eso:</strong> Po odehrání esa následující hráč stojí (přebíjení povoleno).</li>
-                <li><strong>Přebíjení:</strong> Všechny speciální karty se dají přebíjet stejnou hodnotou.</li>
-            </ul>
-        </section>
+    <section id="rules" class="page-section">
+        <div class="card">
+            <h2>Oficiální turnajová pravidla</h2>
+            <p style="margin-bottom: 2rem;">Abychom zajistili plynulou a spravedlivou hru na všech našich turnajích, ustanovili jsme tento neměnný základní řád. Zapomeňte na hospodské výjimky.</p>
+            
+            <div class="rules-grid">
+                <div class="rule-item">
+                    <h4>1. Nic se nevrací</h4>
+                    <p>Hra má dynamický spád. Jakmile je hráč bez karet, vyhrává. Žádné vracení do hry prostřednictvím sedmičky nebo jiných karet neexistuje.</p>
+                </div>
+                <div class="rule-item">
+                    <h4>2. Sedmička líže</h4>
+                    <p>Po odehrání sedmičky si následující hráč líže 2 karty. Pokud má také sedmičku, může ji přebít a povinnost lízat se sčítá a přesouvá dál.</p>
+                </div>
+                <div class="rule-item">
+                    <h4>3. Eso stojí</h4>
+                    <p>Po odehrání esa následující hráč stojí (nehraje). Pokud má ale v ruce jiné eso, může přebíjet a "stání" se posouvá na dalšího hráče.</p>
+                </div>
+                <div class="rule-item">
+                    <h4>4. Vše se přebíjí</h4>
+                    <p>Všechny speciální karty (sedmičky, esa) lze přebíjet stejnou hodnotou. Strategie a správné načasování karet je klíčové.</p>
+                </div>
+            </div>
+        </div>
+    </section>
 
-        <section id="prihlaseni" class="auth-container">
-            <div class="card auth-box">
-                <h3>Přihlášení</h3>
+    <section id="host" class="page-section">
+        <div class="card">
+            <h2>Chcete, abychom uspořádali turnaj u vás?</h2>
+            <p style="margin-bottom: 2rem;">Máte k dispozici sál, hospodu nebo kulturní dům a chtěli byste k vám přivést oficiální turnaj pod hlavičkou asociace? Ozvěte se nám a domluvíme detaily.</p>
+            
+            <form action="https://formspree.io/f/TVUJ_KOD_ZDE" method="POST">
+                <label>Jméno nebo název podniku</label>
+                <input type="text" name="jmeno" required>
+                
+                <label>Váš e-mail</label>
+                <input type="email" name="email" required>
+                
+                <label>Kde by se turnaj konal? (Město a kapacita lidí)</label>
+                <textarea name="misto" rows="4" required></textarea>
+                
+                <button type="submit">Odeslat nezávaznou poptávku</button>
+            </form>
+        </div>
+    </section>
+
+    <section id="auth" class="page-section">
+        <div class="card form-grid">
+            <div>
+                <h3 style="color: var(--primary); margin-bottom: 1rem; font-size: 1.5rem;">Přihlášení</h3>
                 <form id="loginForm">
                     <label>E-mail</label>
                     <input type="email" id="loginEmail" required>
                     <label>Heslo</label>
                     <input type="password" id="loginPassword" required>
-                    <button type="submit">Přihlásit se</button>
+                    <button type="submit">Vstoupit do profilu</button>
                 </form>
                 <div id="loginMsg" class="msg"></div>
             </div>
 
-            <div class="card auth-box" style="border-top-color: var(--primary);">
-                <h3>Nová registrace</h3>
+            <div style="border-left: 2px solid var(--gray); padding-left: 3rem;">
+                <h3 style="color: var(--primary); margin-bottom: 1rem; font-size: 1.5rem;">Nová registrace</h3>
                 <form id="regForm">
                     <label>E-mail</label>
                     <input type="email" id="regEmail" required>
                     <label>Heslo (min 6 znaků)</label>
                     <input type="password" id="regPassword" required>
-                    <button type="submit" class="btn-outline">Vytvořit účet</button>
+                    <button type="submit" style="background: transparent; border: 2px solid var(--primary); color: var(--primary);">Vytvořit hlavní účet</button>
                 </form>
                 <div id="regMsg" class="msg"></div>
             </div>
-        </section>
-    </div>
-</div>
+        </div>
+    </section>
+
+    <section id="dashboard" class="page-section">
+        <div class="card" style="border-top: 5px solid var(--secondary);">
+            <h2>Vítejte v interním systému</h2>
+            <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+                <p>Přihlášený hlavní e-mail: <strong id="user-email"></strong></p>
+            </div>
+            <h3>Vaše hráčská rodina</h3>
+            <p style="margin-bottom: 1rem;">Zde brzy uvidíte profily svých hráčů, jejich ID pro platby a osobní statistiky z turnajů.</p>
+        </div>
+    </section>
+
+</main>
 
 <footer>
-    <p>&copy; Česká asociace prší z. s.</p>
+    <p>&copy; 2026 Česká asociace prší z. s. | Oficiální portál</p>
 </footer>
 
 <script>
+    // Supabase napojení
     const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
     const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-    // Prvky na stránce
-    const publicSection = document.getElementById('public-section');
-    const dashboardSection = document.getElementById('dashboard-section');
-    const navLogin = document.getElementById('nav-login');
-    const navLogout = document.getElementById('nav-logout');
-    const userEmailSpan = document.getElementById('user-email');
-
-    // Funkce pro změnu zobrazení podle toho, zda je uživatel přihlášen
-    function updateUI(user) {
-        if (user) {
-            publicSection.style.display = 'none';
-            dashboardSection.style.display = 'block';
-            navLogin.style.display = 'none';
-            navLogout.style.display = 'block';
-            userEmailSpan.innerText = user.email;
-        } else {
-            publicSection.style.display = 'block';
-            dashboardSection.style.display = 'none';
-            navLogin.style.display = 'block';
-            navLogout.style.display = 'none';
+    // Přepínání záložek
+    function showSection(sectionId) {
+        document.querySelectorAll('.page-section').forEach(sec => sec.classList.remove('active'));
+        document.getElementById(sectionId).classList.add('active');
+        
+        document.querySelectorAll('nav a').forEach(nav => nav.classList.remove('active'));
+        if(document.getElementById('nav-' + sectionId)) {
+            document.getElementById('nav-' + sectionId).classList.add('active');
         }
     }
 
-    // Kontrola při načtení stránky, jestli už není uživatel náhodou přihlášen z minula
+    // Změna rozhraní podle přihlášení
+    function updateUI(user) {
+        if (user) {
+            document.getElementById('nav-login-btn').style.display = 'none';
+            document.getElementById('nav-logout-btn').style.display = 'block';
+            document.getElementById('user-email').innerText = user.email;
+            
+            // Pokud byl člověk na stránce pro přihlášení, přesměruj ho do profilu
+            if(document.getElementById('auth').classList.contains('active')) {
+                showSection('dashboard');
+            }
+        } else {
+            document.getElementById('nav-login-btn').style.display = 'block';
+            document.getElementById('nav-logout-btn').style.display = 'none';
+            
+            // Pokud se odhlásil a byl v profilu, vykopni ho na úvod
+            if(document.getElementById('dashboard').classList.contains('active')) {
+                showSection('home');
+            }
+        }
+    }
+
+    // Zjištění stavu při načtení
     supabase.auth.getSession().then(({ data: { session } }) => {
         updateUI(session?.user);
     });
 
-    // Posluchač změn (když se někdo přihlásí/odhlásí)
     supabase.auth.onAuthStateChange((_event, session) => {
         updateUI(session?.user);
     });
 
-    // Odeslání registrace
+    // Registrace
     document.getElementById('regForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const email = document.getElementById('regEmail').value;
-        const password = document.getElementById('regPassword').value;
-        const msgDiv = document.getElementById('regMsg');
-
-        msgDiv.innerText = 'Zpracovávám...';
-        msgDiv.className = 'msg';
+        const msg = document.getElementById('regMsg');
+        msg.className = 'msg';
+        msg.innerText = 'Zpracovávám...';
+        msg.style.display = 'block';
 
         const { data, error } = await supabase.auth.signUp({
-            email: email,
-            password: password,
+            email: document.getElementById('regEmail').value,
+            password: document.getElementById('regPassword').value,
         });
 
         if (error) {
-            msgDiv.innerText = 'Chyba: ' + error.message;
-            msgDiv.className = 'msg error';
+            msg.className = 'msg error';
+            msg.innerText = 'Chyba: ' + error.message;
         } else {
-            msgDiv.innerText = 'Úspěšně zaregistrováno!';
-            msgDiv.className = 'msg success';
+            msg.className = 'msg success';
+            msg.innerText = 'Registrace proběhla úspěšně! Prosím, potvrďte svůj e-mail.';
         }
     });
 
-    // Odeslání přihlášení
+    // Přihlášení
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const email = document.getElementById('loginEmail').value;
-        const password = document.getElementById('loginPassword').value;
-        const msgDiv = document.getElementById('loginMsg');
-
-        msgDiv.innerText = 'Přihlašuji...';
-        msgDiv.className = 'msg';
+        const msg = document.getElementById('loginMsg');
+        msg.className = 'msg';
+        msg.innerText = 'Přihlašuji...';
+        msg.style.display = 'block';
 
         const { data, error } = await supabase.auth.signInWithPassword({
-            email: email,
-            password: password,
+            email: document.getElementById('loginEmail').value,
+            password: document.getElementById('loginPassword').value,
         });
 
         if (error) {
-            msgDiv.innerText = 'Špatný e-mail nebo heslo.';
-            msgDiv.className = 'msg error';
+            msg.className = 'msg error';
+            msg.innerText = 'Špatný e-mail nebo heslo.';
         } else {
-            msgDiv.innerText = '';
+            msg.style.display = 'none';
         }
     });
 
     // Odhlášení
     async function signOut() {
-        const { error } = await supabase.auth.signOut();
-        if (error) console.error('Chyba při odhlášení:', error);
+        await supabase.auth.signOut();
     }
 </script>
 
