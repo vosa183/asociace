@@ -199,7 +199,8 @@
 <script>
     const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
-    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+    // OPRAVENO: Přejmenováno z "supabase" na "db", aby to nekolidovalo s hlavní knihovnou
+    const db = window.supabase.createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null;
 
@@ -220,7 +221,7 @@
             document.getElementById('menu-profile').style.display = 'block';
             document.getElementById('menu-logout').style.display = 'block';
 
-            const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+            const { data, error } = await db.from('profiles').select('*').eq('id', user.id).single();
             
             if (data && data.full_name) {
                 document.getElementById('dash-name').innerText = data.full_name;
@@ -246,15 +247,15 @@
         }
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => checkAuthState(session?.user));
-    supabase.auth.onAuthStateChange((_event, session) => checkAuthState(session?.user));
+    db.auth.getSession().then(({ data: { session } }) => checkAuthState(session?.user));
+    db.auth.onAuthStateChange((_event, session) => checkAuthState(session?.user));
 
     document.getElementById('regForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const msg = document.getElementById('regMsg');
         msg.className = 'msg'; msg.innerText = 'Zpracovávám...'; msg.style.display = 'block';
 
-        const { error } = await supabase.auth.signUp({
+        const { error } = await db.auth.signUp({
             email: document.getElementById('regEmail').value,
             password: document.getElementById('regPassword').value,
         });
@@ -268,7 +269,7 @@
         const msg = document.getElementById('loginMsg');
         msg.className = 'msg'; msg.innerText = 'Přihlašuji...'; msg.style.display = 'block';
 
-        const { error } = await supabase.auth.signInWithPassword({
+        const { error } = await db.auth.signInWithPassword({
             email: document.getElementById('loginEmail').value,
             password: document.getElementById('loginPassword').value,
         });
@@ -290,7 +291,7 @@
             newsletter_consent: document.getElementById('profConsent').checked
         };
 
-        const { error } = await supabase.from('profiles').upsert(updates);
+        const { error } = await db.from('profiles').upsert(updates);
 
         if (error) {
             msg.className = 'msg error'; msg.innerText = 'Chyba ukládání: ' + error.message;
@@ -301,7 +302,7 @@
     });
 
     async function signOut() {
-        await supabase.auth.signOut();
+        await db.auth.signOut();
     }
 </script>
 
