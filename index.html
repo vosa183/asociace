@@ -127,6 +127,7 @@
             <form id="profileForm" style="max-width: 500px;">
                 <label>Vaše Jméno</label><input type="text" id="profName" required>
                 <label>Vaše ID průkazky (Slouží jako VS)</label><input type="text" id="profIdCard" required>
+                <label>Váš E-mail</label><input type="email" id="profEmail" required>
                 <label>Telefon</label><input type="text" id="profPhone" required>
                 <button type="submit">Uložit a pokračovat</button>
                 <div id="profMsg" class="msg"></div>
@@ -223,7 +224,7 @@
                 
                 document.getElementById('dash-name').innerText = data.full_name;
                 document.getElementById('dash-id').innerText = data.player_id_card;
-                document.getElementById('dash-email').innerText = user.email;
+                document.getElementById('dash-email').innerText = data.email || user.email;
                 document.getElementById('dash-role').innerText = userRole.toUpperCase();
 
                 if (userRole === 'zc' || userRole === 'admin' || userRole === 'superadmin') {
@@ -296,10 +297,27 @@
         const msg = document.getElementById('profMsg');
         msg.className = 'msg'; msg.innerText = 'Ukládám data...'; msg.style.display = 'block';
 
+        const enteredId = document.getElementById('profIdCard').value;
+
+        const { data: familyCheck } = await db.from('players').select('id').eq('player_id_card', enteredId);
+        if (familyCheck && familyCheck.length > 0) {
+            msg.className = 'msg error'; 
+            msg.innerText = 'Toto ID je již vedeno v rodinném účtu jiného člena. Registrace není možná.';
+            return;
+        }
+
+        const { data: profCheck } = await db.from('profiles').select('id').eq('player_id_card', enteredId).neq('id', currentUser.id);
+        if (profCheck && profCheck.length > 0) {
+            msg.className = 'msg error'; 
+            msg.innerText = 'Toto ID již používá jiný registrovaný člen.';
+            return;
+        }
+
         const updates = {
             id: currentUser.id,
             full_name: document.getElementById('profName').value,
-            player_id_card: document.getElementById('profIdCard').value,
+            player_id_card: enteredId,
+            email: document.getElementById('profEmail').value,
             phone: document.getElementById('profPhone').value
         };
 
