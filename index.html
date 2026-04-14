@@ -16,6 +16,7 @@
         nav ul { display: flex; list-style: none; gap: 1rem; flex-wrap: wrap; }
         nav a { text-decoration: none; color: var(--primary); font-weight: 600; cursor: pointer; padding: 0.5rem 1rem; border-radius: 6px; transition: 0.2s; }
         nav a:hover, nav a.active { background: var(--gray); color: var(--secondary); }
+        .admin-link { color: #d69e2e; }
         main { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; min-height: 60vh; }
         .page-section { display: none; animation: fadeIn 0.3s ease; }
         .page-section.active { display: block; }
@@ -25,7 +26,7 @@
         h3 { color: var(--primary); margin-bottom: 1rem; font-size: 1.2rem; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
         label { display: block; font-weight: bold; margin-bottom: 0.3rem; font-size: 0.9rem; }
-        input, textarea, select { width: 100%; padding: 0.8rem; margin-bottom: 1.2rem; border-radius: 6px; border: 1px solid #ccc; }
+        input, textarea, select { width: 100%; padding: 0.8rem; margin-bottom: 1.2rem; border-radius: 6px; border: 1px solid #ccc; font-family: inherit; }
         button { background: var(--primary); color: white; border: none; padding: 0.8rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; }
         button:hover { background: var(--secondary); }
         .btn-small { width: auto; padding: 0.4rem 0.8rem; font-size: 0.8rem; }
@@ -37,6 +38,7 @@
         .list-item { background: var(--gray); padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
         .badge { background: var(--primary); color: white; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.8rem; }
         .hash-box { background: #1a202c; color: #48bb78; padding: 0.5rem; font-family: monospace; font-size: 0.8rem; border-radius: 4px; word-break: break-all;}
+        footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 2rem; }
     </style>
 </head>
 <body>
@@ -50,6 +52,7 @@
         <ul>
             <li><a onclick="switchTab('home')" id="nav-home" class="active">Úvod</a></li>
             <li><a onclick="switchTab('rules')" id="nav-rules">Pravidla</a></li>
+            <li><a onclick="switchTab('host')" id="nav-host">Pořádejte turnaj</a></li>
             <li id="menu-auth"><a onclick="switchTab('auth')" id="nav-auth">Pro členy</a></li>
             <li id="menu-tournaments" style="display:none;"><a onclick="switchTab('tournaments')" id="nav-tournaments">Turnaje</a></li>
             <li id="menu-voting" style="display:none; color:#d69e2e;"><a onclick="switchTab('voting')" id="nav-voting">Hlasování ZČ</a></li>
@@ -77,13 +80,26 @@
         </div>
     </section>
 
+    <section id="host" class="page-section">
+        <div class="card">
+            <h2>Uspořádejte s námi turnaj</h2>
+            <p style="margin-bottom: 2rem;">Máte k dispozici sál nebo hospodu a chcete k vám přivést oficiální turnaj? Napište nám!</p>
+            <form action="https://formspree.io/f/TVUJ_KOD" method="POST" style="max-width: 500px;">
+                <label>Jméno nebo název podniku</label><input type="text" name="jmeno" required>
+                <label>Váš e-mail</label><input type="email" name="email" required>
+                <label>Město a kapacita</label><textarea name="misto" rows="4" required></textarea>
+                <button type="submit">Odeslat poptávku</button>
+            </form>
+        </div>
+    </section>
+
     <section id="auth" class="page-section">
         <div class="card grid-2">
             <div>
                 <h3>Přihlášení</h3>
                 <form id="loginForm">
-                    <input type="email" id="loginEmail" placeholder="E-mail" required>
-                    <input type="password" id="loginPassword" placeholder="Heslo" required>
+                    <label>E-mail</label><input type="email" id="loginEmail" required>
+                    <label>Heslo</label><input type="password" id="loginPassword" required>
                     <button type="submit">Vstoupit</button>
                     <div id="loginMsg" class="msg"></div>
                 </form>
@@ -91,8 +107,8 @@
             <div>
                 <h3>Registrace</h3>
                 <form id="regForm">
-                    <input type="email" id="regEmail" placeholder="E-mail" required>
-                    <input type="password" id="regPassword" placeholder="Heslo (min 6 znaků)" required>
+                    <label>E-mail</label><input type="email" id="regEmail" required>
+                    <label>Heslo (min 6 znaků)</label><input type="password" id="regPassword" required>
                     <button type="submit" style="background: transparent; color: var(--primary); border: 2px solid var(--primary);">Vytvořit účet</button>
                     <div id="regMsg" class="msg"></div>
                 </form>
@@ -109,7 +125,7 @@
                 <label>E-mail pro komunikaci</label><input type="email" id="profEmail" required>
                 <label>Telefonní číslo</label><input type="text" id="profPhone" required>
                 <div style="margin-bottom: 1rem;">
-                    <input type="checkbox" id="profConsent" required style="width: auto;"> Souhlasím se zpracováním údajů, VOP a zveřejněním turnajových statistik.
+                    <input type="checkbox" id="profConsent" required style="width: auto; transform: scale(1.2); margin-right: 8px;"> Souhlasím se zpracováním údajů, VOP a zveřejněním turnajových statistik.
                 </div>
                 <button type="submit">Uložit a pokračovat</button>
                 <div id="profMsg" class="msg"></div>
@@ -131,10 +147,10 @@
                 <h3 style="border-top: 1px solid #ccc; padding-top: 2rem;">Hráčská rodina</h3>
                 <p style="font-size: 0.9rem; margin-bottom: 1.5rem;">Zde můžete přidávat a odebírat členy rodiny pro přihlašování na turnaje. Své vlastní údaje sem znovu nepřidávejte.</p>
                 
-                <form id="addFamilyForm" style="display: flex; gap: 1rem; align-items: flex-end;">
-                    <div style="flex: 2;"><label>Jméno hráče</label><input type="text" id="famName" style="margin:0;" required></div>
-                    <div style="flex: 1;"><label>ID průkazky</label><input type="text" id="famId" style="margin:0;" required></div>
-                    <button type="submit" style="flex: 1; margin:0;">+ Přidat</button>
+                <form id="addFamilyForm" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+                    <div style="flex: 2; min-width: 200px;"><label>Jméno hráče</label><input type="text" id="famName" style="margin:0;" required></div>
+                    <div style="flex: 1; min-width: 150px;"><label>ID průkazky</label><input type="text" id="famId" style="margin:0;" required></div>
+                    <button type="submit" style="flex: 1; min-width: 100px; margin:0;">+ Přidat</button>
                 </form>
                 <div id="famMsg" class="msg"></div>
                 <ul class="family-list" id="familyList"></ul>
@@ -145,7 +161,7 @@
     <section id="tournaments" class="page-section">
         <div class="card">
             <h2>Vypsané turnaje</h2>
-            <p>Startovné se hradí bankovním převodem. Jako Variabilní symbol použijte své ID průkazu.</p>
+            <p style="margin-bottom: 1.5rem;">Startovné se hradí bankovním převodem. Jako Variabilní symbol použijte své ID průkazu.</p>
             <div id="tournamentsList">Načítám turnaje...</div>
         </div>
     </section>
@@ -153,7 +169,7 @@
     <section id="voting" class="page-section">
         <div class="card" style="border-top: 4px solid #d69e2e;">
             <h2 style="color: #d69e2e; border-color: #d69e2e;">Hlasování Zakládajících členů</h2>
-            <p>Hlasování je platné 15 dní. Neodevzdané hlasy se automaticky připočítají k většině. Remíza znamená neplatné hlasování.</p>
+            <p style="margin-bottom: 1.5rem;">Hlasování je platné 15 dní. Neodevzdané hlasy se automaticky připočítají k většině. Remíza znamená neplatné hlasování.</p>
             <div id="votingList">Načítám hlasování...</div>
         </div>
     </section>
@@ -162,9 +178,9 @@
         <div class="card" style="border-top: 4px solid var(--primary);">
             <h2>Administrace systému</h2>
             
-            <div id="superAdminZone" style="display: none; background: #fffbeb; padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem;">
-                <h3 style="color: #b7791f;">⚙️ Pohled pod kapotu (Super Admin)</h3>
-                <label>Simulace role:</label>
+            <div id="superAdminZone" style="display: none; background: #fffbeb; border: 1px solid #f6e05e; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+                <h3 style="color: #b7791f; margin-bottom: 1rem;">⚙️ Pohled pod kapotu (Super Admin)</h3>
+                <label>Simulace role (Změní, jak vidíte web vy):</label>
                 <select id="roleSwitcher" style="max-width: 300px;">
                     <option value="superadmin">Super Admin (Vše)</option>
                     <option value="zc">Zakládající člen (ZČ)</option>
@@ -174,20 +190,20 @@
             </div>
 
             <div id="zcZone" style="display: none;">
-                <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem;">
+                <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
                     <h3>Vypsat nový turnaj</h3>
                     <form id="createTournamentForm">
-                        <input type="text" id="tName" placeholder="Název (např. Jarní pohár)" required>
-                        <input type="date" id="tDate" required>
-                        <input type="number" id="tCap" placeholder="Kapacita (výchozí 80)" value="80">
+                        <label>Název turnaje</label><input type="text" id="tName" required>
+                        <label>Datum</label><input type="date" id="tDate" required>
+                        <label>Kapacita</label><input type="number" id="tCap" value="80" required>
                         <button type="submit">Vytvořit turnaj</button>
                     </form>
                 </div>
 
-                <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem;">
+                <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
                     <h3>Nové hlasování ZČ</h3>
                     <form id="createVoteForm">
-                        <input type="text" id="vTitle" placeholder="Otázka k hlasování" required>
+                        <label>Otázka k hlasování</label><input type="text" id="vTitle" required>
                         <button type="submit" style="background: #d69e2e;">Zahájit 15denní hlasování</button>
                     </form>
                 </div>
@@ -237,7 +253,6 @@
             document.getElementById('menu-tournaments').style.display = 'block';
             document.getElementById('menu-logout').style.display = 'block';
 
-            // Zde je oprava: maybeSingle() nevyhodí chybu, když profil ještě neexistuje
             const { data, error } = await db.from('profiles').select('*').eq('id', user.id).maybeSingle();
             
             if (data && data.full_name) {
@@ -329,17 +344,16 @@
                 list.innerHTML += `<li class="list-item"><span><strong>${p.full_name}</strong> (ID: ${p.player_id_card})</span>
                 <button class="btn-small btn-danger" onclick="removeFamily('${p.id}')">Odebrat</button></li>`;
             });
-        } else { list.innerHTML = '<li>Zatím žádní členové.</li>'; }
+        } else { list.innerHTML = '<li><span style="color: #777;">Zatím nemáte přidané žádné další členy rodiny.</span></li>'; }
     }
 
     window.removeFamily = async function(id) {
-        if(confirm('Opravdu odebrat?')) { await db.from('players').delete().eq('id', id); loadFamily(); }
+        if(confirm('Opravdu odebrat člena rodiny?')) { await db.from('players').delete().eq('id', id); loadFamily(); }
     };
 
     document.getElementById('profileForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const msg = document.getElementById('profMsg');
-        msg.className = 'msg'; msg.innerText = 'Ukládám...'; msg.style.display = 'block';
+        const msg = document.getElementById('profMsg'); msg.className = 'msg'; msg.innerText = 'Ukládám...'; msg.style.display = 'block';
         
         const enteredId = document.getElementById('profIdCard').value;
         const { data: fCheck } = await db.from('players').select('id').eq('player_id_card', enteredId);
@@ -347,7 +361,7 @@
 
         const updates = { id: currentUser.id, full_name: document.getElementById('profName').value, player_id_card: enteredId, email: document.getElementById('profEmail').value, phone: document.getElementById('profPhone').value };
         const { error } = await db.from('profiles').upsert(updates);
-        if (error) { msg.className = 'msg error'; msg.innerText = 'Chyba: ' + error.message; } 
+        if (error) { msg.className = 'msg error'; msg.innerText = 'Chyba ukládání: ' + error.message; } 
         else { msg.style.display = 'none'; checkAuthState(currentUser); }
     });
 
@@ -355,35 +369,36 @@
         e.preventDefault();
         const msg = document.getElementById('famMsg');
         const { error } = await db.from('players').insert({ owner_id: currentUser.id, full_name: document.getElementById('famName').value, player_id_card: document.getElementById('famId').value });
-        if(!error) { document.getElementById('addFamilyForm').reset(); msg.style.display='none'; loadFamily(); } else { msg.className='msg error'; msg.innerText='ID už existuje.'; msg.style.display='block'; }
+        if(!error) { document.getElementById('addFamilyForm').reset(); msg.style.display='none'; loadFamily(); } 
+        else { msg.className='msg error'; msg.innerText='Chyba: Toto ID průkazky už v systému existuje.'; msg.style.display='block'; }
     });
 
     document.getElementById('createTournamentForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         await db.from('tournaments').insert({ title: document.getElementById('tName').value, event_date: document.getElementById('tDate').value, capacity: document.getElementById('tCap').value });
-        alert('Turnaj vypsán!'); document.getElementById('createTournamentForm').reset();
+        alert('Turnaj úspěšně vypsán!'); document.getElementById('createTournamentForm').reset();
     });
 
     async function loadTournaments() {
         const { data: tourns } = await db.from('tournaments').select('*').order('created_at', { ascending: false });
         const list = document.getElementById('tournamentsList'); list.innerHTML = '';
-        if(!tourns || tourns.length === 0) { list.innerHTML = '<p>Žádné vypsané turnaje.</p>'; return; }
+        if(!tourns || tourns.length === 0) { list.innerHTML = '<p>Zatím nejsou vypsané žádné turnaje.</p>'; return; }
 
         for (let t of tourns) {
             const { count } = await db.from('registrations').select('*', { count: 'exact' }).eq('tournament_id', t.id);
             let isFull = count >= t.capacity;
-            let btnText = isFull ? 'Přihlásit jako NÁHRADNÍK (Plno)' : 'Přihlásit sebe na turnaj';
+            let btnText = isFull ? 'Přihlásit jako NÁHRADNÍK (Kapacita plná)' : 'Přihlásit sebe na turnaj';
             let btnColor = isFull ? '#ed8936' : 'var(--primary)';
             let familySelectOptions = myFamily.map(f => `<option value="${f.id}">${f.full_name} (ID: ${f.player_id_card})</option>`).join('');
             
             list.innerHTML += `
             <div class="list-item" style="flex-direction: column; align-items: flex-start;">
-                <h4>${t.title} (Datum: ${t.event_date})</h4>
+                <h4>${t.title} (Datum konání: ${t.event_date})</h4>
                 <p>Obsazeno: ${count || 0}/${t.capacity} | Startovné: ${t.fee} Kč</p>
-                <div style="display:flex; gap:10px; width:100%; margin-top:10px;">
+                <div style="display:flex; gap:10px; width:100%; margin-top:10px; flex-wrap: wrap;">
                     <button class="btn-small" style="background:${btnColor}" onclick="joinTournament('${t.id}')">${btnText}</button>
                     ${myFamily.length > 0 ? `
-                        <select id="famSel_${t.id}" style="margin:0; max-width:200px;">${familySelectOptions}</select>
+                        <select id="famSel_${t.id}" style="margin:0; width:auto;">${familySelectOptions}</select>
                         <button class="btn-small" onclick="joinFamilyTournament('${t.id}')">Přihlásit člena</button>
                     ` : ''}
                 </div>
@@ -391,8 +406,8 @@
         }
     }
 
-    window.joinTournament = async function(tId) { alert('Přihláška uložena. Instrukce k platbě pod vaším VS obdržíte.'); loadTournaments(); };
-    window.joinFamilyTournament = async function(tId) { alert('Člen přihlášen. Nezapomeňte uhradit poplatek pod jeho VS.'); loadTournaments(); };
+    window.joinTournament = async function(tId) { alert('Přihláška zpracována. Instrukce k platbě pod vaším VS obdržíte na e-mail.'); loadTournaments(); };
+    window.joinFamilyTournament = async function(tId) { alert('Člen rodiny přihlášen. Nezapomeňte uhradit poplatek pod jeho unikátním VS.'); loadTournaments(); };
 
     document.getElementById('createVoteForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -403,13 +418,13 @@
     async function loadVotes() {
         const { data: votes } = await db.from('votes').select('*').eq('is_closed', false);
         const list = document.getElementById('votingList'); list.innerHTML = '';
-        if(!votes || votes.length === 0) { list.innerHTML = '<p>Žádné aktivní hlasování.</p>'; return; }
+        if(!votes || votes.length === 0) { list.innerHTML = '<p>Zatím žádné aktivní hlasování.</p>'; return; }
 
         for(let v of votes) {
             const { data: myVote } = await db.from('voting_records').select('vote_hash').eq('vote_id', v.id).eq('voter_id', currentUser.id).maybeSingle();
             if(myVote) {
                 list.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:flex-start;">
-                    <h4>${v.title}</h4><p>Váš hlas zaznamenán. Hash: <span class="hash-box">${myVote.vote_hash}</span></p>
+                    <h4>${v.title}</h4><p>Váš hlas byl zaznamenán. Hash: <span class="hash-box">${myVote.vote_hash}</span></p>
                 </div>`;
             } else {
                 list.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:flex-start;">
@@ -426,15 +441,18 @@
     window.castVote = async function(voteId, choice) {
         const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
         await db.from('voting_records').insert({ vote_id: voteId, voter_id: currentUser.id, choice: choice, vote_hash: hash });
-        alert(`Hlas odeslán! Váš HASH: ${hash}`); loadVotes();
+        alert(`Hlas odeslán! Váš kontrolní HASH je: ${hash}`); loadVotes();
     };
 
     document.getElementById('uploadResultsForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const msg = document.getElementById('uploadMsg');
         const file = document.getElementById('resultFile').files[0];
         if (!file) return;
+        msg.className = 'msg'; msg.innerText = 'Nahrávám soubor...'; msg.style.display = 'block';
         const { error } = await db.storage.from('results').upload(`vysledky_${Date.now()}_${file.name}`, file);
-        if(error) alert('Chyba: ' + error.message); else { alert('Uloženo!'); document.getElementById('uploadResultsForm').reset(); }
+        if(error) { msg.className = 'msg error'; msg.innerText = 'Chyba: ' + error.message; } 
+        else { msg.className = 'msg success'; msg.innerText = 'Výsledky byly úspěšně uloženy do systému!'; document.getElementById('uploadResultsForm').reset(); }
     });
 </script>
 </body>
