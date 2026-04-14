@@ -50,7 +50,7 @@
 
 <header>
     <div class="logo-container" onclick="switchTab('home')">
-        <img src="./logo.png" alt="Logo">
+        <img src="logo.png" alt="Logo">
         <h1>Česká asociace prší</h1>
     </div>
     <nav>
@@ -138,16 +138,16 @@
     <section id="dashboard" class="page-section">
         <div class="card">
             <h2>Váš profil</h2>
-            <div style="background: var(--gray); padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
-                <p><strong>Jméno:</strong> <span id="dash-name">...</span></p>
-                <p><strong>ID:</strong> <span id="dash-id">...</span> <span class="badge" id="dash-role">...</span></p>
-                <p><strong>E-mail:</strong> <span id="dash-email">...</span></p>
+            <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+                <p><strong>Jméno:</strong> <span id="dash-name">Načítám...</span></p>
+                <p><strong>ID (VS):</strong> <span id="dash-id">Načítám...</span> <span class="badge" id="dash-role">...</span></p>
+                <p><strong>E-mail:</strong> <span id="dash-email">Načítám...</span></p>
             </div>
 
             <h3 style="border-top: 1px solid #ccc; padding-top: 2rem;">Hráčská rodina</h3>
-            <p style="font-size: 0.9rem;">Zde můžete přidat členy rodiny, které budete přihlašovat na turnaje. Své vlastní údaje z profilu výše sem znovu nepřidávejte.</p>
+            <p style="font-size: 0.9rem; margin-bottom: 1.5rem;">Zde můžete přidat členy rodiny, které budete přihlašovat na turnaje. Své vlastní údaje sem znovu nepřidávejte.</p>
             
-            <form id="addFamilyForm" style="display: flex; gap: 1rem; margin-top: 1rem; align-items: flex-end;">
+            <form id="addFamilyForm" style="display: flex; gap: 1rem; align-items: flex-end;">
                 <div style="flex: 2;">
                     <label>Jméno hráče</label>
                     <input type="text" id="famName" style="margin:0;" required>
@@ -187,12 +187,39 @@
     let currentUser = null;
     let userRole = 'player';
 
+    // Slovník pro překlad rolí do češtiny
+    const roleNames = {
+        'player': 'Hráč',
+        'pc': 'Přidružený člen (PČ)',
+        'zc': 'Zakládající člen (ZČ)',
+        'superadmin': 'Super Admin'
+    };
+
     function switchTab(tabId) {
         document.querySelectorAll('.page-section').forEach(sec => sec.classList.remove('active'));
         document.getElementById(tabId).classList.add('active');
         document.querySelectorAll('nav a').forEach(link => link.classList.remove('active'));
         const activeLink = document.getElementById('nav-' + tabId);
         if (activeLink) activeLink.classList.add('active');
+
+        // Pokud uživatel klikne na profil, vynutíme aktualizaci dat
+        if (tabId === 'dashboard' && currentUser) {
+            refreshDashboardData();
+        }
+    }
+
+    async function refreshDashboardData() {
+        const { data, error } = await db.from('profiles').select('*').eq('id', currentUser.id).single();
+        if (data && data.full_name) {
+            userRole = data.role || 'player';
+            document.getElementById('dash-name').innerText = data.full_name;
+            document.getElementById('dash-id').innerText = data.player_id_card;
+            document.getElementById('dash-email').innerText = data.email || currentUser.email;
+            document.getElementById('dash-role').innerText = roleNames[userRole];
+            loadFamily();
+        } else {
+            switchTab('profile-setup');
+        }
     }
 
     async function loadFamily() {
@@ -221,23 +248,17 @@
             
             if (data && data.full_name) {
                 userRole = data.role || 'player';
-                
-                document.getElementById('dash-name').innerText = data.full_name;
-                document.getElementById('dash-id').innerText = data.player_id_card;
-                document.getElementById('dash-email').innerText = data.email || user.email;
-                document.getElementById('dash-role').innerText = userRole.toUpperCase();
-
                 if (userRole === 'zc' || userRole === 'admin' || userRole === 'superadmin') {
                     document.getElementById('menu-admin').style.display = 'block';
                 } else {
                     document.getElementById('menu-admin').style.display = 'none';
                 }
-
-                loadFamily();
                 
                 const currentTab = document.querySelector('.page-section.active').id;
                 if (currentTab === 'auth' || currentTab === 'profile-setup') {
                     switchTab('dashboard');
+                } else if (currentTab === 'dashboard') {
+                    refreshDashboardData();
                 }
             } else {
                 switchTab('profile-setup');
@@ -353,7 +374,10 @@
         }
     });
 
-    async function signOut() { await db.auth.signOut(); }
+    async function signOut() { 
+        await db.auth.signOut(); 
+        window.location.reload(); 
+    }
 </script>
 
 </body>
