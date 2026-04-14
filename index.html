@@ -18,7 +18,7 @@
         nav ul { display: flex; list-style: none; gap: 1.5rem; }
         nav a { text-decoration: none; color: var(--primary); font-weight: 600; cursor: pointer; padding: 0.5rem 1rem; border-radius: 6px; transition: 0.2s; }
         nav a:hover, nav a.active { background: var(--gray); color: var(--secondary); }
-        .admin-link { color: #d69e2e; } /* Zlatá barva pro adminy */
+        .admin-link { color: #d69e2e; }
 
         main { max-width: 1000px; margin: 3rem auto; padding: 0 1.5rem; min-height: 60vh; }
         .page-section { display: none; animation: fadeIn 0.3s ease; }
@@ -31,7 +31,7 @@
 
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; }
         label { display: block; font-weight: bold; margin-bottom: 0.3rem; font-size: 0.9rem; }
-        input { width: 100%; padding: 0.8rem; margin-bottom: 1.2rem; border-radius: 6px; border: 1px solid #ccc; }
+        input, textarea { width: 100%; padding: 0.8rem; margin-bottom: 1.2rem; border-radius: 6px; border: 1px solid #ccc; font-family: inherit; }
         button { background: var(--primary); color: white; border: none; padding: 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; }
         button:hover { background: var(--secondary); }
         
@@ -39,7 +39,6 @@
         .error { background: #fed7d7; color: #c53030; display: block; }
         .success { background: #c6f6d5; color: #2f855a; display: block; }
 
-        /* Styly pro rodinu */
         .family-list { list-style: none; margin-top: 1.5rem; }
         .family-list li { background: var(--gray); padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
         .badge { background: var(--primary); color: white; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.8rem; }
@@ -58,6 +57,7 @@
         <ul>
             <li><a href="javascript:void(0);" onclick="switchTab('home')" id="nav-home" class="active">Úvod</a></li>
             <li><a href="javascript:void(0);" onclick="switchTab('rules')" id="nav-rules">Pravidla</a></li>
+            <li><a href="javascript:void(0);" onclick="switchTab('host')" id="nav-host">Pořádejte turnaj</a></li>
             <li id="menu-auth"><a href="javascript:void(0);" onclick="switchTab('auth')" id="nav-auth">Pro členy</a></li>
             
             <li id="menu-profile" style="display:none;"><a href="javascript:void(0);" onclick="switchTab('dashboard')" id="nav-dashboard">Můj profil</a></li>
@@ -82,6 +82,22 @@
         </div>
     </section>
 
+    <section id="host" class="page-section">
+        <div class="card">
+            <h2>Uspořádejte s námi turnaj</h2>
+            <p style="margin-bottom: 2rem;">Máte k dispozici sál nebo hospodu a chcete k vám přivést oficiální turnaj? Napište nám!</p>
+            <form action="https://formspree.io/f/TVUJ_KOD" method="POST" style="max-width: 500px;">
+                <label>Jméno nebo název podniku</label>
+                <input type="text" name="jmeno" required>
+                <label>Váš e-mail</label>
+                <input type="email" name="email" required>
+                <label>Město a předpokládaná kapacita</label>
+                <textarea name="misto" rows="4" required></textarea>
+                <button type="submit">Odeslat nezávaznou poptávku</button>
+            </form>
+        </div>
+    </section>
+
     <section id="auth" class="page-section">
         <div class="card grid-2">
             <div>
@@ -97,7 +113,7 @@
                 <h3>Registrace</h3>
                 <form id="regForm">
                     <label>E-mail</label><input type="email" id="regEmail" required>
-                    <label>Heslo</label><input type="password" id="regPassword" required>
+                    <label>Heslo (min 6 znaků)</label><input type="password" id="regPassword" required>
                     <button type="submit" style="background: transparent; color: var(--primary); border: 2px solid var(--primary);">Vytvořit účet</button>
                     <div id="regMsg" class="msg"></div>
                 </form>
@@ -144,7 +160,7 @@
             <div id="famMsg" class="msg"></div>
             
             <ul class="family-list" id="familyList">
-                </ul>
+            </ul>
         </div>
     </section>
 
@@ -178,7 +194,6 @@
         if (activeLink) activeLink.classList.add('active');
     }
 
-    // Načtení členů rodiny z databáze
     async function loadFamily() {
         const { data, error } = await db.from('players').select('*').eq('owner_id', currentUser.id);
         const list = document.getElementById('familyList');
@@ -204,21 +219,20 @@
             const { data, error } = await db.from('profiles').select('*').eq('id', user.id).single();
             
             if (data && data.full_name) {
-                userRole = data.role || 'player'; // Zjištění role
+                userRole = data.role || 'player';
                 
                 document.getElementById('dash-name').innerText = data.full_name;
                 document.getElementById('dash-id').innerText = data.player_id_card;
                 document.getElementById('dash-email').innerText = user.email;
                 document.getElementById('dash-role').innerText = userRole.toUpperCase();
 
-                // Zobrazit administraci, pokud je ZČ nebo admin
                 if (userRole === 'zc' || userRole === 'admin' || userRole === 'superadmin') {
                     document.getElementById('menu-admin').style.display = 'block';
                 } else {
                     document.getElementById('menu-admin').style.display = 'none';
                 }
 
-                loadFamily(); // Načteme rodinu
+                loadFamily();
                 
                 const currentTab = document.querySelector('.page-section.active').id;
                 if (currentTab === 'auth' || currentTab === 'profile-setup') {
@@ -243,32 +257,62 @@
     db.auth.getSession().then(({ data: { session } }) => checkAuthState(session?.user));
     db.auth.onAuthStateChange((_event, session) => checkAuthState(session?.user));
 
-    // Auth formuláře (Přihlášení / Registrace / Profil)
     document.getElementById('regForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const { error } = await db.auth.signUp({ email: document.getElementById('regEmail').value, password: document.getElementById('regPassword').value });
-        if (error) alert(error.message); else alert('Účet vytvořen!');
+        const msg = document.getElementById('regMsg');
+        msg.className = 'msg'; msg.innerText = 'Zpracovávám...'; msg.style.display = 'block';
+
+        const { error } = await db.auth.signUp({
+            email: document.getElementById('regEmail').value,
+            password: document.getElementById('regPassword').value
+        });
+
+        if (error) {
+            msg.className = 'msg error'; msg.innerText = error.message;
+        } else {
+            msg.className = 'msg success'; msg.innerText = 'Účet vytvořen! Nyní se můžete přihlásit.';
+        }
     });
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const { error } = await db.auth.signInWithPassword({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPassword').value });
-        if (error) alert('Špatný e-mail nebo heslo.');
+        const msg = document.getElementById('loginMsg');
+        msg.className = 'msg'; msg.innerText = 'Přihlašuji...'; msg.style.display = 'block';
+
+        const { error } = await db.auth.signInWithPassword({
+            email: document.getElementById('loginEmail').value,
+            password: document.getElementById('loginPassword').value
+        });
+
+        if (error) {
+            msg.className = 'msg error'; msg.innerText = 'Špatný e-mail nebo heslo.';
+        } else {
+            msg.style.display = 'none';
+        }
     });
 
     document.getElementById('profileForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const msg = document.getElementById('profMsg');
+        msg.className = 'msg'; msg.innerText = 'Ukládám data...'; msg.style.display = 'block';
+
         const updates = {
             id: currentUser.id,
             full_name: document.getElementById('profName').value,
             player_id_card: document.getElementById('profIdCard').value,
             phone: document.getElementById('profPhone').value
         };
+
         const { error } = await db.from('profiles').upsert(updates);
-        if (!error) checkAuthState(currentUser);
+
+        if (error) {
+            msg.className = 'msg error'; msg.innerText = 'Chyba ukládání: ' + error.message;
+        } else {
+            msg.style.display = 'none';
+            checkAuthState(currentUser);
+        }
     });
 
-    // Přidání člena rodiny
     document.getElementById('addFamilyForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const msg = document.getElementById('famMsg');
@@ -287,7 +331,7 @@
             msg.style.display = 'none';
             document.getElementById('famName').value = '';
             document.getElementById('famId').value = '';
-            loadFamily(); // Aktualizovat seznam
+            loadFamily();
         }
     });
 
