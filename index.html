@@ -34,8 +34,8 @@
         input, textarea, select { width: 100%; padding: 0.8rem; margin-bottom: 1.2rem; border-radius: 6px; border: 1px solid #ccc; font-family: inherit; }
         button { background: var(--primary); color: white; border: none; padding: 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; }
         button:hover { background: var(--secondary); }
-        .btn-small { padding: 0.4rem 0.8rem; font-size: 0.8rem; width: auto; }
-        .btn-danger { background: var(--secondary); }
+        .btn-small { padding: 0.4rem 0.8rem; font-size: 0.8rem; width: auto; background: var(--secondary); }
+        .btn-small:hover { background: #9b2c2c; }
         
         .msg { margin-top: 1rem; font-weight: bold; padding: 0.8rem; border-radius: 6px; display: none; text-align: center; }
         .error { background: #fed7d7; color: #c53030; display: block; }
@@ -124,10 +124,10 @@
         <div class="card">
             <h2>Dokončení registrace profilu</h2>
             <form id="profileForm" style="max-width: 500px;">
-                <label>Vaše Jméno</label><input type="text" id="profName" required>
+                <label>Vaše Jméno a Příjmení</label><input type="text" id="profName" required>
                 <label>ID průkazky (Slouží jako VS)</label><input type="text" id="profIdCard" required>
-                <label>Váš E-mail</label><input type="email" id="profEmail" required>
-                <label>Telefon</label><input type="text" id="profPhone" required>
+                <label>Váš E-mail pro komunikaci</label><input type="email" id="profEmail" required>
+                <label>Telefonní číslo</label><input type="text" id="profPhone" required>
                 <button type="submit">Uložit a pokračovat</button>
                 <div id="profMsg" class="msg"></div>
             </form>
@@ -137,7 +137,7 @@
 <section id="dashboard" class="page-section">
         <div class="card">
             <h2>Váš profil</h2>
-            <div id="dashLoading" style="display: block; font-weight: bold; color: var(--primary);">Načítám data z databáze...</div>
+            <div id="dashLoading" style="display: block; font-weight: bold; color: var(--primary);">Načítám data...</div>
             <div id="dashContent" style="display: none;">
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
                     <p><strong>Jméno:</strong> <span id="dash-name"></span></p>
@@ -165,17 +165,17 @@
             
             <div id="superAdminZone" style="display: none; background: #fffbeb; border: 1px solid #f6e05e; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
                 <h3 style="color: #b7791f;">⚙️ Pod kapotou (Super Admin)</h3>
-                <label>Simulace pohledu uživatele:</label>
+                <label>Simulace pohledu uživatele na webu:</label>
                 <select id="roleSwitcher" style="max-width: 300px;">
                     <option value="superadmin">Super Admin (Plný přístup)</option>
                     <option value="zc">Zakládající člen (ZČ)</option>
                     <option value="pc">Přidružený člen (PČ)</option>
                     <option value="player">Běžný hráč</option>
                 </select>
-                <p style="font-size: 0.85rem; color: #718096;">Změna role zde pouze upraví to, jak vidíte stránku vy. Nemění to vaši reálnou roli v databázi.</p>
+                <p style="font-size: 0.85rem; color: #718096; margin-top: 0.5rem;">Změna zde dočasně upraví funkce webu. Nemění to reálnou roli v databázi.</p>
             </div>
 
-            <div id="zcZone" style="background: var(--gray); padding: 1.5rem; border-radius: 8px;">
+            <div id="zcZone" style="display: none; background: var(--gray); padding: 1.5rem; border-radius: 8px;">
                 <h3>Nahrát výsledky turnaje</h3>
                 <p style="font-size: 0.9rem; margin-bottom: 1rem;">Nahrajte finální výsledkovou listinu v PDF nebo Excelu (.xlsx).</p>
                 <form id="uploadResultsForm">
@@ -196,8 +196,8 @@
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null;
-    let actualUserRole = 'player'; // Skutečná role z databáze
-    let simulatedRole = 'player'; // Role pro UI (kvůli Super Adminovi)
+    let actualUserRole = 'player';
+    let simulatedRole = 'player';
 
     const roleNames = { 'player': 'Hráč', 'pc': 'Přidružený člen (PČ)', 'zc': 'Zakládající člen (ZČ)', 'superadmin': 'Super Admin' };
 
@@ -218,22 +218,17 @@
             document.getElementById('menu-profile').style.display = 'block';
             document.getElementById('menu-logout').style.display = 'block';
 
-            try {
-                const { data, error } = await db.from('profiles').select('*').eq('id', user.id).single();
-                if (data && data.full_name) {
-                    actualUserRole = data.role || 'player';
-                    if (simulatedRole === 'player') simulatedRole = actualUserRole; // Inicializace simulace
-                    
-                    updateMenuByRole();
-                    
-                    const currentTab = document.querySelector('.page-section.active').id;
-                    if (currentTab === 'auth' || currentTab === 'profile-setup') switchTab('dashboard');
-                    else if (currentTab === 'dashboard') refreshDashboardData();
-                } else {
-                    switchTab('profile-setup'); // Profil je prázdný, musí ho vyplnit
-                }
-            } catch (err) {
-                console.error("Chyba načítání profilu:", err);
+            const { data, error } = await db.from('profiles').select('*').eq('id', user.id).single();
+            if (data && data.full_name) {
+                actualUserRole = data.role || 'player';
+                if (simulatedRole === 'player') simulatedRole = actualUserRole;
+                
+                updateMenuByRole();
+                
+                const currentTab = document.querySelector('.page-section.active').id;
+                if (currentTab === 'auth' || currentTab === 'profile-setup') switchTab('dashboard');
+                else if (currentTab === 'dashboard') refreshDashboardData();
+            } else {
                 switchTab('profile-setup');
             }
         } else {
@@ -255,7 +250,7 @@
         msg.className = 'msg'; msg.innerText = 'Zpracovávám...'; msg.style.display = 'block';
         const { error } = await db.auth.signUp({ email: document.getElementById('regEmail').value, password: document.getElementById('regPassword').value });
         if (error) { msg.className = 'msg error'; msg.innerText = error.message; } 
-        else { msg.className = 'msg success'; msg.innerText = 'Účet vytvořen! Nyní se můžete přihlásit.'; }
+        else { msg.className = 'msg success'; msg.innerText = 'Účet vytvořen! Nyní se přihlaste.'; }
     });
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -268,26 +263,27 @@
     });
 
     async function logOutUser() { 
-        try { await db.auth.signOut(); } catch(e) {}
+        await db.auth.signOut(); 
         window.location.reload(); 
     }
 
-function updateMenuByRole() {
+    function updateMenuByRole() {
         if (simulatedRole === 'zc' || simulatedRole === 'superadmin') {
             document.getElementById('menu-admin').style.display = 'block';
             document.getElementById('zcZone').style.display = 'block';
         } else {
             document.getElementById('menu-admin').style.display = 'none';
+            document.getElementById('zcZone').style.display = 'none';
             if (document.querySelector('.page-section.active').id === 'admin') switchTab('dashboard');
         }
 
         if (actualUserRole === 'superadmin') {
-            document.getElementById('menu-admin').style.display = 'block'; // SuperAdmin vidí menu vždy
+            document.getElementById('menu-admin').style.display = 'block';
             document.getElementById('superAdminZone').style.display = 'block';
+            document.getElementById('roleSwitcher').value = simulatedRole;
         }
     }
 
-    // Změna role Super Adminem
     document.getElementById('roleSwitcher').addEventListener('change', (e) => {
         simulatedRole = e.target.value;
         updateMenuByRole();
@@ -314,7 +310,7 @@ function updateMenuByRole() {
         }
     }
 
-    async function loadFamily() {
+async function loadFamily() {
         const { data, error } = await db.from('players').select('*').eq('owner_id', currentUser.id);
         const list = document.getElementById('familyList');
         list.innerHTML = '';
@@ -322,7 +318,7 @@ function updateMenuByRole() {
             data.forEach(p => {
                 list.innerHTML += `<li>
                     <span><strong>${p.full_name}</strong> (ID: ${p.player_id_card})</span>
-                    <button class="btn-small btn-danger" onclick="removeFamilyMember('${p.id}')">Smazat</button>
+                    <button class="btn-small" onclick="removeFamilyMember('${p.id}')">Odebrat</button>
                 </li>`;
             });
         } else {
@@ -332,7 +328,8 @@ function updateMenuByRole() {
 
     window.removeFamilyMember = async function(playerId) {
         if (!confirm('Opravdu chcete tohoto hráče odstranit ze své rodiny?')) return;
-        await db.from('players').delete().eq('id', playerId);
+        const { error } = await db.from('players').delete().eq('id', playerId);
+        if(error) alert('Chyba při mazání: ' + error.message);
         loadFamily();
     };
 
@@ -353,12 +350,18 @@ function updateMenuByRole() {
 
     document.getElementById('addFamilyForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const msg = document.getElementById('famMsg');
         const { error } = await db.from('players').insert({ owner_id: currentUser.id, full_name: document.getElementById('famName').value, player_id_card: document.getElementById('famId').value });
-        if (!error) { document.getElementById('famName').value = ''; document.getElementById('famId').value = ''; loadFamily(); }
-        else { alert("Nepodařilo se přidat hráče. Zkontrolujte, zda ID již neexistuje."); }
+        if (!error) { 
+            document.getElementById('famName').value = ''; 
+            document.getElementById('famId').value = ''; 
+            msg.style.display = 'none';
+            loadFamily(); 
+        } else { 
+            msg.className = 'msg error'; msg.innerText = "Toto ID průkazky už v systému existuje."; msg.style.display = 'block';
+        }
     });
 
-    // Upload výsledků pro ZČ
     document.getElementById('uploadResultsForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const msg = document.getElementById('uploadMsg');
@@ -366,7 +369,6 @@ function updateMenuByRole() {
         if (!file) return;
 
         msg.className = 'msg'; msg.innerText = 'Nahrávám soubor...'; msg.style.display = 'block';
-        
         const fileExt = file.name.split('.').pop();
         const fileName = `vysledky_${Date.now()}.${fileExt}`;
 
