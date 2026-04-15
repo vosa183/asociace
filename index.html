@@ -66,6 +66,9 @@
 
         .qr-container { display: none; text-align: center; background: white; padding: 1rem; border-radius: 8px; margin-top: 1rem; border: 1px solid #ccc; }
         .qr-container img { max-width: 200px; height: auto; }
+        
+        .vote-stats { display: flex; gap: 15px; margin-top: 10px; background: #e2e8f0; padding: 10px; border-radius: 6px; font-size: 0.9rem; }
+        .vote-stats span { font-weight: bold; }
     </style>
 </head>
 <body>
@@ -82,7 +85,7 @@
             <li><a onclick="switchTab('host')" id="nav-host">Pořádejte turnaj</a></li>
             <li id="menu-auth"><a onclick="switchTab('auth')" id="nav-auth">Pro členy</a></li>
             <li id="menu-tournaments" style="display:none;"><a onclick="switchTab('tournaments')" id="nav-tournaments">Turnaje</a></li>
-            <li id="menu-voting" style="display:none; color:#d69e2e;"><a onclick="switchTab('voting')" id="nav-voting">Hlasování ZČ</a></li>
+            <li id="menu-voting" style="display:none; color:#d69e2e;"><a onclick="switchTab('voting')" id="nav-voting">Hlasování a Návrhy</a></li>
             <li id="menu-profile" style="display:none;"><a onclick="switchTab('dashboard')" id="nav-dashboard">Můj profil</a></li>
             <li id="menu-admin" style="display:none; color:#d69e2e;"><a onclick="switchTab('admin')" id="nav-admin">Administrace</a></li>
             <li id="menu-logout" style="display:none;"><a onclick="logOutUser()" style="color: var(--secondary);">Odhlásit</a></li>
@@ -101,9 +104,8 @@
     <section id="rules" class="page-section">
         <div class="card">
             <h2>Pravidla & VOP</h2>
-            <p>1. Nic se nevrací. 2. Sedmička líže. 3. Eso stojí. 4. Vše se přebíjí.</p>
-            <p><strong>Storno podmínky:</strong> Registrace na turnaj a s ní spojené Zápisné (rezervační poplatek) je závazné. Pokud hráč nedorazí, zápisné propadá ve prospěch asociace.</p>
-            <p><strong>Zastupování:</strong> Je přísně zakázáno, aby na turnaj dorazila jiná osoba, než je uvedena na přihlášce s daným ID průkazu.</p>
+            <p>Storno podmínky: Registrace na turnaj a s ní spojené Zápisné je závazné. Pokud hráč nedorazí, zápisné propadá ve prospěch asociace.</p>
+            <p>Zastupování: Je přísně zakázáno, aby na turnaj dorazila jiná osoba, než je uvedena na přihlášce s daným průkazem.</p>
         </div>
     </section>
 
@@ -141,7 +143,7 @@
                 <form id="regForm">
                     <label>E-mail</label>
                     <input type="email" id="regEmail" required>
-                    <label>Heslo (minimální délka znaků je zadaná systémem)</label>
+                    <label>Heslo</label>
                     <input type="password" id="regPassword" required>
                     <button type="submit" style="background: transparent; color: var(--primary); border: 2px solid var(--primary);">Vytvořit účet</button>
                     <div id="regMsg" class="msg"></div>
@@ -156,11 +158,11 @@
             <form id="profileForm" style="max-width: 500px;">
                 <label>Celé jméno a příjmení</label>
                 <input type="text" id="profName" required>
-                <label>ID průkazky (Slouží jako Variabilní symbol)</label>
+                <label>Průkazka (Slouží jako Variabilní symbol)</label>
                 <input type="text" id="profIdCard" required>
                 <label>E-mail pro komunikaci</label>
                 <input type="email" id="profEmail" required>
-                <label>Telefonní číslo</label>
+                <label>Telefonní kontakt</label>
                 <input type="text" id="profPhone" required>
                 <div style="margin-bottom: 1rem;">
                     <input type="checkbox" id="profConsent" required style="width: auto; transform: scale(1.2); margin-right: 8px;"> 
@@ -181,7 +183,7 @@
             <div id="dashContent" style="display: none;">
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
                     <p><strong>Jméno:</strong> <span id="dash-name"></span></p>
-                    <p><strong>ID:</strong> <span id="dash-id"></span> <span class="badge" id="dash-role"></span></p>
+                    <p><strong>Značka:</strong> <span id="dash-id"></span> <span class="badge" id="dash-role"></span></p>
                     <p><strong>E-mail:</strong> <span id="dash-email"></span></p>
                 </div>
 
@@ -196,7 +198,7 @@
                         <input type="text" id="famName" style="margin:0;" required>
                     </div>
                     <div style="flex: 1; min-width: 150px;">
-                        <label>ID průkazky</label>
+                        <label>Průkazka</label>
                         <input type="text" id="famId" style="margin:0;" required>
                     </div>
                     <button type="submit" style="flex: 1; min-width: 100px; margin:0;">+ Přidat</button>
@@ -214,16 +216,28 @@
             <div id="myRegistrationsList" style="margin-bottom: 3rem;">Načítám vaše přihlášky...</div>
 
             <h2>Vypsané turnaje</h2>
-            <p style="margin-bottom: 1.5rem;">Zápisné se hradí bankovním převodem. Jako Variabilní symbol pro platbu použijte vždy ID průkazu přihlašovaného hráče.</p>
+            <p style="margin-bottom: 1.5rem;">Zápisné se hradí bankovním převodem.</p>
             <div id="tournamentsList">Načítám vypsané turnaje...</div>
         </div>
     </section>
 
     <section id="voting" class="page-section">
         <div class="card" style="border-top: 4px solid #d69e2e;">
-            <h2 style="color: #d69e2e; border-color: #d69e2e;">Hlasování Zakládajících členů</h2>
-            <p style="margin-bottom: 1.5rem;">Neodevzdané hlasy se automaticky připočítají k většině. Remíza znamená neplatné hlasování.</p>
-            <div id="votingList">Načítám probíhající hlasování...</div>
+            <h2 style="color: #d69e2e; border-color: #d69e2e;">Návrhy a Hlasování</h2>
+            <p style="margin-bottom: 1.5rem;">Prostor pro požadavky Přidružených členů a hlasování Zakládajících členů.</p>
+            
+            <div style="background: #fffbeb; border: 1px solid #f6e05e; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+                <h3 style="color: #b7791f; font-size: 1.1rem;">Zadat nový požadavek k projednání</h3>
+                <form id="createVoteForm" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+                    <div style="flex: 3; min-width: 200px;">
+                        <label>Znění návrhu nebo otázky</label>
+                        <input type="text" id="vTitle" style="margin:0;" required>
+                    </div>
+                    <button type="submit" style="flex: 1; min-width: 150px; background: #d69e2e; margin:0;">Odeslat návrh</button>
+                </form>
+            </div>
+
+            <div id="votingList">Načítám agendu...</div>
         </div>
     </section>
 
@@ -232,11 +246,11 @@
             <h2>Administrace systému</h2>
             
             <div id="superAdminZone" style="display: none; background: #fffbeb; border: 1px solid #f6e05e; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
-                <h3 style="color: #b7791f; margin-bottom: 1rem;">⚙️ Pohled pod kapotu (Super Admin)</h3>
-                <label>Simulace role (Změní, jak vidíte web vy):</label>
+                <h3 style="color: #b7791f; margin-bottom: 1rem;">Pohled pod kapotu</h3>
+                <label>Simulace role:</label>
                 <select id="roleSwitcher" style="max-width: 300px;">
-                    <option value="superadmin">Super Admin (Vše)</option>
-                    <option value="zcp">Předseda (ZČP)</option>
+                    <option value="superadmin">Super Admin</option>
+                    <option value="zcp">Předseda</option>
                     <option value="zc">Zakládající člen</option>
                     <option value="pc">Přidružený člen</option>
                     <option value="player">Běžný hráč</option>
@@ -244,14 +258,14 @@
             </div>
 
             <div id="zcpZone" style="display: none; background: #ebf8ff; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #90cdf4;">
-                <h3 style="color: #2b6cb0;">Zóna Předsedy (ZČP)</h3>
-                <p style="font-size: 0.9rem; margin-bottom: 1rem;">Zde spravujete globální nastavení asociace. Zadaný účet se propíše do všech QR kódů pro platby hráčů a API token slouží backendu k automatickému párování plateb.</p>
+                <h3 style="color: #2b6cb0;">Zóna Předsedy</h3>
+                <p style="font-size: 0.9rem; margin-bottom: 1rem;">Zde spravujete globální nastavení asociace.</p>
                 
-                <label>Bankovní účet asociace (Formát IBAN - začíná CZ...)</label>
-                <input type="text" id="bankAccountInput" placeholder="Např. CZ1201000000000123456789" style="margin-bottom: 1rem;">
+                <label>Bankovní účet asociace</label>
+                <input type="text" id="bankAccountInput" style="margin-bottom: 1rem;">
                 
-                <label>Fio API Token (Pouze pro čtení pohybů na účtu)</label>
-                <input type="password" id="fioTokenInput" placeholder="Vložte API token z internetového bankovnictví" style="margin-bottom: 1.2rem;">
+                <label>Klíč pro banku</label>
+                <input type="password" id="fioTokenInput" style="margin-bottom: 1.2rem;">
 
                 <button class="btn-small" onclick="saveSystemSettings()" style="background: #2b6cb0; width: auto;">Uložit systémové nastavení</button>
             </div>
@@ -259,10 +273,9 @@
             <div id="zcZone" style="display: none;">
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
                     <h3>Vypsat nový turnaj a Živý náhled pozvánky</h3>
-                    <p style="font-size: 0.9rem; margin-bottom: 1rem; color: #555;">Pozvánka níže se aktualizuje okamžitě podle toho, co píšete do formuláře. Vyplňte údaje a jednoduše si udělejte snímek obrazovky vygenerované karty.</p>
                     <form id="createTournamentForm">
                         <label>Název turnaje</label>
-                        <input type="text" id="tName" placeholder="Zadejte přesný název turnaje" required>
+                        <input type="text" id="tName" required>
                         
                         <div class="grid-2" style="gap: 1rem; margin-bottom: 1.2rem;">
                             <div>
@@ -270,13 +283,13 @@
                                 <input type="date" id="tDate" style="margin-bottom: 0;" required>
                             </div>
                             <div>
-                                <label>Zápisné (Kč)</label>
-                                <input type="number" id="tFee" value="100" style="margin-bottom: 0;" required>
+                                <label>Zápisné</label>
+                                <input type="number" id="tFee" style="margin-bottom: 0;" required>
                             </div>
                         </div>
 
                         <label>Kapacita hráčů</label>
-                        <input type="number" id="tCap" value="80" required>
+                        <input type="number" id="tCap" required>
                         
                         <button type="submit" style="margin-top: 1rem;">Uložit turnaj do databáze</button>
                     </form>
@@ -285,8 +298,8 @@
                         <div class="header-text">Oficiální turnaj v karetní hře Prší</div>
                         <h4 id="previewTitle">NÁZEV TURNAJE</h4>
                         <div class="date" id="previewDate">Vyberte datum konání</div>
-                        <div class="fee" id="previewFee">Zápisné: 100 Kč</div>
-                        <div class="footer-text">Registrace předem na asociaceprsi.cz</div>
+                        <div class="fee" id="previewFee">Zápisné</div>
+                        <div class="footer-text">Registrace předem na webu</div>
                     </div>
                 </div>
 
@@ -300,7 +313,7 @@
                 </div>
 
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px;">
-                    <h3>Nahrát výsledky turnaje (Soubor PDF nebo Excel)</h3>
+                    <h3>Nahrát výsledky turnaje</h3>
                     <form id="uploadResultsForm">
                         <input type="file" id="resultFile" accept=".pdf, .xls, .xlsx" required style="background: white;">
                         <button type="submit">Nahrát do systému</button>
@@ -332,7 +345,7 @@
         'player': 'Hráč', 
         'pc': 'Přidružený člen', 
         'zc': 'Zakládající člen', 
-        'zcp': 'Předseda (ZČP)',
+        'zcp': 'Předseda',
         'superadmin': 'Super Admin' 
     };
 
@@ -426,7 +439,7 @@
         });
         
         if (error) { 
-            msg.className = 'msg error'; msg.innerText = 'Zadali jste špatný e-mail nebo heslo.'; 
+            msg.className = 'msg error'; msg.innerText = 'Zadali jste špatné údaje.'; 
         } else { msg.style.display = 'none'; }
     });
 
@@ -448,8 +461,10 @@
     });
 
     function updateMenuByRole() {
+        const isPcOrHigher = ['pc', 'zc', 'zcp', 'superadmin'].includes(simulatedRole);
         const isZcOrHigher = ['zc', 'zcp', 'superadmin'].includes(simulatedRole);
-        document.getElementById('menu-voting').style.display = isZcOrHigher ? 'block' : 'none';
+        
+        document.getElementById('menu-voting').style.display = isPcOrHigher ? 'block' : 'none';
         document.getElementById('menu-admin').style.display = isZcOrHigher ? 'block' : 'none';
         
         document.getElementById('zcZone').style.display = isZcOrHigher ? 'block' : 'none';
@@ -467,6 +482,7 @@
         updateMenuByRole();
         if (document.querySelector('.page-section.active').id === 'dashboard') refreshDashboardData();
         if (document.querySelector('.page-section.active').id === 'admin') loadAdminData();
+        if (document.querySelector('.page-section.active').id === 'voting') loadVotes();
     });
 
     async function loadAdminData() {
@@ -481,7 +497,7 @@
         if(!error) {
             globalBankAccount = newAcc;
             globalFioToken = newTok;
-            alert('Systémové nastavení uloženo. Backendová automatizace pro Fio banku byla aktualizována.');
+            alert('Systémové nastavení uloženo.');
         } else {
             alert('Chyba při ukládání: ' + error.message);
         }
@@ -550,7 +566,7 @@
         const { data: fCheck } = await db.from('players').select('id').eq('player_id_card', enteredId);
         
         if (fCheck && fCheck.length > 0) { 
-            msg.className = 'msg error'; msg.innerText = 'Omlouváme se, ale toto ID průkazu je již evidováno v cizím rodinném účtu. Registrace není možná.'; return; 
+            msg.className = 'msg error'; msg.innerText = 'Omlouváme se, ale tato značka je již evidována. Registrace není možná.'; return; 
         }
 
         const updates = { 
@@ -572,7 +588,7 @@
             owner_id: currentUser.id, full_name: document.getElementById('famName').value, player_id_card: document.getElementById('famId').value 
         });
         if (!error) { document.getElementById('addFamilyForm').reset(); msg.style.display = 'none'; loadFamily(); 
-        } else { msg.className = 'msg error'; msg.innerText = 'Chyba: Zadané ID průkazky již v databázi existuje.'; msg.style.display = 'block'; }
+        } else { msg.className = 'msg error'; msg.innerText = 'Chyba: Zadaná značka již v databázi existuje.'; msg.style.display = 'block'; }
     });
 
     // -------------------------------------------------------------
@@ -622,7 +638,7 @@
         if (error) {
             alert('Chyba při vypisování turnaje: ' + error.message);
         } else {
-            alert('Turnaj byl úspěšně přidán do systému a je viditelný pro hráče! Nyní si můžete udělat snímek obrazovky vygenerované pozvánky.'); 
+            alert('Turnaj byl úspěšně přidán do systému a je viditelný pro hráče!'); 
             document.getElementById('createTournamentForm').reset();
             updateLivePreview(); 
         }
@@ -640,15 +656,15 @@
         for (let t of tourns) {
             const { count } = await db.from('registrations').select('*', { count: 'exact', head: true }).eq('tournament_id', t.id);
             let isFull = count >= t.capacity;
-            let btnText = isFull ? 'Přihlásit jako NÁHRADNÍK (Kapacita plná)' : 'Přihlásit SEBE na turnaj';
+            let btnText = isFull ? 'Přihlásit jako NÁHRADNÍK' : 'Přihlásit SEBE na turnaj';
             let btnColor = isFull ? '#ed8936' : 'var(--primary)';
             
-            let familySelectOptions = myFamily.map(f => `<option value="${f.player_id_card}">${f.full_name} (ID: ${f.player_id_card})</option>`).join('');
+            let familySelectOptions = myFamily.map(f => `<option value="${f.player_id_card}">${f.full_name}</option>`).join('');
             
             list.innerHTML += `
             <div class="list-item" style="flex-direction: column; align-items: flex-start;">
                 <h4>${t.title} (Datum konání: ${t.event_date})</h4>
-                <p>Obsazeno: ${count || 0} / ${t.capacity} | Zápisné: ${t.fee} Kč</p>
+                <p>Obsazeno: ${count || 0} / ${t.capacity}</p>
                 <div style="display:flex; gap:10px; width:100%; margin-top:10px; flex-wrap: wrap;">
                     <button class="btn-small" style="background:${btnColor}" onclick="joinTournament('${t.id}')">${btnText}</button>
                     ${myFamily.length > 0 ? `
@@ -678,7 +694,7 @@
             const t = reg.tournaments;
             const uniqueQrId = 'qr_' + reg.id;
             
-            let playerName = 'Průkaz: ' + reg.player_id_card;
+            let playerName = 'Značka: ' + reg.player_id_card;
             if(reg.player_id_card === document.getElementById('dash-id').innerText) {
                 playerName = 'VY (Hlavní profil)';
             } else {
@@ -686,12 +702,11 @@
                 if(fam) playerName = fam.full_name + ' (Rodina)';
             }
 
-            // Rozhodnutí o tom, jaké tlačítko se ukáže (Platba vs Zaplaceno)
             let paymentUI = '';
             if(reg.payment_status === true) {
                 paymentUI = `<span class="badge" style="background: #38a169; padding: 0.5rem 1rem; font-size: 0.9rem;">✅ Uhrazeno</span>`;
             } else {
-                paymentUI = `<button class="btn-small" style="background: #2b6cb0;" onclick="toggleQR('${uniqueQrId}', '${t.fee}', '${reg.player_id_card}')">💳 Ukázat QR kód k platbě</button>`;
+                paymentUI = `<button class="btn-small" style="background: #2b6cb0;" onclick="toggleQR('${uniqueQrId}', '${t.fee}', '${reg.player_id_card}')">💳 Ukázat kód k platbě</button>`;
             }
 
             list.innerHTML += `
@@ -706,8 +721,8 @@
                     <button class="btn-small btn-danger" onclick="cancelRegistration('${reg.id}')">❌ Nepřijedu</button>
                 </div>
                 <div id="${uniqueQrId}" class="qr-container">
-                    <p style="font-size: 0.8rem; margin-bottom: 10px;">Zápisné: <strong>${t.fee} Kč</strong> | VS: <strong>${reg.player_id_card}</strong></p>
-                    <img src="" alt="QR kód" id="img_${uniqueQrId}">
+                    <p style="font-size: 0.8rem; margin-bottom: 10px;">Zápisné: <strong>${t.fee} Kč</strong> | Značka: <strong>${reg.player_id_card}</strong></p>
+                    <img src="" alt="kód" id="img_${uniqueQrId}">
                 </div>
             </div>`;
         });
@@ -731,7 +746,7 @@
         const startDate = parts[0] + parts[1] + parts[2] + 'T080000Z'; 
         const endDate = parts[0] + parts[1] + parts[2] + 'T200000Z'; 
         
-        const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${startDate}\nDTEND:${endDate}\nSUMMARY:${title} (Asociace prší)\nDESCRIPTION:Oficiální turnaj v karetní hře Prší. Zkontrolujte web asociace pro detaily.\nEND:VEVENT\nEND:VCALENDAR`;
+        const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${startDate}\nDTEND:${endDate}\nSUMMARY:${title}\nDESCRIPTION:Oficiální turnaj.\nEND:VEVENT\nEND:VCALENDAR`;
         
         const blob = new Blob([icsContent], { type: 'text/calendar' });
         const url = window.URL.createObjectURL(blob);
@@ -744,15 +759,15 @@
 
     window.joinTournament = async function(tId) { 
         const myIdCard = document.getElementById('dash-id').innerText;
-        if (!myIdCard) { alert("Chyba: Nejprve si musíte zkontrolovat váš profil, chybí nám vaše ID."); return; }
+        if (!myIdCard) { alert("Chyba: Nejprve si musíte zkontrolovat váš profil."); return; }
 
         const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: myIdCard, registered_by: currentUser.id });
 
         if (error) {
-            if (error.code === '23505') alert('Chyba: Pod tímto průkazem jste již na tento turnaj přihlášeni!');
+            if (error.code === '23505') alert('Chyba: Již jste na tento turnaj přihlášeni!');
             else alert('Při registraci nastala chyba: ' + error.message);
         } else {
-            alert('Vaše registrace proběhla úspěšně!\n\n(Systémové info: Potvrzovací E-mail byl úspěšně odeslán hráči na registrovanou adresu).'); 
+            alert('Vaše registrace proběhla úspěšně!'); 
             loadTournaments(); 
             loadMyRegistrations();
         }
@@ -765,17 +780,17 @@
         const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: familyPlayerIdCard, registered_by: currentUser.id });
 
         if (error) {
-            if (error.code === '23505') alert('Chyba: Tento člen vaší rodiny je již na turnaj přihlášen!');
+            if (error.code === '23505') alert('Chyba: Tento člen vaší rodiny je již přihlášen!');
             else alert('Při registraci nastala chyba: ' + error.message);
         } else {
-            alert('Člen vaší rodiny byl úspěšně přihlášen na turnaj.\n\n(Systémové info: Potvrzovací E-mail byl úspěšně odeslán hráči).'); 
+            alert('Člen vaší rodiny byl úspěšně přihlášen na turnaj.'); 
             loadTournaments(); 
             loadMyRegistrations();
         }
     };
 
     window.cancelRegistration = async function(regId) {
-        if(confirm("Opravdu chcete zrušit tuto přihlášku? Upozorňujeme na storno podmínky: pokud již bylo uhrazeno Zápisné, propadá ve prospěch asociace.")) {
+        if(confirm("Opravdu chcete zrušit tuto přihlášku? Upozorňujeme na storno podmínky.")) {
             const { error } = await db.from('registrations').delete().eq('id', regId);
             if(!error) {
                 alert("Přihláška byla úspěšně zrušena.");
@@ -788,43 +803,70 @@
     };
 
     // -------------------------------------------------------------
+    // LOGIKA HLASOVÁNÍ A NÁVRHŮ
+    // -------------------------------------------------------------
 
     document.getElementById('createVoteForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         await db.from('votes').insert({ title: document.getElementById('vTitle').value, created_by: currentUser.id });
-        alert('Hlasování bylo úspěšně zahájeno.'); document.getElementById('createVoteForm').reset();
+        alert('Návrh byl úspěšně vytvořen.'); 
+        document.getElementById('createVoteForm').reset();
+        loadVotes();
     });
 
     async function loadVotes() {
-        const { data: votes } = await db.from('votes').select('*').eq('is_closed', false);
+        let query = db.from('votes').select('*').eq('is_closed', false);
+        
+        if (simulatedRole === 'pc') {
+            query = query.eq('created_by', currentUser.id);
+        }
+
+        const { data: votes } = await query;
         const list = document.getElementById('votingList'); list.innerHTML = '';
         
-        if (!votes || votes.length === 0) { list.innerHTML = '<p>Zatím neprobíhá žádné aktivní hlasování vedení.</p>'; return; }
+        if (!votes || votes.length === 0) { list.innerHTML = '<p>Zatím neprobíhá žádné aktivní projednávání návrhů.</p>'; return; }
 
         for (let v of votes) {
-            const { data: myVote } = await db.from('voting_records').select('vote_hash').eq('vote_id', v.id).eq('voter_id', currentUser.id).maybeSingle();
+            const { data: records } = await db.from('voting_records').select('*').eq('vote_id', v.id);
             
-            if (myVote) {
-                list.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:flex-start;">
-                    <h4>${v.title}</h4>
-                    <p>Váš hlas byl v pořádku zaznamenán v databázi. Zde je Váš ověřovací Hash: <span class="hash-box">${myVote.vote_hash}</span></p>
+            let proCount = records.filter(r => r.choice === 'pro').length;
+            let protiCount = records.filter(r => r.choice === 'proti').length;
+            let totalCount = records.length;
+            
+            let myVote = records.find(r => r.voter_id === currentUser.id);
+            let isZcOrHigher = ['zc', 'zcp', 'superadmin'].includes(simulatedRole);
+
+            let html = `<div class="list-item" style="flex-direction:column; align-items:flex-start;">
+                <h4>${v.title}</h4>
+                <div class="vote-stats">
+                    <span>Průběžný stav:</span>
+                    <span style="color:#2d3748">Celkem: ${totalCount}</span>
+                    <span style="color:#2f855a">PRO: ${proCount}</span>
+                    <span style="color:#c53030">PROTI: ${protiCount}</span>
                 </div>`;
-            } else {
-                list.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:flex-start;">
-                    <h4>${v.title}</h4>
-                    <div style="display:flex; gap:10px; margin-top:10px;">
+
+            if (isZcOrHigher) {
+                if (myVote) {
+                    html += `<p style="margin-top:10px; font-weight:bold; color:#2f855a;">Váš hlas byl zaznamenán. Klíč: <span class="hash-box">${myVote.vote_hash}</span></p>`;
+                } else {
+                    html += `<div style="display:flex; gap:10px; margin-top:10px;">
                         <button class="btn-small" style="background:#48bb78" onclick="castVote('${v.id}', 'pro')">Hlasovat PRO</button>
                         <button class="btn-small btn-danger" onclick="castVote('${v.id}', 'proti')">Hlasovat PROTI</button>
-                    </div>
-                </div>`;
+                    </div>`;
+                }
+            } else {
+                html += `<p style="margin-top:10px; font-size:0.9rem; color:#718096;">Hlasovat mohou pouze Zakládající členové.</p>`;
             }
+
+            html += `</div>`;
+            list.innerHTML += html;
         }
     }
 
     window.castVote = async function(voteId, choice) {
         const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
         await db.from('voting_records').insert({ vote_id: voteId, voter_id: currentUser.id, choice: choice, vote_hash: hash });
-        alert(`Váš hlas byl odeslán do systému! Ověřovací HASH klíč je: ${hash}`); loadVotes();
+        alert(`Váš hlas byl odeslán do systému! Klíč je: ${hash}`); loadVotes();
     };
 
     document.getElementById('uploadResultsForm').addEventListener('submit', async (e) => {
