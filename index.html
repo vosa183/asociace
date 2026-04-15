@@ -40,12 +40,12 @@
         .hash-box { background: #1a202c; color: #48bb78; padding: 0.5rem; font-family: monospace; font-size: 0.8rem; border-radius: 4px; word-break: break-all;}
         footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 2rem; }
         
-        /* HTML/CSS Generátor pozvánek */
+        /* Čistá HTML/CSS pozvánka (bez canvasu a bez znaků) */
         .invite-card {
             background: linear-gradient(135deg, #1a365d, #0f2038);
             border: 3px solid #d69e2e;
             border-radius: 12px;
-            padding: 3rem 2rem;
+            padding: 4rem 2rem;
             text-align: center;
             color: white;
             margin-top: 2rem;
@@ -54,34 +54,27 @@
             overflow: hidden;
             display: none;
         }
-        .invite-card::before {
-            content: '♠ ♥ ♣ ♦';
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 8rem;
-            color: rgba(255,255,255,0.04);
-            white-space: nowrap;
-            pointer-events: none;
-        }
         .invite-card .header-text {
             color: #a0aec0;
-            font-size: 0.9rem;
+            font-size: 1.1rem;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 1rem;
+            letter-spacing: 3px;
+            margin-bottom: 1.5rem;
             position: relative; z-index: 1;
         }
         .invite-card h4 {
             color: #d69e2e;
-            font-size: 2.2rem;
-            margin-bottom: 1.5rem;
+            font-size: 2.8rem;
+            margin-bottom: 2rem;
             text-transform: uppercase;
             position: relative; z-index: 1;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            border-bottom: 2px solid rgba(214, 158, 46, 0.3);
+            padding-bottom: 1rem;
+            display: inline-block;
         }
         .invite-card .date {
-            font-size: 1.5rem;
+            font-size: 1.8rem;
             font-weight: bold;
             margin-bottom: 1.5rem;
             position: relative; z-index: 1;
@@ -89,17 +82,19 @@
         .invite-card .fee {
             display: inline-block;
             background: rgba(214, 158, 46, 0.15);
-            padding: 0.6rem 1.5rem;
+            padding: 0.8rem 2rem;
             border-radius: 8px;
             border: 1px solid #d69e2e;
-            font-size: 1.2rem;
+            font-size: 1.4rem;
             position: relative; z-index: 1;
+            font-weight: bold;
         }
         .invite-card .footer-text {
-            margin-top: 2rem;
-            font-size: 0.85rem;
+            margin-top: 3rem;
+            font-size: 1rem;
             color: #a0aec0;
             position: relative; z-index: 1;
+            letter-spacing: 1px;
         }
     </style>
 </head>
@@ -275,7 +270,8 @@
 
             <div id="zcZone" style="display: none;">
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
-                    <h3>Vypsat nový turnaj</h3>
+                    <h3>Vypsat nový turnaj a Živý náhled pozvánky</h3>
+                    <p style="font-size: 0.9rem; margin-bottom: 1rem; color: #555;">Pozvánka níže se aktualizuje okamžitě podle toho, co píšete do formuláře. Vyplňte údaje a jednoduše si udělejte snímek obrazovky vygenerované karty.</p>
                     <form id="createTournamentForm">
                         <label>Název turnaje</label>
                         <input type="text" id="tName" placeholder="Zadejte přesný název turnaje" required>
@@ -569,14 +565,13 @@
     const previewFee = document.getElementById('previewFee');
 
     function updateLivePreview() {
-        // Zobrazí náhled pouze pokud je vyplněn alespoň jeden údaj
         if (inputTName.value || inputTDate.value || inputTFee.value) {
             livePreviewContainer.style.display = 'block';
         } else {
             livePreviewContainer.style.display = 'none';
         }
 
-        previewTitle.innerText = inputTName.value || 'NÁZEV TURNAJE';
+        previewTitle.innerText = inputTName.value.toUpperCase() || 'NÁZEV TURNAJE';
         
         if (inputTDate.value) {
             const parts = inputTDate.value.split('-');
@@ -604,9 +599,9 @@
         if (error) {
             alert('Chyba při vypisování turnaje: ' + error.message);
         } else {
-            alert('Turnaj byl úspěšně přidán do systému a je viditelný pro hráče! Můžete si udělat snímek obrazovky vygenerované pozvánky pro odeslání do Telegramu.'); 
+            alert('Turnaj byl úspěšně přidán do systému a je viditelný pro hráče! Nyní si můžete udělat snímek obrazovky vygenerované pozvánky.'); 
             document.getElementById('createTournamentForm').reset();
-            updateLivePreview(); // Vyčistí a schová náhled
+            updateLivePreview(); 
             loadTournaments();
         }
     });
