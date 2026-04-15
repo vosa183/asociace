@@ -70,7 +70,6 @@
         .vote-stats { display: flex; gap: 15px; margin-top: 10px; background: #e2e8f0; padding: 10px; border-radius: 6px; font-size: 0.9rem; }
         .vote-stats span { font-weight: bold; }
 
-        /* Styly pro tabulku statistik */
         .stats-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.95rem; }
         .stats-table th, .stats-table td { padding: 0.8rem; text-align: left; border-bottom: 1px solid #cbd5e0; }
         .stats-table th { background: var(--primary); color: white; font-weight: 600; }
@@ -237,7 +236,7 @@
                 <label>Vyberte hráče pro osobní vysvědčení:</label>
                 <select id="statsPlayerSelect" onchange="renderPersonalStats()" style="max-width: 400px;"></select>
                 <div id="personalStatsBox" style="margin-top: 1rem;">
-                    </div>
+                </div>
             </div>
 
             <h3 style="border-top: 1px solid #ccc; padding-top: 2rem;">Historický archiv turnajů</h3>
@@ -371,7 +370,6 @@
     let globalBankAccount = 'CZ0000000000000000000000';
     let globalFioToken = '';
     
-    // Proměnné pro statistiky
     let historicalData = [];
     let uniqueTournaments = [];
 
@@ -392,6 +390,9 @@
         if (activeLink) {
             activeLink.classList.add('active');
         }
+
+        // TADY JSME ZAVEDLI PAMĚŤ ZÁLOŽEK
+        sessionStorage.setItem('activeTab', tabId);
 
         if (tabId === 'dashboard') refreshDashboardData();
         if (tabId === 'tournaments') {
@@ -428,11 +429,15 @@
                     }
                     updateMenuByRole();
                     
-                    const currentTab = document.querySelector('.page-section.active').id;
-                    if (currentTab === 'auth' || currentTab === 'profile-setup') {
+                    // GLOBÁLNÍ HYDRATACE (Tady byl ten zakopaný pes! Teď načteme rodinu ihned)
+                    await loadFamily();
+
+                    // OBNOVA ZÁLOŽKY Z PAMĚTI
+                    const savedTab = sessionStorage.getItem('activeTab') || 'dashboard';
+                    if (savedTab === 'auth' || savedTab === 'profile-setup') {
                         switchTab('dashboard');
-                    } else if (currentTab === 'dashboard') {
-                        refreshDashboardData();
+                    } else {
+                        switchTab(savedTab);
                     }
                 } else {
                     switchTab('profile-setup');
@@ -450,6 +455,7 @@
             document.getElementById('menu-admin').style.display = 'none';
             document.getElementById('menu-logout').style.display = 'none';
             
+            sessionStorage.removeItem('activeTab');
             const currentTab = document.querySelector('.page-section.active').id;
             if (['dashboard', 'profile-setup', 'admin', 'tournaments', 'stats'].includes(currentTab)) {
                 switchTab('home');
@@ -572,19 +578,22 @@
     }
 
     async function loadFamily() {
+        if (!currentUser) return;
         const { data } = await db.from('players').select('*').eq('owner_id', currentUser.id);
         myFamily = data || [];
-        const list = document.getElementById('familyList'); list.innerHTML = '';
-        
-        if (myFamily.length > 0) {
-            myFamily.forEach(p => {
-                list.innerHTML += `<li class="list-item">
-                    <span><strong>${p.full_name}</strong> (Průkaz: ${p.player_id_card})</span>
-                    <button class="btn-small btn-danger" onclick="removeFamily('${p.id}')">Odebrat z rodiny</button>
-                </li>`;
-            });
-        } else { 
-            list.innerHTML = '<li><span style="color: #777;">Zatím nemáte přidané žádné další členy.</span></li>'; 
+        const list = document.getElementById('familyList'); 
+        if (list) {
+            list.innerHTML = '';
+            if (myFamily.length > 0) {
+                myFamily.forEach(p => {
+                    list.innerHTML += `<li class="list-item">
+                        <span><strong>${p.full_name}</strong> (Průkaz: ${p.player_id_card})</span>
+                        <button class="btn-small btn-danger" onclick="removeFamily('${p.id}')">Odebrat z rodiny</button>
+                    </li>`;
+                });
+            } else { 
+                list.innerHTML = '<li><span style="color: #777;">Zatím nemáte přidané žádné další členy.</span></li>'; 
+            }
         }
     }
 
@@ -627,10 +636,6 @@
         if (!error) { document.getElementById('addFamilyForm').reset(); msg.style.display = 'none'; loadFamily(); 
         } else { msg.className = 'msg error'; msg.innerText = 'Chyba: Zadaná značka již v databázi existuje.'; msg.style.display = 'block'; }
     });
-
-    // -------------------------------------------------------------
-    // LOGIKA TURNAJŮ
-    // -------------------------------------------------------------
 
     const inputTName = document.getElementById('tName');
     const inputTDate = document.getElementById('tDate');
@@ -839,14 +844,9 @@
         }
     };
 
-    // -------------------------------------------------------------
-    // LOGIKA STATISTIK A HISTORIE
-    // -------------------------------------------------------------
-
     async function loadHistoricalData() {
         const box = document.getElementById('tournamentResultsBox');
         
-        // Zabráníme zbytečnému znovunačítání, pokud data už máme stažená
         if (historicalData.length === 0) {
             box.innerHTML = 'Stahuji historický archiv ze serveru...';
             const { data, error } = await db.from('historical_results').select('*').order('tournament_name', { ascending: true });
@@ -857,7 +857,6 @@
             }
             
             historicalData = data;
-            // Získáme unikátní názvy turnajů pro roletku
             uniqueTournaments = [...new Set(data.map(item => item.tournament_name))].filter(Boolean);
         }
         
@@ -923,10 +922,8 @@
 
         let tData = historicalData.filter(d => d.tournament_name === tName);
         
-        // Seřadíme data podle pořadí (musíme převést na číslo, protože v DB to prošlo jako text)
         tData.sort((a, b) => parseInt(a.rank) - parseInt(b.rank));
 
-        // Získáme seznam ID, která smíme zobrazit jmenovitě
         let allowedIds = [document.getElementById('dash-id').innerText];
         myFamily.forEach(f => allowedIds.push(f.player_id_card));
 
@@ -936,7 +933,6 @@
             let pid = row.player_id_card || 'Bez ID';
             let isKnown = allowedIds.includes(pid) && pid !== 'Bez ID' && pid !== '0' && pid !== 'NEMA';
             
-            // Logika skrývání identity
             let displayName = isKnown ? `${row.first_name} ${row.last_name}` : `Hráč (Značka: ${pid})`;
             let displayCity = row.city && row.city !== '-' && row.city !== '0' ? ` <span style="color:#718096; font-size:0.85rem;">- ${row.city}</span>` : '';
             
@@ -954,10 +950,6 @@
         html += '</table>';
         box.innerHTML = html;
     }
-
-    // -------------------------------------------------------------
-    // LOGIKA HLASOVÁNÍ A NÁVRHŮ
-    // -------------------------------------------------------------
 
     document.getElementById('createVoteForm').addEventListener('submit', async (e) => {
         e.preventDefault();
