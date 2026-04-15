@@ -962,18 +962,22 @@
         box.innerHTML = html;
     }
 
+    // ODESLÁNÍ PODNĚTU K DISKUZI (PŘIDRUŽENÝ ČLEN)
     document.getElementById('createVoteForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        await db.from('votes').insert({ title: document.getElementById('vTitle').value, created_by: currentUser.id });
-        alert('Návrh byl úspěšně vytvořen.'); 
+        // Tajně k tomu přidáme značku, aby systém poznal, že jde o podnět a ne hlasování
+        const nazev = "[NÁVRH PČ] " + document.getElementById('vTitle').value;
+        await db.from('votes').insert({ title: nazev, created_by: currentUser.id });
+        alert('Váš podnět k diskuzi byl úspěšně odeslán vedení k projednání.'); 
         document.getElementById('createVoteForm').reset();
         loadVotes();
     });
 
+    // ODESLÁNÍ OSTRÉHO HLASOVÁNÍ (ZAKLÁDAJÍCÍ ČLEN / ADMIN)
     document.getElementById('createVoteFormAdmin').addEventListener('submit', async (e) => {
         e.preventDefault();
         await db.from('votes').insert({ title: document.getElementById('vTitleAdmin').value, created_by: currentUser.id });
-        alert('Návrh byl úspěšně vytvořen.'); 
+        alert('Ostré hlasování bylo úspěšně zahájeno.'); 
         document.getElementById('createVoteFormAdmin').reset();
         loadVotes();
     });
@@ -983,7 +987,7 @@
         list.innerHTML = '';
 
         if (simulatedRole === 'pc') {
-            list.innerHTML = '<p style="color: #718096; font-style: italic;">Seznam probíhajících hlasování je přístupný pouze Zakládajícím členům. Vaše zadané podněty k projednání byly v pořádku odeslány vedení k posouzení.</p>';
+            list.innerHTML = '<p style="color: #718096; font-style: italic; background: #fff; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">Seznam probíhajících hlasování Zakládajících členů je pro vás skrytý. Vaše případné podněty k diskuzi byly v pořádku odeslány a budou projednány.</p>';
             return;
         }
 
@@ -1002,21 +1006,36 @@
 
         for (let v of votes) {
             const { data: records } = await db.from('voting_records').select('*').eq('vote_id', v.id);
-            
+            let isZcOrHigher = ['zc', 'zcp', 'superadmin'].includes(simulatedRole);
+
+            // LOGIKA PRO PODNĚTY K DISKUZI (od Přidružených členů)
+            let isProposal = v.title.startsWith('[NÁVRH PČ] ');
+            let displayTitle = isProposal ? v.title.replace('[NÁVRH PČ] ', '') : v.title;
+
+            if (isProposal) {
+                let statusBadge = '<span class="badge" style="background:#ed8936; margin-bottom:10px; display:inline-block;">PODNĚT K DISKUZI (od PČ)</span>';
+                let html = `<div class="list-item" style="flex-direction:column; align-items:flex-start; background: #fff; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
+                    ${statusBadge}
+                    <h4>${displayTitle}</h4>
+                    <p style="font-size:0.9rem; color:#718096; margin-top:10px;">Tento bod čeká na projednání a osobní debatu, není určen k přímému elektronickému hlasování.</p>
+                </div>`;
+                list.innerHTML += html;
+                continue; // Přeskočíme klasické hlasovací statistiky
+            }
+
+            // LOGIKA PRO OSTRÉ HLASOVÁNÍ (Zakládající členové)
             let proCount = records.filter(r => r.choice === 'pro').length;
             let protiCount = records.filter(r => r.choice === 'proti').length;
             let totalCount = records.length;
-            
             let myVote = records.find(r => r.voter_id === currentUser.id);
-            let isZcOrHigher = ['zc', 'zcp', 'superadmin'].includes(simulatedRole);
-
+            
             let statusBadge = v.is_closed 
                 ? '<span class="badge" style="background:#c53030; margin-bottom:10px; display:inline-block;">UZAVŘENO</span>'
                 : '<span class="badge" style="background:#38a169; margin-bottom:10px; display:inline-block;">AKTIVNÍ</span>';
 
             let html = `<div class="list-item" style="flex-direction:column; align-items:flex-start; background: #fff; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
                 ${statusBadge}
-                <h4>${v.title}</h4>
+                <h4>${displayTitle}</h4>
                 <div class="vote-stats">
                     <span>${v.is_closed ? 'Konečný stav:' : 'Průběžný stav:'}</span>
                     <span style="color:#2d3748">Celkem: ${totalCount}</span>
@@ -1040,7 +1059,7 @@
                     html += `<div id="details_${v.id}" style="display:none; width:100%;">${detailsHtml}</div>`;
                 } else {
                     if (myVote) {
-                        html += `<p style="margin-top:10px; font-weight:bold; color:#2f855a;">Váš hlas byl zaznamenán.</p>`;
+                        html += `<p style="margin-top:10px; font-weight:bold; color:#2f855a;">Váš hlas byl zaznamenán. Klíč: <span class="hash-box">${myVote.vote_hash}</span></p>`;
                     } else {
                         html += `<div style="display:flex; gap:10px; margin-top:10px;">
                             <button class="btn-small" style="background:#48bb78" onclick="castVote('${v.id}', 'pro')">Hlasovat PRO</button>
@@ -1059,10 +1078,13 @@
         const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
         await db.from('voting_records').insert({ vote_id: voteId, voter_id: currentUser.id, choice: choice, vote_hash: hash });
         
+        // Pojistka proti nule - pokud simulujeme, zcCount může být 0
         const { count: zcCount } = await db.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['zc', 'zcp', 'superadmin']);
         const { data: records } = await db.from('voting_records').select('*').eq('vote_id', voteId);
         
-        if (records && zcCount && records.length >= zcCount) {
+        let requiredVotes = (zcCount !== null && zcCount > 0) ? zcCount : 1;
+        
+        if (records && records.length >= requiredVotes) {
             await db.from('votes').update({ is_closed: true }).eq('id', voteId);
             
             const { data: voteInfo } = await db.from('votes').select('created_by, title').eq('id', voteId).single();
@@ -1080,7 +1102,7 @@
                     }).catch(e => console.log(e));
                 }
             }
-            alert('Váš hlas byl odeslán! Hlasování dosáhlo stoprocentní účasti a bylo automaticky uzavřeno.');
+            alert(`Váš hlas byl odeslán (Klíč: ${hash}). Hlasování dosáhlo stoprocentní účasti a bylo automaticky uzavřeno.`);
         } else {
             alert('Váš hlas byl odeslán do systému! Klíč je: ' + hash);
         }
