@@ -475,8 +475,13 @@
         }
     }
 
-    db.auth.getSession().then(({ data: { session } }) => checkAuthState(session?.user));
-    db.auth.onAuthStateChange((_event, session) => checkAuthState(session?.user));
+    let authStateTimeout;
+    db.auth.onAuthStateChange((_event, session) => {
+        clearTimeout(authStateTimeout);
+        authStateTimeout = setTimeout(() => {
+            checkAuthState(session?.user);
+        }, 100);
+    });
 
     async function logOutUser() { 
         await db.auth.signOut(); 
@@ -1017,7 +1022,34 @@
     window.castVote = async function(voteId, choice) {
         const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
         await db.from('voting_records').insert({ vote_id: voteId, voter_id: currentUser.id, choice: choice, vote_hash: hash });
-        alert(`Váš hlas byl odeslán do systému! Klíč je: ${hash}`); loadVotes();
+        
+        const { count: zcCount } = await db.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['zc', 'zcp', 'superadmin']);
+        const { data: records } = await db.from('voting_records').select('*').eq('vote_id', voteId);
+        
+        if (records && zcCount && records.length >= zcCount) {
+            await db.from('votes').update({ is_closed: true }).eq('id', voteId);
+            
+            const { data: voteInfo } = await db.from('votes').select('created_by, title').eq('id', voteId).single();
+            if (voteInfo) {
+                const { data: creatorProfile } = await db.from('profiles').select('email').eq('id', voteInfo.created_by).single();
+                if (creatorProfile && creatorProfile.email) {
+                    fetch('https://formspree.io/f/TVUJ_KOD', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: creatorProfile.email,
+                            subject: 'Hlasovani ukonceno',
+                            message: 'Vsichni opravneni clenove odhlasovali v navrhu: ' + voteInfo.title
+                        })
+                    }).catch(e => console.log(e));
+                }
+            }
+            alert('Váš hlas byl odeslán! Hlasování dosáhlo stoprocentní účasti a bylo automaticky uzavřeno.');
+        } else {
+            alert('Váš hlas byl odeslán do systému! Klíč je: ' + hash);
+        }
+        
+        loadVotes();
     };
 
     document.getElementById('uploadResultsForm').addEventListener('submit', async (e) => {
