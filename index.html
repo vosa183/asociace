@@ -366,7 +366,11 @@
     let currentUser = null;
     let actualUserRole = 'player';
     let simulatedRole = 'player';
+    
+    let myProfileData = null;
     let myFamily = [];
+    let authInitialized = false;
+
     let globalBankAccount = 'CZ0000000000000000000000';
     let globalFioToken = '';
     
@@ -383,25 +387,22 @@
 
     function switchTab(tabId) {
         document.querySelectorAll('.page-section').forEach(sec => sec.classList.remove('active'));
-        document.getElementById(tabId).classList.add('active');
-        document.querySelectorAll('nav a').forEach(link => link.classList.remove('active'));
+        const targetSec = document.getElementById(tabId);
+        if(targetSec) targetSec.classList.add('active');
         
+        document.querySelectorAll('nav a').forEach(link => link.classList.remove('active'));
         const activeLink = document.getElementById('nav-' + tabId);
-        if (activeLink) {
-            activeLink.classList.add('active');
-        }
+        if (activeLink) activeLink.classList.add('active');
 
-        // TADY JSME ZAVEDLI PAMĚŤ ZÁLOŽEK
         sessionStorage.setItem('activeTab', tabId);
 
-        if (tabId === 'dashboard') refreshDashboardData();
-        if (tabId === 'tournaments') {
-            loadTournaments();
-            loadMyRegistrations();
+        if (currentUser && myProfileData) {
+            if (tabId === 'dashboard') renderDashboard();
+            if (tabId === 'tournaments') { loadTournaments(); loadMyRegistrations(); }
+            if (tabId === 'stats') loadHistoricalData();
+            if (tabId === 'voting') loadVotes();
+            if (tabId === 'admin') loadAdminData();
         }
-        if (tabId === 'stats') loadHistoricalData();
-        if (tabId === 'voting') loadVotes();
-        if (tabId === 'admin') loadAdminData();
     }
 
     async function checkAuthState(user) {
@@ -423,21 +424,27 @@
                 const { data, error } = await db.from('profiles').select('*').eq('id', user.id).maybeSingle();
                 
                 if (data && data.full_name) {
+                    myProfileData = data;
                     actualUserRole = data.role || 'player';
                     if (simulatedRole === 'player' && actualUserRole !== 'player') {
                         simulatedRole = actualUserRole;
                     }
                     updateMenuByRole();
                     
-                    // GLOBÁLNÍ HYDRATACE (Tady byl ten zakopaný pes! Teď načteme rodinu ihned)
-                    await loadFamily();
+                    const { data: famData } = await db.from('players').select('*').eq('owner_id', user.id);
+                    myFamily = famData || [];
 
-                    // OBNOVA ZÁLOŽKY Z PAMĚTI
-                    const savedTab = sessionStorage.getItem('activeTab') || 'dashboard';
-                    if (savedTab === 'auth' || savedTab === 'profile-setup') {
-                        switchTab('dashboard');
+                    if (!authInitialized) {
+                        authInitialized = true;
+                        const savedTab = sessionStorage.getItem('activeTab') || 'dashboard';
+                        if (savedTab === 'auth' || savedTab === 'profile-setup') {
+                            switchTab('dashboard');
+                        } else {
+                            switchTab(savedTab);
+                        }
                     } else {
-                        switchTab(savedTab);
+                        const currentTab = document.querySelector('.page-section.active')?.id;
+                        if (currentTab === 'dashboard') renderDashboard();
                     }
                 } else {
                     switchTab('profile-setup');
@@ -447,6 +454,11 @@
                 switchTab('profile-setup');
             }
         } else {
+            currentUser = null;
+            myProfileData = null;
+            myFamily = [];
+            authInitialized = false;
+            
             document.getElementById('menu-auth').style.display = 'block';
             document.getElementById('menu-profile').style.display = 'none';
             document.getElementById('menu-tournaments').style.display = 'none';
@@ -456,8 +468,8 @@
             document.getElementById('menu-logout').style.display = 'none';
             
             sessionStorage.removeItem('activeTab');
-            const currentTab = document.querySelector('.page-section.active').id;
-            if (['dashboard', 'profile-setup', 'admin', 'tournaments', 'stats'].includes(currentTab)) {
+            const currentTab = document.querySelector('.page-section.active')?.id;
+            if (currentTab && ['dashboard', 'profile-setup', 'admin', 'tournaments', 'stats'].includes(currentTab)) {
                 switchTab('home');
             }
         }
@@ -523,9 +535,10 @@
     document.getElementById('roleSwitcher').addEventListener('change', (e) => {
         simulatedRole = e.target.value; 
         updateMenuByRole();
-        if (document.querySelector('.page-section.active').id === 'dashboard') refreshDashboardData();
-        if (document.querySelector('.page-section.active').id === 'admin') loadAdminData();
-        if (document.querySelector('.page-section.active').id === 'voting') loadVotes();
+        const currentTab = document.querySelector('.page-section.active')?.id;
+        if (currentTab === 'dashboard') renderDashboard();
+        if (currentTab === 'admin') loadAdminData();
+        if (currentTab === 'voting') loadVotes();
     });
 
     async function loadAdminData() {
@@ -546,41 +559,20 @@
         }
     };
 
-    async function refreshDashboardData() {
-        try {
-            document.getElementById('dashLoading').style.display = 'block';
-            document.getElementById('dashContent').style.display = 'none';
+    function renderDashboard() {
+        if (!myProfileData) return;
 
-            const { data, error } = await db.from('profiles').select('*').eq('id', currentUser.id).maybeSingle();
-            if (error) throw error;
+        document.getElementById('dashLoading').style.display = 'none';
+        document.getElementById('dashContent').style.display = 'block';
 
-            if (data && data.full_name) {
-                document.getElementById('dash-name').innerText = data.full_name;
-                document.getElementById('dash-id').innerText = data.player_id_card;
-                document.getElementById('dash-email').innerText = data.email || currentUser.email;
-                
-                let roleText = roleNames[simulatedRole] || 'Hráč';
-                if (actualUserRole === 'superadmin' && simulatedRole !== 'superadmin') roleText += ' (Simulace)';
-                document.getElementById('dash-role').innerText = roleText;
+        document.getElementById('dash-name').innerText = myProfileData.full_name;
+        document.getElementById('dash-id').innerText = myProfileData.player_id_card;
+        document.getElementById('dash-email').innerText = myProfileData.email || currentUser.email;
+        
+        let roleText = roleNames[simulatedRole] || 'Hráč';
+        if (actualUserRole === 'superadmin' && simulatedRole !== 'superadmin') roleText += ' (Simulace)';
+        document.getElementById('dash-role').innerText = roleText;
 
-                await loadFamily();
-                document.getElementById('dashLoading').style.display = 'none';
-                document.getElementById('dashContent').style.display = 'block';
-            } else {
-                document.getElementById('dashLoading').style.display = 'none';
-                switchTab('profile-setup');
-            }
-        } catch (err) {
-            console.error(err);
-            document.getElementById('dashLoading').style.display = 'none';
-            switchTab('profile-setup');
-        }
-    }
-
-    async function loadFamily() {
-        if (!currentUser) return;
-        const { data } = await db.from('players').select('*').eq('owner_id', currentUser.id);
-        myFamily = data || [];
         const list = document.getElementById('familyList'); 
         if (list) {
             list.innerHTML = '';
@@ -600,7 +592,9 @@
     window.removeFamily = async function(id) {
         if (confirm('Jste si jistí, že chcete tohoto člena trvale odebrat ze své rodiny?')) { 
             await db.from('players').delete().eq('id', id); 
-            loadFamily(); 
+            const { data: famData } = await db.from('players').select('*').eq('owner_id', currentUser.id);
+            myFamily = famData || [];
+            renderDashboard();
         }
     };
 
@@ -624,7 +618,11 @@
         };
         const { error } = await db.from('profiles').upsert(updates);
         if (error) { msg.className = 'msg error'; msg.innerText = 'Nastala chyba při ukládání: ' + error.message; 
-        } else { msg.style.display = 'none'; checkAuthState(currentUser); }
+        } else { 
+            msg.style.display = 'none'; 
+            authInitialized = false; 
+            checkAuthState(currentUser); 
+        }
     });
 
     document.getElementById('addFamilyForm').addEventListener('submit', async (e) => {
@@ -633,8 +631,15 @@
         const { error } = await db.from('players').insert({ 
             owner_id: currentUser.id, full_name: document.getElementById('famName').value, player_id_card: document.getElementById('famId').value 
         });
-        if (!error) { document.getElementById('addFamilyForm').reset(); msg.style.display = 'none'; loadFamily(); 
-        } else { msg.className = 'msg error'; msg.innerText = 'Chyba: Zadaná značka již v databázi existuje.'; msg.style.display = 'block'; }
+        if (!error) { 
+            document.getElementById('addFamilyForm').reset(); 
+            msg.style.display = 'none'; 
+            const { data: famData } = await db.from('players').select('*').eq('owner_id', currentUser.id);
+            myFamily = famData || [];
+            renderDashboard();
+        } else { 
+            msg.className = 'msg error'; msg.innerText = 'Chyba: Zadaná značka již v databázi existuje.'; msg.style.display = 'block'; 
+        }
     });
 
     const inputTName = document.getElementById('tName');
@@ -737,7 +742,7 @@
             const uniqueQrId = 'qr_' + reg.id;
             
             let playerName = 'Značka: ' + reg.player_id_card;
-            if(reg.player_id_card === document.getElementById('dash-id').innerText) {
+            if(myProfileData && reg.player_id_card === myProfileData.player_id_card) {
                 playerName = 'VY (Hlavní profil)';
             } else {
                 let fam = myFamily.find(f => f.player_id_card === reg.player_id_card);
@@ -800,8 +805,8 @@
     };
 
     window.joinTournament = async function(tId) { 
-        const myIdCard = document.getElementById('dash-id').innerText;
-        if (!myIdCard) { alert("Chyba: Nejprve si musíte zkontrolovat váš profil."); return; }
+        if (!myProfileData || !myProfileData.player_id_card) { alert("Chyba: Nejprve si musíte zkontrolovat váš profil."); return; }
+        const myIdCard = myProfileData.player_id_card;
 
         const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: myIdCard, registered_by: currentUser.id });
 
@@ -866,9 +871,10 @@
     }
 
     function populateStatsDropdowns() {
+        if (!myProfileData) return;
         const pSelect = document.getElementById('statsPlayerSelect');
-        const myId = document.getElementById('dash-id').innerText;
-        const myName = document.getElementById('dash-name').innerText;
+        const myId = myProfileData.player_id_card;
+        const myName = myProfileData.full_name;
         
         let pOptions = `<option value="${myId}">${myName} (VY)</option>`;
         myFamily.forEach(f => {
@@ -918,13 +924,13 @@
     window.renderTournamentResults = function() {
         const tName = document.getElementById('statsTournamentSelect').value;
         const box = document.getElementById('tournamentResultsBox');
-        if (!tName) { box.innerHTML = ''; return; }
+        if (!tName || !myProfileData) { box.innerHTML = ''; return; }
 
         let tData = historicalData.filter(d => d.tournament_name === tName);
         
         tData.sort((a, b) => parseInt(a.rank) - parseInt(b.rank));
 
-        let allowedIds = [document.getElementById('dash-id').innerText];
+        let allowedIds = [myProfileData.player_id_card];
         myFamily.forEach(f => allowedIds.push(f.player_id_card));
 
         let html = '<table class="stats-table"><tr><th>Pořadí</th><th>Hráč a Město</th><th>Body</th></tr>';
