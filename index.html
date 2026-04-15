@@ -334,9 +334,9 @@
 
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
                     <h3>Nové hlasování Zakládajících členů</h3>
-                    <form id="createVoteForm">
+                    <form id="createVoteFormAdmin">
                         <label>Otázka k hlasování</label>
-                        <input type="text" id="vTitle" required>
+                        <input type="text" id="vTitleAdmin" required>
                         <button type="submit" style="background: #d69e2e;">Zahájit hlasování</button>
                     </form>
                 </div>
@@ -970,17 +970,35 @@
         loadVotes();
     });
 
+    document.getElementById('createVoteFormAdmin').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await db.from('votes').insert({ title: document.getElementById('vTitleAdmin').value, created_by: currentUser.id });
+        alert('Návrh byl úspěšně vytvořen.'); 
+        document.getElementById('createVoteFormAdmin').reset();
+        loadVotes();
+    });
+
     async function loadVotes() {
-        let query = db.from('votes').select('*').eq('is_closed', false);
-        
+        const list = document.getElementById('votingList'); 
+        list.innerHTML = '';
+
         if (simulatedRole === 'pc') {
-            query = query.eq('created_by', currentUser.id);
+            list.innerHTML = '<p style="color: #718096; font-style: italic;">Seznam probíhajících hlasování je přístupný pouze Zakládajícím členům. Vaše zadané podněty k projednání byly v pořádku odeslány vedení k posouzení.</p>';
+            return;
         }
 
-        const { data: votes } = await query;
-        const list = document.getElementById('votingList'); list.innerHTML = '';
+        const { data: allProfiles } = await db.from('profiles').select('id, full_name');
+        const profileMap = {};
+        if (allProfiles) {
+            allProfiles.forEach(p => profileMap[p.id] = p.full_name);
+        }
+
+        const { data: votes } = await db.from('votes').select('*').order('created_at', { ascending: false });
         
-        if (!votes || votes.length === 0) { list.innerHTML = '<p>Zatím neprobíhá žádné aktivní projednávání návrhů.</p>'; return; }
+        if (!votes || votes.length === 0) { 
+            list.innerHTML = '<p>Zatím neprobíhá žádné aktivní projednávání návrhů.</p>'; 
+            return; 
+        }
 
         for (let v of votes) {
             const { data: records } = await db.from('voting_records').select('*').eq('vote_id', v.id);
@@ -992,26 +1010,44 @@
             let myVote = records.find(r => r.voter_id === currentUser.id);
             let isZcOrHigher = ['zc', 'zcp', 'superadmin'].includes(simulatedRole);
 
-            let html = `<div class="list-item" style="flex-direction:column; align-items:flex-start;">
+            let statusBadge = v.is_closed 
+                ? '<span class="badge" style="background:#c53030; margin-bottom:10px; display:inline-block;">UZAVŘENO</span>'
+                : '<span class="badge" style="background:#38a169; margin-bottom:10px; display:inline-block;">AKTIVNÍ</span>';
+
+            let html = `<div class="list-item" style="flex-direction:column; align-items:flex-start; background: #fff; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
+                ${statusBadge}
                 <h4>${v.title}</h4>
                 <div class="vote-stats">
-                    <span>Průběžný stav:</span>
+                    <span>${v.is_closed ? 'Konečný stav:' : 'Průběžný stav:'}</span>
                     <span style="color:#2d3748">Celkem: ${totalCount}</span>
                     <span style="color:#2f855a">PRO: ${proCount}</span>
                     <span style="color:#c53030">PROTI: ${protiCount}</span>
                 </div>`;
 
             if (isZcOrHigher) {
-                if (myVote) {
-                    html += `<p style="margin-top:10px; font-weight:bold; color:#2f855a;">Váš hlas byl zaznamenán. Klíč: <span class="hash-box">${myVote.vote_hash}</span></p>`;
+                if (v.is_closed) {
+                    let detailsHtml = '<div style="margin-top:15px; width:100%; border-top:1px solid #e2e8f0; padding-top:10px;"><h5>Jmenovitý výpis hlasování:</h5><ul style="list-style:none; padding-left:0; font-size:0.9rem;">';
+                    records.forEach(r => {
+                        let vName = profileMap[r.voter_id] || 'Neznámý člen';
+                        let vChoice = r.choice.toUpperCase();
+                        let vColor = r.choice === 'pro' ? '#2f855a' : '#c53030';
+                        let vDate = new Date(r.created_at || Date.now()).toLocaleString('cs-CZ');
+                        detailsHtml += `<li style="padding: 5px 0; border-bottom: 1px dashed #e2e8f0;"><strong>${vName}</strong> hlasoval(a) <span style="color:${vColor}; font-weight:bold;">${vChoice}</span> <span style="color:#718096; font-size:0.8rem;">(${vDate})</span></li>`;
+                    });
+                    detailsHtml += '</ul></div>';
+                    
+                    html += `<button class="btn-small" style="background:#4a5568; margin-top:10px;" onclick="document.getElementById('details_${v.id}').style.display = document.getElementById('details_${v.id}').style.display === 'none' ? 'block' : 'none'">Zobrazit jmenovité detaily</button>`;
+                    html += `<div id="details_${v.id}" style="display:none; width:100%;">${detailsHtml}</div>`;
                 } else {
-                    html += `<div style="display:flex; gap:10px; margin-top:10px;">
-                        <button class="btn-small" style="background:#48bb78" onclick="castVote('${v.id}', 'pro')">Hlasovat PRO</button>
-                        <button class="btn-small btn-danger" onclick="castVote('${v.id}', 'proti')">Hlasovat PROTI</button>
-                    </div>`;
+                    if (myVote) {
+                        html += `<p style="margin-top:10px; font-weight:bold; color:#2f855a;">Váš hlas byl zaznamenán.</p>`;
+                    } else {
+                        html += `<div style="display:flex; gap:10px; margin-top:10px;">
+                            <button class="btn-small" style="background:#48bb78" onclick="castVote('${v.id}', 'pro')">Hlasovat PRO</button>
+                            <button class="btn-small btn-danger" onclick="castVote('${v.id}', 'proti')">Hlasovat PROTI</button>
+                        </div>`;
+                    }
                 }
-            } else {
-                html += `<p style="margin-top:10px; font-size:0.9rem; color:#718096;">Hlasovat mohou pouze Zakládající členové.</p>`;
             }
 
             html += `</div>`;
@@ -1039,7 +1075,7 @@
                         body: JSON.stringify({
                             email: creatorProfile.email,
                             subject: 'Hlasovani ukonceno',
-                            message: 'Vsichni opravneni clenove odhlasovali v navrhu: ' + voteInfo.title
+                            message: 'Všichni oprávnění členové odhlasovali v návrhu: ' + voteInfo.title
                         })
                     }).catch(e => console.log(e));
                 }
