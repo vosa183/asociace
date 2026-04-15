@@ -118,7 +118,7 @@
             
             <h3 style="color: var(--secondary); margin-top: 1.5rem;">Herní balíček a rozdávání karet</h3>
             <p style="margin-bottom: 0.8rem;">Hraje se výhradně s balíčkem třiceti dvou karet německého typu (takzvané mariášky). Karty se dělí do čtyř barev: srdce, žaludy, listy a kule. Každá barva má osm hodnot: sedmička, osmička, devítka, desítka, spodek, svršek, král a eso.</p>
-            <p>Na samém začátku hry rozdá pověřený krupiér každému hráči přesně čtyři karty. Zbytek balíčku se položí doprostřed hracího stolu lícem dolů jako lízací talón. Vrchní karta z tohoto talónu se otočí a položí vedle – čímž vzniká základ odhazovací hromádky.</p>
+            <p>Na samém začátku hry rozdá rozdávající hráč každému hráči přesně čtyři karty. Zbytek balíčku se položí doprostřed hracího stolu lícem dolů jako lízací talón. Vrchní karta z tohoto talónu se otočí a položí vedle – čímž vzniká základ odhazovací hromádky. Tato první otočená karta je plně aktivní. Znamená to, že pokud je otočena například sedmička, hráč, který je jako první na tahu, si musí rovnou lízat dvě karty (pokud sám nemá sedmičku na přebití).</p>
             
             <h3 style="color: var(--secondary); margin-top: 1.5rem;">Základní průběh hry</h3>
             <p>Hráč, který je zrovna na tahu, musí na odhazovací hromádku zahrát kartu, která se shoduje buď barvou, nebo hodnotou s vrchní viditelnou kartou. Pokud takovou kartu ve své ruce nemá, případně ji z taktických důvodů nechce použít, musí si líznout jednu kartu z talónu. Absolutním vítězem partie se stává ten hráč, který se jako první prokazatelně zbaví všech svých karet.</p>
@@ -1186,7 +1186,6 @@
         const { count: zcCount } = await db.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['zc', 'zcp', 'superadmin']);
         const { data: records } = await db.from('voting_records').select('*').eq('vote_id', voteId);
         
-        // Zohledníme simulaci
         let requiredVotes = (zcCount !== null && zcCount > 0) ? zcCount : 1;
         
         if (records && records.length >= requiredVotes) {
