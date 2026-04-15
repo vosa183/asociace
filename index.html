@@ -39,6 +39,9 @@
         .badge { background: var(--primary); color: white; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.8rem; }
         .hash-box { background: #1a202c; color: #48bb78; padding: 0.5rem; font-family: monospace; font-size: 0.8rem; border-radius: 4px; word-break: break-all;}
         footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 2rem; }
+        
+        /* Styl pro generátor pozvánek */
+        #inviteCanvas { width: 100%; max-width: 800px; height: auto; border: 2px solid var(--primary); border-radius: 8px; margin-top: 1rem; display: none; }
     </style>
 </head>
 <body>
@@ -75,7 +78,7 @@
         <div class="card">
             <h2>Pravidla & VOP</h2>
             <p>1. Nic se nevrací. 2. Sedmička líže. 3. Eso stojí. 4. Vše se přebíjí.</p>
-            <p><strong>Storno podmínky:</strong> Registrace na turnaj je závazná. Pokud hráč nedorazí, poplatek propadá ve prospěch asociace.</p>
+            <p><strong>Storno podmínky:</strong> Registrace na turnaj a s ní spojené Zápisné (rezervační poplatek) je závazné. Pokud hráč nedorazí, zápisné propadá ve prospěch asociace.</p>
             <p><strong>Zastupování:</strong> Je přísně zakázáno, aby na turnaj dorazila jiná osoba, než je uvedena na přihlášce s daným ID průkazu.</p>
         </div>
     </section>
@@ -183,7 +186,7 @@
     <section id="tournaments" class="page-section">
         <div class="card">
             <h2>Vypsané turnaje</h2>
-            <p style="margin-bottom: 1.5rem;">Startovné se hradí bankovním převodem. Jako Variabilní symbol pro platbu použijte vždy ID průkazu přihlašovaného hráče.</p>
+            <p style="margin-bottom: 1.5rem;">Zápisné se hradí bankovním převodem. Jako Variabilní symbol pro platbu použijte vždy ID průkazu přihlašovaného hráče.</p>
             <div id="tournamentsList">Načítám vypsané turnaje...</div>
         </div>
     </section>
@@ -213,18 +216,34 @@
 
             <div id="zcZone" style="display: none;">
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
-                    <h3>Vypsat nový turnaj</h3>
+                    <h3>Vypsat nový turnaj a Generátor pozvánek</h3>
                     <form id="createTournamentForm">
                         <label>Název turnaje</label>
-                        <input type="text" id="tName" required>
-                        <label>Datum konání</label>
-                        <input type="date" id="tDate" required>
+                        <input type="text" id="tName" placeholder="Zadejte přesný název turnaje" required>
+                        
+                        <div class="grid-2" style="gap: 1rem; margin-bottom: 1.2rem;">
+                            <div>
+                                <label>Datum konání</label>
+                                <input type="date" id="tDate" style="margin-bottom: 0;" required>
+                            </div>
+                            <div>
+                                <label>Zápisné (Kč)</label>
+                                <input type="number" id="tFee" value="100" style="margin-bottom: 0;" required>
+                            </div>
+                        </div>
+
                         <label>Kapacita hráčů</label>
                         <input type="number" id="tCap" value="80" required>
-                        <label>Startovné (Kč)</label>
-                        <input type="number" id="tFee" value="100" required>
-                        <button type="submit">Vytvořit nový turnaj</button>
+                        
+                        <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                            <button type="submit" style="flex: 1;">Uložit turnaj do databáze</button>
+                            <button type="button" onclick="generateInvitation()" style="flex: 1; background: #d69e2e;">Náhled grafické pozvánky</button>
+                        </div>
                     </form>
+
+                    <!-- Zde se vygeneruje grafická pozvánka -->
+                    <canvas id="inviteCanvas"></canvas>
+                    <button id="downloadInviteBtn" type="button" onclick="downloadInvitation()" style="display:none; background: #48bb78; margin-top: 1rem;">⬇ Stáhnout pozvánku do PC (JPG)</button>
                 </div>
 
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
@@ -514,13 +533,12 @@
             let btnText = isFull ? 'Přihlásit jako NÁHRADNÍK (Kapacita je plná)' : 'Přihlásit SEBE na turnaj';
             let btnColor = isFull ? '#ed8936' : 'var(--primary)';
             
-            // Všimni si, že jako value vkládáme přímo player_id_card, aby se to lépe zpracovalo při registraci
             let familySelectOptions = myFamily.map(f => `<option value="${f.player_id_card}">${f.full_name} (ID: ${f.player_id_card})</option>`).join('');
             
             list.innerHTML += `
             <div class="list-item" style="flex-direction: column; align-items: flex-start;">
                 <h4>${t.title} (Datum konání: ${t.event_date})</h4>
-                <p>Obsazeno: ${count || 0} / ${t.capacity} | Poplatek: ${t.fee} Kč</p>
+                <p>Obsazeno: ${count || 0} / ${t.capacity} | Zápisné: ${t.fee} Kč</p>
                 <div style="display:flex; gap:10px; width:100%; margin-top:10px; flex-wrap: wrap;">
                     <button class="btn-small" style="background:${btnColor}" onclick="joinTournament('${t.id}')">${btnText}</button>
                     ${myFamily.length > 0 ? `
@@ -532,7 +550,6 @@
         }
     }
 
-    // Ostrá funkce pro přihlášení hlavního profilu
     window.joinTournament = async function(tId) { 
         const myIdCard = document.getElementById('dash-id').innerText;
         if (!myIdCard) {
@@ -547,18 +564,17 @@
         });
 
         if (error) {
-            if (error.code === '23505') { // 23505 je standardní kód databáze pro duplicitu
+            if (error.code === '23505') { 
                 alert('Chyba: Pod tímto průkazem jste již na tento turnaj přihlášeni!');
             } else {
                 alert('Při registraci nastala chyba: ' + error.message);
             }
         } else {
             alert('Vaše registrace proběhla úspěšně! Instrukce k platbě pod vaším VS (ID průkazu) obdržíte na e-mail.'); 
-            loadTournaments(); // Znovu načte seznam a aktualizuje počítadlo obsazenosti
+            loadTournaments(); 
         }
     };
 
-    // Ostrá funkce pro přihlášení člena rodiny
     window.joinFamilyTournament = async function(tId) { 
         const selectBox = document.getElementById('famSel_' + tId);
         const familyPlayerIdCard = selectBox.value;
@@ -576,9 +592,94 @@
                 alert('Při registraci nastala chyba: ' + error.message);
             }
         } else {
-            alert('Člen vaší rodiny byl úspěšně přihlášen na turnaj. Nezapomeňte uhradit poplatek pod jeho přiděleným symbolem.'); 
-            loadTournaments(); // Znovu načte seznam a aktualizuje počítadlo
+            alert('Člen vaší rodiny byl úspěšně přihlášen na turnaj. Nezapomeňte uhradit Zápisné pod jeho přiděleným symbolem.'); 
+            loadTournaments(); 
         }
+    };
+
+    // -------------------------------------------------------------
+    // GENERÁTOR POZVÁNEK (CANVAS)
+    // -------------------------------------------------------------
+    
+    window.generateInvitation = function() {
+        const title = document.getElementById('tName').value;
+        const date = document.getElementById('tDate').value;
+        const fee = document.getElementById('tFee').value;
+
+        if (!title || !date) {
+            alert("Před generováním pozvánky prosím vyplňte Název turnaje a Datum konání.");
+            return;
+        }
+
+        const canvas = document.getElementById('inviteCanvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        
+        // Zde načítáme obrázek šablony, který musí být nahrán na GitHubu vedle index.html
+        img.src = 'sablona.jpg'; 
+
+        img.onload = () => {
+            canvas.style.display = 'block';
+            // Nastavení rozměrů canvasu podle původní šablony
+            canvas.width = img.width || 1200;
+            canvas.height = img.height || 800;
+
+            // 1. Vykreslení pozadí (čisté šablony)
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            const centerX = canvas.width / 2;
+
+            // 2. Vykreslení Názvu turnaje do červené stuhy
+            ctx.fillStyle = '#ffffff'; // Bílá barva textu pro kontrast se stuhou
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Velikost písma pro název
+            const titleFontSize = Math.floor(canvas.width * 0.045);
+            ctx.font = `bold ${titleFontSize}px 'Inter', sans-serif`;
+            
+            // Souřadnice Y pro střed stuhy (Upravte 0.5 podle reálné pozice stuhy na obrázku)
+            const ribbonCenterY = canvas.height * 0.50; 
+            ctx.fillText(title.toUpperCase(), centerX, ribbonCenterY);
+
+            // 3. Vykreslení Datumu a Zápisného do spodní části (nad logo PRÁZDNO)
+            ctx.fillStyle = '#1a365d'; // Tmavě modrá barva
+            const dateFontSize = Math.floor(canvas.width * 0.035);
+            ctx.font = `bold ${dateFontSize}px 'Inter', sans-serif`;
+            
+            // Souřadnice Y pro spodní text (Upravte 0.85 podle potřeby)
+            const bottomTextY = canvas.height * 0.82;
+            
+            // Formátování data z YYYY-MM-DD na hezčí formát
+            let formattedDate = date;
+            if (date.includes('-')) {
+                const parts = date.split('-');
+                formattedDate = `${parts[2]}. ${parts[1]}. ${parts[0]}`;
+            }
+
+            ctx.fillText(`DATUM KONÁNÍ: ${formattedDate}`, centerX, bottomTextY);
+
+            // Dodatečné info pod datum
+            const infoFontSize = Math.floor(canvas.width * 0.025);
+            ctx.font = `normal ${infoFontSize}px 'Inter', sans-serif`;
+            ctx.fillText(`Zápisné: ${fee} Kč | Registrace na asociaceprsi.cz`, centerX, bottomTextY + dateFontSize * 1.5);
+
+            // Zobrazení tlačítka pro stažení
+            document.getElementById('downloadInviteBtn').style.display = 'block';
+        };
+
+        img.onerror = () => {
+            alert("CHYBA: Šablona pozvánky (sablona.jpg) nebyla nalezena. Prosím, ujistěte se, že je obrázek nahrán na webu pod přesným názvem 'sablona.jpg'.");
+        };
+    };
+
+    window.downloadInvitation = function() {
+        const canvas = document.getElementById('inviteCanvas');
+        const link = document.createElement('a');
+        link.download = `Pozvanka_${document.getElementById('tName').value.replace(/\s+/g, '_')}.jpg`;
+        link.href = canvas.toDataURL('image/jpeg', 0.9);
+        link.click();
     };
 
     // -------------------------------------------------------------
