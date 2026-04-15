@@ -245,12 +245,15 @@
 
             <div id="zcpZone" style="display: none; background: #ebf8ff; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #90cdf4;">
                 <h3 style="color: #2b6cb0;">Zóna Předsedy (ZČP)</h3>
-                <p style="font-size: 0.9rem; margin-bottom: 1rem;">Zde spravujete globální nastavení asociace. Zadaný účet se propíše do všech QR kódů pro platby hráčů.</p>
+                <p style="font-size: 0.9rem; margin-bottom: 1rem;">Zde spravujete globální nastavení asociace. Zadaný účet se propíše do všech QR kódů pro platby hráčů a API token slouží backendu k automatickému párování plateb.</p>
+                
                 <label>Bankovní účet asociace (Formát IBAN - začíná CZ...)</label>
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" id="bankAccountInput" placeholder="Např. CZ1201000000000123456789" style="margin-bottom: 0;">
-                    <button class="btn-small" onclick="saveBankAccount()" style="background: #2b6cb0;">Uložit účet</button>
-                </div>
+                <input type="text" id="bankAccountInput" placeholder="Např. CZ1201000000000123456789" style="margin-bottom: 1rem;">
+                
+                <label>Fio API Token (Pouze pro čtení pohybů na účtu)</label>
+                <input type="password" id="fioTokenInput" placeholder="Vložte API token z internetového bankovnictví" style="margin-bottom: 1.2rem;">
+
+                <button class="btn-small" onclick="saveSystemSettings()" style="background: #2b6cb0; width: auto;">Uložit systémové nastavení</button>
             </div>
 
             <div id="zcZone" style="display: none;">
@@ -322,7 +325,8 @@
     let actualUserRole = 'player';
     let simulatedRole = 'player';
     let myFamily = [];
-    let globalBankAccount = 'CZ0000000000000000000000'; // Default, nahradí se z DB
+    let globalBankAccount = 'CZ0000000000000000000000';
+    let globalFioToken = '';
 
     const roleNames = { 
         'player': 'Hráč', 
@@ -360,9 +364,11 @@
             document.getElementById('menu-logout').style.display = 'block';
 
             try {
-                // Načtení globálního účtu z DB
-                const { data: settingsData } = await db.from('system_settings').select('bank_account').eq('id', 1).maybeSingle();
-                if(settingsData) globalBankAccount = settingsData.bank_account;
+                const { data: settingsData } = await db.from('system_settings').select('*').eq('id', 1).maybeSingle();
+                if(settingsData) {
+                    globalBankAccount = settingsData.bank_account || 'CZ0000000000000000000000';
+                    globalFioToken = settingsData.fio_token || '';
+                }
 
                 const { data, error } = await db.from('profiles').select('*').eq('id', user.id).maybeSingle();
                 
@@ -465,14 +471,17 @@
 
     async function loadAdminData() {
         document.getElementById('bankAccountInput').value = globalBankAccount;
+        document.getElementById('fioTokenInput').value = globalFioToken;
     }
 
-    window.saveBankAccount = async function() {
+    window.saveSystemSettings = async function() {
         const newAcc = document.getElementById('bankAccountInput').value;
-        const { error } = await db.from('system_settings').update({ bank_account: newAcc }).eq('id', 1);
+        const newTok = document.getElementById('fioTokenInput').value;
+        const { error } = await db.from('system_settings').update({ bank_account: newAcc, fio_token: newTok }).eq('id', 1);
         if(!error) {
             globalBankAccount = newAcc;
-            alert('Číslo účtu asociace bylo uloženo. Nyní se bude generovat do QR kódů všem hráčům.');
+            globalFioToken = newTok;
+            alert('Systémové nastavení uloženo. Backendová automatizace pro Fio banku byla aktualizována.');
         } else {
             alert('Chyba při ukládání: ' + error.message);
         }
@@ -652,9 +661,8 @@
     }
 
     async function loadMyRegistrations() {
-        // Získáme přihlášky, které založil tento uživatel
         const { data: myRegs } = await db.from('registrations').select(`
-            id, player_id_card, created_at,
+            id, player_id_card, created_at, payment_status,
             tournaments ( id, title, event_date, fee )
         `).eq('registered_by', currentUser.id);
 
@@ -670,7 +678,6 @@
             const t = reg.tournaments;
             const uniqueQrId = 'qr_' + reg.id;
             
-            // Jméno hráče - pro zobrazení zjistíme, zda jde o vlastní profil nebo rodinu (zde zjednodušeně ukážeme jen ID)
             let playerName = 'Průkaz: ' + reg.player_id_card;
             if(reg.player_id_card === document.getElementById('dash-id').innerText) {
                 playerName = 'VY (Hlavní profil)';
@@ -679,17 +686,24 @@
                 if(fam) playerName = fam.full_name + ' (Rodina)';
             }
 
+            // Rozhodnutí o tom, jaké tlačítko se ukáže (Platba vs Zaplaceno)
+            let paymentUI = '';
+            if(reg.payment_status === true) {
+                paymentUI = `<span class="badge" style="background: #38a169; padding: 0.5rem 1rem; font-size: 0.9rem;">✅ Uhrazeno</span>`;
+            } else {
+                paymentUI = `<button class="btn-small" style="background: #2b6cb0;" onclick="toggleQR('${uniqueQrId}', '${t.fee}', '${reg.player_id_card}')">💳 Ukázat QR kód k platbě</button>`;
+            }
+
             list.innerHTML += `
             <div class="list-item" style="flex-direction: column; align-items: flex-start; background: #fff; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
                 <h4 style="color: #2f855a;">${t.title}</h4>
                 <p><strong>Hráč:</strong> ${playerName} | <strong>Datum:</strong> ${t.event_date}</p>
-                <div style="display:flex; gap:10px; width:100%; margin-top:10px; flex-wrap: wrap;">
+                <div style="display:flex; gap:10px; width:100%; margin-top:10px; flex-wrap: wrap; align-items: center;">
+                    ${paymentUI}
                     <button class="btn-small" style="background: #4a5568;" onclick="downloadCalendar('${t.title}', '${t.event_date}')">
                         📅 Přidat do kalendáře
                     </button>
-                    <button class="btn-small" style="background: #2b6cb0;" onclick="toggleQR('${uniqueQrId}', '${t.fee}', '${reg.player_id_card}')">
-                        💳 Ukázat QR kód k platbě
-                    </button>
+                    <button class="btn-small btn-danger" onclick="cancelRegistration('${reg.id}')">❌ Nepřijedu</button>
                 </div>
                 <div id="${uniqueQrId}" class="qr-container">
                     <p style="font-size: 0.8rem; margin-bottom: 10px;">Zápisné: <strong>${t.fee} Kč</strong> | VS: <strong>${reg.player_id_card}</strong></p>
@@ -706,7 +720,6 @@
         if (container.style.display === 'block') {
             container.style.display = 'none';
         } else {
-            // Generování SPAYD řetězce pro české QR platby
             const spayd = `SPD*1.0*ACC:${globalBankAccount}*AM:${fee}.00*CC:CZK*X-VS:${vs}`;
             img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(spayd)}`;
             container.style.display = 'block';
@@ -715,7 +728,7 @@
 
     window.downloadCalendar = function(title, dateStr) {
         const parts = dateStr.split('-');
-        const startDate = parts[0] + parts[1] + parts[2] + 'T080000Z'; // Formát pro kalendář
+        const startDate = parts[0] + parts[1] + parts[2] + 'T080000Z'; 
         const endDate = parts[0] + parts[1] + parts[2] + 'T200000Z'; 
         
         const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${startDate}\nDTEND:${endDate}\nSUMMARY:${title} (Asociace prší)\nDESCRIPTION:Oficiální turnaj v karetní hře Prší. Zkontrolujte web asociace pro detaily.\nEND:VEVENT\nEND:VCALENDAR`;
@@ -758,6 +771,19 @@
             alert('Člen vaší rodiny byl úspěšně přihlášen na turnaj.\n\n(Systémové info: Potvrzovací E-mail byl úspěšně odeslán hráči).'); 
             loadTournaments(); 
             loadMyRegistrations();
+        }
+    };
+
+    window.cancelRegistration = async function(regId) {
+        if(confirm("Opravdu chcete zrušit tuto přihlášku? Upozorňujeme na storno podmínky: pokud již bylo uhrazeno Zápisné, propadá ve prospěch asociace.")) {
+            const { error } = await db.from('registrations').delete().eq('id', regId);
+            if(!error) {
+                alert("Přihláška byla úspěšně zrušena.");
+                loadTournaments(); 
+                loadMyRegistrations();
+            } else {
+                alert("Chyba při mazání přihlášky: " + error.message);
+            }
         }
     };
 
