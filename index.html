@@ -11,7 +11,7 @@
     <title>Česká asociace prší z. s.</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --primary: #1a365d; --secondary: #c53030; --bg: #f4f7f6; --text: #2d3748; --white: #ffffff; --gray: #e2e8f0; }
+        :root { --primary: #1a365d; --secondary: #c53030; --bg: #f4f7f6; --text: #2d3748; --white: #ffffff; --gray: #e2e8f0; --orange: #dd6b20; }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: var(--bg); color: var(--text); line-height: 1.6; }
         header { background: var(--white); padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; }
@@ -37,6 +37,8 @@
         .btn-small { width: auto; padding: 0.4rem 0.8rem; font-size: 0.8rem; }
         .btn-danger { background: var(--secondary); }
         .btn-danger:hover { background: #9b2c2c; }
+        .btn-orange { background: var(--orange); }
+        .btn-orange:hover { background: #c05621; }
         .msg { margin-top: 1rem; font-weight: bold; padding: 0.8rem; border-radius: 6px; display: none; text-align: center; }
         .error { background: #fed7d7; color: #c53030; display: block; }
         .success { background: #c6f6d5; color: #2f855a; display: block; }
@@ -253,20 +255,25 @@
     <section id="voting" class="page-section">
         <div class="card" style="border-top: 4px solid #d69e2e;">
             <h2 style="color: #d69e2e; border-color: #d69e2e;">Návrhy a Hlasování</h2>
-            <p style="margin-bottom: 1.5rem;">Prostor pro požadavky Přidružených členů a hlasování Zakládajících členů.</p>
+            <p style="margin-bottom: 1.5rem;">Prostor pro podněty k diskuzi a ostré hlasování Zakládajících členů.</p>
             
-            <div style="background: #fffbeb; border: 1px solid #f6e05e; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
-                <h3 style="color: #b7791f; font-size: 1.1rem;">Zadat nový požadavek k projednání</h3>
+            <div id="proposalZone" style="background: #fffbeb; border: 1px solid #f6e05e; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+                <h3 style="color: #b7791f; font-size: 1.1rem;" id="proposalHeaderTitle">Zadat nový podnět k diskuzi</h3>
                 <form id="createVoteForm" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
                     <div style="flex: 3; min-width: 200px;">
                         <label>Znění návrhu nebo otázky</label>
                         <input type="text" id="vTitle" style="margin:0;" required>
                     </div>
-                    <button type="submit" style="flex: 1; min-width: 150px; background: #d69e2e; margin:0;">Odeslat návrh</button>
+                    <button type="submit" id="proposalSubmitBtn" style="flex: 1; min-width: 150px; background: #d69e2e; margin:0;">Odeslat podnět</button>
                 </form>
             </div>
 
-            <div id="votingList">Načítám agendu...</div>
+            <h3 style="color: #c53030; display: none;" id="votingSectionHeader">Ostrá hlasování</h3>
+            <div id="votingList"></div>
+
+            <h3 style="color: #dd6b20; margin-top: 2.5rem; border-top: 1px solid #ccc; padding-top: 1rem;">Debaty a podněty</h3>
+            <div id="debateList"></div>
+
         </div>
     </section>
 
@@ -330,15 +337,6 @@
                         <div class="fee" id="previewFee">Zápisné</div>
                         <div class="footer-text">Registrace předem na webu</div>
                     </div>
-                </div>
-
-                <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
-                    <h3>Nové hlasování Zakládajících členů</h3>
-                    <form id="createVoteFormAdmin">
-                        <label>Otázka k hlasování</label>
-                        <input type="text" id="vTitleAdmin" required>
-                        <button type="submit" style="background: #d69e2e;">Zahájit hlasování</button>
-                    </form>
                 </div>
 
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px;">
@@ -534,6 +532,16 @@
             document.getElementById('menu-admin').style.display = 'block';
             document.getElementById('superAdminZone').style.display = 'block';
             document.getElementById('roleSwitcher').value = simulatedRole;
+        }
+
+        if (simulatedRole === 'pc') {
+            document.getElementById('proposalHeaderTitle').innerText = 'Zadat nový podnět k diskuzi';
+            document.getElementById('proposalSubmitBtn').innerText = 'Odeslat podnět';
+            document.getElementById('votingSectionHeader').style.display = 'none';
+        } else if (isZcOrHigher) {
+            document.getElementById('proposalHeaderTitle').innerText = 'Vypsat ostré hlasování nebo diskuzi';
+            document.getElementById('proposalSubmitBtn').innerText = 'Vypsat hlasování';
+            document.getElementById('votingSectionHeader').style.display = 'block';
         }
     }
 
@@ -962,34 +970,55 @@
         box.innerHTML = html;
     }
 
-    // ODESLÁNÍ PODNĚTU K DISKUZI (PŘIDRUŽENÝ ČLEN)
+    // ODESLÁNÍ NÁVRHU DO SYSTÉMU
     document.getElementById('createVoteForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        // Tajně k tomu přidáme značku, aby systém poznal, že jde o podnět a ne hlasování
-        const nazev = "[NÁVRH PČ] " + document.getElementById('vTitle').value;
-        await db.from('votes').insert({ title: nazev, created_by: currentUser.id });
-        alert('Váš podnět k diskuzi byl úspěšně odeslán vedení k projednání.'); 
+        const inputVal = document.getElementById('vTitle').value;
+        
+        const isPcOrHigher = ['pc', 'zc', 'zcp', 'superadmin'].includes(simulatedRole);
+        const titleToSave = simulatedRole === 'pc' ? "[NÁVRH PČ] " + inputVal : inputVal;
+        
+        await db.from('votes').insert({ title: titleToSave, created_by: currentUser.id });
+        
+        if (simulatedRole === 'pc') {
+            alert('Váš podnět k diskuzi byl úspěšně odeslán.');
+        } else {
+            alert('Ostré hlasování bylo úspěšně vypsáno.');
+        }
+        
         document.getElementById('createVoteForm').reset();
         loadVotes();
     });
 
-    // ODESLÁNÍ OSTRÉHO HLASOVÁNÍ (ZAKLÁDAJÍCÍ ČLEN / ADMIN)
-    document.getElementById('createVoteFormAdmin').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await db.from('votes').insert({ title: document.getElementById('vTitleAdmin').value, created_by: currentUser.id });
-        alert('Ostré hlasování bylo úspěšně zahájeno.'); 
-        document.getElementById('createVoteFormAdmin').reset();
-        loadVotes();
-    });
+    // PŘIDÁNÍ KOMENTÁŘE K DEBATĚ
+    window.addComment = async function(voteId) {
+        const input = document.getElementById('commentInput_' + voteId);
+        const text = input.value.trim();
+        if (!text) return;
+        
+        try {
+            await db.from('comments').insert({ vote_id: voteId, user_id: currentUser.id, comment_text: text });
+            input.value = '';
+            loadVotes();
+        } catch (e) {
+            alert("Nezapomeňte v Supabase vytvořit tabulku 'comments' podle mého SQL návodu!");
+        }
+    };
+
+    // PŘEVOD DEBATY NA HLASOVÁNÍ
+    window.convertToVote = async function(voteId, currentTitle) {
+        if(confirm('Opravdu chcete tento podnět ukončit a překlopit ho do Ostrého hlasování?')) {
+            const newTitle = currentTitle.replace('[NÁVRH PČ] ', '');
+            await db.from('votes').update({ title: newTitle }).eq('id', voteId);
+            loadVotes();
+        }
+    };
 
     async function loadVotes() {
-        const list = document.getElementById('votingList'); 
-        list.innerHTML = '';
-
-        if (simulatedRole === 'pc') {
-            list.innerHTML = '<p style="color: #718096; font-style: italic; background: #fff; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">Seznam probíhajících hlasování Zakládajících členů je pro vás skrytý. Vaše případné podněty k diskuzi byly v pořádku odeslány a budou projednány.</p>';
-            return;
-        }
+        const vList = document.getElementById('votingList'); 
+        const dList = document.getElementById('debateList'); 
+        vList.innerHTML = '';
+        dList.innerHTML = '';
 
         const { data: allProfiles } = await db.from('profiles').select('id, full_name');
         const profileMap = {};
@@ -1000,40 +1029,80 @@
         const { data: votes } = await db.from('votes').select('*').order('created_at', { ascending: false });
         
         if (!votes || votes.length === 0) { 
-            list.innerHTML = '<p>Zatím neprobíhá žádné aktivní projednávání návrhů.</p>'; 
+            dList.innerHTML = '<p>Zatím neprobíhá žádné aktivní projednávání návrhů.</p>'; 
             return; 
         }
 
+        let zobrazenoNecoOstreho = false;
+        let zobrazenoNecoDebat = false;
+
         for (let v of votes) {
-            const { data: records } = await db.from('voting_records').select('*').eq('vote_id', v.id);
+            const isProposal = v.title.startsWith('[NÁVRH PČ] ');
+            
+            if (simulatedRole === 'pc' && !isProposal) {
+                continue; 
+            }
+            if (simulatedRole === 'pc' && isProposal && v.created_by !== currentUser.id) {
+                continue; 
+            }
+            
+            let displayTitle = isProposal ? v.title.replace('[NÁVRH PČ] ', '') : v.title;
             let isZcOrHigher = ['zc', 'zcp', 'superadmin'].includes(simulatedRole);
 
-            // LOGIKA PRO PODNĚTY K DISKUZI (od Přidružených členů)
-            let isProposal = v.title.startsWith('[NÁVRH PČ] ');
-            let displayTitle = isProposal ? v.title.replace('[NÁVRH PČ] ', '') : v.title;
-
             if (isProposal) {
-                let statusBadge = '<span class="badge" style="background:#ed8936; margin-bottom:10px; display:inline-block;">PODNĚT K DISKUZI (od PČ)</span>';
-                let html = `<div class="list-item" style="flex-direction:column; align-items:flex-start; background: #fff; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
+                zobrazenoNecoDebat = true;
+                let statusBadge = '<span class="badge" style="background:#ed8936; margin-bottom:10px; display:inline-block;">PODNĚT K DISKUZI</span>';
+                
+                let commentsHtml = '';
+                try {
+                    const { data: comments } = await db.from('comments').select('*').eq('vote_id', v.id).order('created_at', { ascending: true });
+                    if (comments && comments.length > 0) {
+                        comments.forEach(c => {
+                            let cName = profileMap[c.user_id] || 'Člen';
+                            let cDate = new Date(c.created_at).toLocaleString('cs-CZ');
+                            commentsHtml += `<div style="padding: 5px; border-bottom: 1px dashed #cbd5e0; margin-bottom: 5px;"><strong>${cName}</strong> <span style="color:#718096; font-size:0.75rem;">(${cDate})</span><br>${c.comment_text}</div>`;
+                        });
+                    } else {
+                        commentsHtml = '<p style="color:#718096; font-size:0.85rem; font-style:italic;">Zatím žádné komentáře. Buďte první!</p>';
+                    }
+                } catch (e) {
+                    commentsHtml = '<p style="color:#c53030; font-size:0.8rem;">Pro zobrazení komentářů chybí tabulka v databázi.</p>';
+                }
+
+                let html = `<div class="list-item" style="flex-direction:column; align-items:flex-start; background: #fff; border: 1px solid #e2e8f0; margin-bottom: 1rem; border-top: 4px solid var(--orange);">
                     ${statusBadge}
                     <h4>${displayTitle}</h4>
-                    <p style="font-size:0.9rem; color:#718096; margin-top:10px;">Tento bod čeká na projednání a osobní debatu, není určen k přímému elektronickému hlasování.</p>
+                    
+                    <div style="margin-top: 15px; width: 100%; background: #f7fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                        <h5 style="margin-bottom: 10px; color: #4a5568;">Vlákno diskuze:</h5>
+                        <div id="comments_${v.id}" style="margin-bottom: 10px; font-size: 0.9rem; max-height: 200px; overflow-y: auto;">
+                            ${commentsHtml}
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="commentInput_${v.id}" placeholder="Napište svůj názor..." style="margin: 0; flex: 1;">
+                            <button class="btn-small btn-orange" onclick="addComment('${v.id}')">Přidat komentář</button>
+                        </div>
+                        ${isZcOrHigher ? `<button class="btn-small" style="background:var(--primary); margin-top: 15px; width: 100%;" onclick="convertToVote('${v.id}', '${v.title}')">Ukončit diskuzi a vyvolat z tohoto Ostré hlasování</button>` : ''}
+                    </div>
                 </div>`;
-                list.innerHTML += html;
-                continue; // Přeskočíme klasické hlasovací statistiky
+                dList.innerHTML += html;
+                continue;
             }
 
-            // LOGIKA PRO OSTRÉ HLASOVÁNÍ (Zakládající členové)
-            let proCount = records.filter(r => r.choice === 'pro').length;
-            let protiCount = records.filter(r => r.choice === 'proti').length;
-            let totalCount = records.length;
-            let myVote = records.find(r => r.voter_id === currentUser.id);
+            // OSTRÁ HLASOVÁNÍ
+            zobrazenoNecoOstreho = true;
+            const { data: records } = await db.from('voting_records').select('*').eq('vote_id', v.id);
+            let proCount = records ? records.filter(r => r.choice === 'pro').length : 0;
+            let protiCount = records ? records.filter(r => r.choice === 'proti').length : 0;
+            let totalCount = records ? records.length : 0;
+            
+            let myVote = records ? records.find(r => r.voter_id === currentUser.id) : null;
             
             let statusBadge = v.is_closed 
                 ? '<span class="badge" style="background:#c53030; margin-bottom:10px; display:inline-block;">UZAVŘENO</span>'
-                : '<span class="badge" style="background:#38a169; margin-bottom:10px; display:inline-block;">AKTIVNÍ</span>';
+                : '<span class="badge" style="background:#38a169; margin-bottom:10px; display:inline-block;">AKTIVNÍ OSTRÉ HLASOVÁNÍ</span>';
 
-            let html = `<div class="list-item" style="flex-direction:column; align-items:flex-start; background: #fff; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
+            let html = `<div class="list-item" style="flex-direction:column; align-items:flex-start; background: #fff; border: 1px solid #e2e8f0; margin-bottom: 1rem; border-top: 4px solid var(--secondary);">
                 ${statusBadge}
                 <h4>${displayTitle}</h4>
                 <div class="vote-stats">
@@ -1046,15 +1115,18 @@
             if (isZcOrHigher) {
                 if (v.is_closed) {
                     let detailsHtml = '<div style="margin-top:15px; width:100%; border-top:1px solid #e2e8f0; padding-top:10px;"><h5>Jmenovitý výpis hlasování:</h5><ul style="list-style:none; padding-left:0; font-size:0.9rem;">';
-                    records.forEach(r => {
-                        let vName = profileMap[r.voter_id] || 'Neznámý člen';
-                        let vChoice = r.choice.toUpperCase();
-                        let vColor = r.choice === 'pro' ? '#2f855a' : '#c53030';
-                        let vDate = new Date(r.created_at || Date.now()).toLocaleString('cs-CZ');
-                        detailsHtml += `<li style="padding: 5px 0; border-bottom: 1px dashed #e2e8f0;"><strong>${vName}</strong> hlasoval(a) <span style="color:${vColor}; font-weight:bold;">${vChoice}</span> <span style="color:#718096; font-size:0.8rem;">(${vDate})</span></li>`;
-                    });
+                    if (records) {
+                        records.forEach(r => {
+                            let vName = profileMap[r.voter_id] || 'Neznámý člen';
+                            let vChoice = r.choice.toUpperCase();
+                            let vColor = r.choice === 'pro' ? '#2f855a' : '#c53030';
+                            let vDate = new Date(r.created_at || Date.now()).toLocaleString('cs-CZ');
+                            detailsHtml += `<li style="padding: 5px 0; border-bottom: 1px dashed #e2e8f0;"><strong>${vName}</strong> hlasoval(a) <span style="color:${vColor}; font-weight:bold;">${vChoice}</span> <span style="color:#718096; font-size:0.8rem;">(${vDate})</span></li>`;
+                        });
+                    }
                     detailsHtml += '</ul></div>';
                     
+                    html += `<p style="margin-top:10px; font-weight:bold; color:#718096;">Váš ověřovací klíč: <span class="hash-box">${myVote ? myVote.vote_hash : 'Nehlasoval jste'}</span></p>`;
                     html += `<button class="btn-small" style="background:#4a5568; margin-top:10px;" onclick="document.getElementById('details_${v.id}').style.display = document.getElementById('details_${v.id}').style.display === 'none' ? 'block' : 'none'">Zobrazit jmenovité detaily</button>`;
                     html += `<div id="details_${v.id}" style="display:none; width:100%;">${detailsHtml}</div>`;
                 } else {
@@ -1070,15 +1142,18 @@
             }
 
             html += `</div>`;
-            list.innerHTML += html;
+            vList.innerHTML += html;
         }
+
+        if (!zobrazenoNecoOstreho && vList) vList.innerHTML = '<p style="color:#718096;">Nejsou zde žádná ostrá hlasování.</p>';
+        if (!zobrazenoNecoDebat && dList) dList.innerHTML = '<p style="color:#718096;">Nejsou zde žádné podněty k diskuzi.</p>';
     }
 
     window.castVote = async function(voteId, choice) {
         const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
         await db.from('voting_records').insert({ vote_id: voteId, voter_id: currentUser.id, choice: choice, vote_hash: hash });
         
-        // Pojistka proti nule - pokud simulujeme, zcCount může být 0
+        // Zjišťování reálného počtu ZČ s ohledem na testovací simulaci
         const { count: zcCount } = await db.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['zc', 'zcp', 'superadmin']);
         const { data: records } = await db.from('voting_records').select('*').eq('vote_id', voteId);
         
@@ -1102,7 +1177,7 @@
                     }).catch(e => console.log(e));
                 }
             }
-            alert(`Váš hlas byl odeslán (Klíč: ${hash}). Hlasování dosáhlo stoprocentní účasti a bylo automaticky uzavřeno.`);
+            alert(`Váš hlas byl odeslán (Klíč: ${hash}). Hlasování dosáhlo 100% účasti a bylo automaticky UZAVŘENO.`);
         } else {
             alert('Váš hlas byl odeslán do systému! Klíč je: ' + hash);
         }
