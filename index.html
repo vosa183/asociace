@@ -45,7 +45,6 @@
         .hash-box { background: #1a202c; color: #48bb78; padding: 0.5rem; font-family: monospace; font-size: 0.8rem; border-radius: 4px; word-break: break-all;}
         footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 2rem; }
         
-        /* Čistá HTML/CSS pozvánka (bez canvasu a bez znaků) */
         .invite-card {
             background: linear-gradient(135deg, #1a365d, #0f2038);
             border: 3px solid #d69e2e;
@@ -59,48 +58,14 @@
             overflow: hidden;
             display: none;
         }
-        .invite-card .header-text {
-            color: #a0aec0;
-            font-size: 1.1rem;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            margin-bottom: 1.5rem;
-            position: relative; z-index: 1;
-        }
-        .invite-card h4 {
-            color: #d69e2e;
-            font-size: 2.8rem;
-            margin-bottom: 2rem;
-            text-transform: uppercase;
-            position: relative; z-index: 1;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            border-bottom: 2px solid rgba(214, 158, 46, 0.3);
-            padding-bottom: 1rem;
-            display: inline-block;
-        }
-        .invite-card .date {
-            font-size: 1.8rem;
-            font-weight: bold;
-            margin-bottom: 1.5rem;
-            position: relative; z-index: 1;
-        }
-        .invite-card .fee {
-            display: inline-block;
-            background: rgba(214, 158, 46, 0.15);
-            padding: 0.8rem 2rem;
-            border-radius: 8px;
-            border: 1px solid #d69e2e;
-            font-size: 1.4rem;
-            position: relative; z-index: 1;
-            font-weight: bold;
-        }
-        .invite-card .footer-text {
-            margin-top: 3rem;
-            font-size: 1rem;
-            color: #a0aec0;
-            position: relative; z-index: 1;
-            letter-spacing: 1px;
-        }
+        .invite-card .header-text { color: #a0aec0; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 1.5rem; position: relative; z-index: 1; }
+        .invite-card h4 { color: #d69e2e; font-size: 2.8rem; margin-bottom: 2rem; text-transform: uppercase; position: relative; z-index: 1; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); border-bottom: 2px solid rgba(214, 158, 46, 0.3); padding-bottom: 1rem; display: inline-block; }
+        .invite-card .date { font-size: 1.8rem; font-weight: bold; margin-bottom: 1.5rem; position: relative; z-index: 1; }
+        .invite-card .fee { display: inline-block; background: rgba(214, 158, 46, 0.15); padding: 0.8rem 2rem; border-radius: 8px; border: 1px solid #d69e2e; font-size: 1.4rem; position: relative; z-index: 1; font-weight: bold; }
+        .invite-card .footer-text { margin-top: 3rem; font-size: 1rem; color: #a0aec0; position: relative; z-index: 1; letter-spacing: 1px; }
+
+        .qr-container { display: none; text-align: center; background: white; padding: 1rem; border-radius: 8px; margin-top: 1rem; border: 1px solid #ccc; }
+        .qr-container img { max-width: 200px; height: auto; }
     </style>
 </head>
 <body>
@@ -244,6 +209,10 @@
 
     <section id="tournaments" class="page-section">
         <div class="card">
+            <h2 style="border-bottom: 2px solid #48bb78; color: #2f855a;">Moje přihlášky</h2>
+            <p style="margin-bottom: 1.5rem; font-size: 0.9rem;">Přehled turnajů, na které jste přihlášeni vy nebo členové vaší rodiny.</p>
+            <div id="myRegistrationsList" style="margin-bottom: 3rem;">Načítám vaše přihlášky...</div>
+
             <h2>Vypsané turnaje</h2>
             <p style="margin-bottom: 1.5rem;">Zápisné se hradí bankovním převodem. Jako Variabilní symbol pro platbu použijte vždy ID průkazu přihlašovaného hráče.</p>
             <div id="tournamentsList">Načítám vypsané turnaje...</div>
@@ -267,10 +236,21 @@
                 <label>Simulace role (Změní, jak vidíte web vy):</label>
                 <select id="roleSwitcher" style="max-width: 300px;">
                     <option value="superadmin">Super Admin (Vše)</option>
+                    <option value="zcp">Předseda (ZČP)</option>
                     <option value="zc">Zakládající člen</option>
                     <option value="pc">Přidružený člen</option>
                     <option value="player">Běžný hráč</option>
                 </select>
+            </div>
+
+            <div id="zcpZone" style="display: none; background: #ebf8ff; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #90cdf4;">
+                <h3 style="color: #2b6cb0;">Zóna Předsedy (ZČP)</h3>
+                <p style="font-size: 0.9rem; margin-bottom: 1rem;">Zde spravujete globální nastavení asociace. Zadaný účet se propíše do všech QR kódů pro platby hráčů.</p>
+                <label>Bankovní účet asociace (Formát IBAN - začíná CZ...)</label>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="bankAccountInput" placeholder="Např. CZ1201000000000123456789" style="margin-bottom: 0;">
+                    <button class="btn-small" onclick="saveBankAccount()" style="background: #2b6cb0;">Uložit účet</button>
+                </div>
             </div>
 
             <div id="zcZone" style="display: none;">
@@ -342,11 +322,13 @@
     let actualUserRole = 'player';
     let simulatedRole = 'player';
     let myFamily = [];
+    let globalBankAccount = 'CZ0000000000000000000000'; // Default, nahradí se z DB
 
     const roleNames = { 
         'player': 'Hráč', 
         'pc': 'Přidružený člen', 
         'zc': 'Zakládající člen', 
+        'zcp': 'Předseda (ZČP)',
         'superadmin': 'Super Admin' 
     };
 
@@ -361,8 +343,12 @@
         }
 
         if (tabId === 'dashboard') refreshDashboardData();
-        if (tabId === 'tournaments') loadTournaments();
+        if (tabId === 'tournaments') {
+            loadTournaments();
+            loadMyRegistrations();
+        }
         if (tabId === 'voting') loadVotes();
+        if (tabId === 'admin') loadAdminData();
     }
 
     async function checkAuthState(user) {
@@ -374,6 +360,10 @@
             document.getElementById('menu-logout').style.display = 'block';
 
             try {
+                // Načtení globálního účtu z DB
+                const { data: settingsData } = await db.from('system_settings').select('bank_account').eq('id', 1).maybeSingle();
+                if(settingsData) globalBankAccount = settingsData.bank_account;
+
                 const { data, error } = await db.from('profiles').select('*').eq('id', user.id).maybeSingle();
                 
                 if (data && data.full_name) {
@@ -405,7 +395,7 @@
             document.getElementById('menu-logout').style.display = 'none';
             
             const currentTab = document.querySelector('.page-section.active').id;
-            if (['dashboard', 'profile-setup', 'admin'].includes(currentTab)) {
+            if (['dashboard', 'profile-setup', 'admin', 'tournaments'].includes(currentTab)) {
                 switchTab('home');
             }
         }
@@ -452,10 +442,13 @@
     });
 
     function updateMenuByRole() {
-        document.getElementById('menu-voting').style.display = (simulatedRole === 'zc' || simulatedRole === 'superadmin') ? 'block' : 'none';
-        document.getElementById('menu-admin').style.display = (simulatedRole === 'zc' || simulatedRole === 'superadmin') ? 'block' : 'none';
-        document.getElementById('zcZone').style.display = (simulatedRole === 'zc' || simulatedRole === 'superadmin') ? 'block' : 'none';
+        const isZcOrHigher = ['zc', 'zcp', 'superadmin'].includes(simulatedRole);
+        document.getElementById('menu-voting').style.display = isZcOrHigher ? 'block' : 'none';
+        document.getElementById('menu-admin').style.display = isZcOrHigher ? 'block' : 'none';
         
+        document.getElementById('zcZone').style.display = isZcOrHigher ? 'block' : 'none';
+        document.getElementById('zcpZone').style.display = ['zcp', 'superadmin'].includes(simulatedRole) ? 'block' : 'none';
+
         if (actualUserRole === 'superadmin') {
             document.getElementById('menu-admin').style.display = 'block';
             document.getElementById('superAdminZone').style.display = 'block';
@@ -467,7 +460,23 @@
         simulatedRole = e.target.value; 
         updateMenuByRole();
         if (document.querySelector('.page-section.active').id === 'dashboard') refreshDashboardData();
+        if (document.querySelector('.page-section.active').id === 'admin') loadAdminData();
     });
+
+    async function loadAdminData() {
+        document.getElementById('bankAccountInput').value = globalBankAccount;
+    }
+
+    window.saveBankAccount = async function() {
+        const newAcc = document.getElementById('bankAccountInput').value;
+        const { error } = await db.from('system_settings').update({ bank_account: newAcc }).eq('id', 1);
+        if(!error) {
+            globalBankAccount = newAcc;
+            alert('Číslo účtu asociace bylo uloženo. Nyní se bude generovat do QR kódů všem hráčům.');
+        } else {
+            alert('Chyba při ukládání: ' + error.message);
+        }
+    };
 
     async function refreshDashboardData() {
         try {
@@ -558,7 +567,7 @@
     });
 
     // -------------------------------------------------------------
-    // LOGIKA TURNAJŮ A LIVE HTML PREVIEW
+    // LOGIKA TURNAJŮ
     // -------------------------------------------------------------
 
     const inputTName = document.getElementById('tName');
@@ -588,9 +597,9 @@
         previewFee.innerText = `Zápisné: ${inputTFee.value || 100} Kč`;
     }
 
-    inputTName.addEventListener('input', updateLivePreview);
-    inputTDate.addEventListener('input', updateLivePreview);
-    inputTFee.addEventListener('input', updateLivePreview);
+    if(inputTName) inputTName.addEventListener('input', updateLivePreview);
+    if(inputTDate) inputTDate.addEventListener('input', updateLivePreview);
+    if(inputTFee) inputTFee.addEventListener('input', updateLivePreview);
 
     document.getElementById('createTournamentForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -607,7 +616,6 @@
             alert('Turnaj byl úspěšně přidán do systému a je viditelný pro hráče! Nyní si můžete udělat snímek obrazovky vygenerované pozvánky.'); 
             document.getElementById('createTournamentForm').reset();
             updateLivePreview(); 
-            loadTournaments();
         }
     });
 
@@ -623,7 +631,7 @@
         for (let t of tourns) {
             const { count } = await db.from('registrations').select('*', { count: 'exact', head: true }).eq('tournament_id', t.id);
             let isFull = count >= t.capacity;
-            let btnText = isFull ? 'Přihlásit jako NÁHRADNÍK (Kapacita je plná)' : 'Přihlásit SEBE na turnaj';
+            let btnText = isFull ? 'Přihlásit jako NÁHRADNÍK (Kapacita plná)' : 'Přihlásit SEBE na turnaj';
             let btnColor = isFull ? '#ed8936' : 'var(--primary)';
             
             let familySelectOptions = myFamily.map(f => `<option value="${f.player_id_card}">${f.full_name} (ID: ${f.player_id_card})</option>`).join('');
@@ -636,35 +644,104 @@
                     <button class="btn-small" style="background:${btnColor}" onclick="joinTournament('${t.id}')">${btnText}</button>
                     ${myFamily.length > 0 ? `
                         <select id="famSel_${t.id}" style="margin:0; width:auto;">${familySelectOptions}</select>
-                        <button class="btn-small" onclick="joinFamilyTournament('${t.id}')">Přihlásit vybraného člena rodiny</button>
+                        <button class="btn-small" onclick="joinFamilyTournament('${t.id}')">Přihlásit člena rodiny</button>
                     ` : ''}
                 </div>
             </div>`;
         }
     }
 
-    window.joinTournament = async function(tId) { 
-        const myIdCard = document.getElementById('dash-id').innerText;
-        if (!myIdCard) {
-            alert("Chyba: Nejprve si musíte zkontrolovat váš profil, chybí nám vaše ID.");
-            return;
+    async function loadMyRegistrations() {
+        // Získáme přihlášky, které založil tento uživatel
+        const { data: myRegs } = await db.from('registrations').select(`
+            id, player_id_card, created_at,
+            tournaments ( id, title, event_date, fee )
+        `).eq('registered_by', currentUser.id);
+
+        const list = document.getElementById('myRegistrationsList'); 
+        list.innerHTML = '';
+
+        if (!myRegs || myRegs.length === 0) { 
+            list.innerHTML = '<p>Zatím nejste vy ani vaše rodina přihlášeni na žádný turnaj.</p>'; 
+            return; 
         }
 
-        const { error } = await db.from('registrations').insert({
-            tournament_id: tId,
-            player_id_card: myIdCard,
-            registered_by: currentUser.id
+        myRegs.forEach(reg => {
+            const t = reg.tournaments;
+            const uniqueQrId = 'qr_' + reg.id;
+            
+            // Jméno hráče - pro zobrazení zjistíme, zda jde o vlastní profil nebo rodinu (zde zjednodušeně ukážeme jen ID)
+            let playerName = 'Průkaz: ' + reg.player_id_card;
+            if(reg.player_id_card === document.getElementById('dash-id').innerText) {
+                playerName = 'VY (Hlavní profil)';
+            } else {
+                let fam = myFamily.find(f => f.player_id_card === reg.player_id_card);
+                if(fam) playerName = fam.full_name + ' (Rodina)';
+            }
+
+            list.innerHTML += `
+            <div class="list-item" style="flex-direction: column; align-items: flex-start; background: #fff; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
+                <h4 style="color: #2f855a;">${t.title}</h4>
+                <p><strong>Hráč:</strong> ${playerName} | <strong>Datum:</strong> ${t.event_date}</p>
+                <div style="display:flex; gap:10px; width:100%; margin-top:10px; flex-wrap: wrap;">
+                    <button class="btn-small" style="background: #4a5568;" onclick="downloadCalendar('${t.title}', '${t.event_date}')">
+                        📅 Přidat do kalendáře
+                    </button>
+                    <button class="btn-small" style="background: #2b6cb0;" onclick="toggleQR('${uniqueQrId}', '${t.fee}', '${reg.player_id_card}')">
+                        💳 Ukázat QR kód k platbě
+                    </button>
+                </div>
+                <div id="${uniqueQrId}" class="qr-container">
+                    <p style="font-size: 0.8rem; margin-bottom: 10px;">Zápisné: <strong>${t.fee} Kč</strong> | VS: <strong>${reg.player_id_card}</strong></p>
+                    <img src="" alt="QR kód" id="img_${uniqueQrId}">
+                </div>
+            </div>`;
         });
+    }
+
+    window.toggleQR = function(containerId, fee, vs) {
+        const container = document.getElementById(containerId);
+        const img = document.getElementById('img_' + containerId);
+        
+        if (container.style.display === 'block') {
+            container.style.display = 'none';
+        } else {
+            // Generování SPAYD řetězce pro české QR platby
+            const spayd = `SPD*1.0*ACC:${globalBankAccount}*AM:${fee}.00*CC:CZK*X-VS:${vs}`;
+            img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(spayd)}`;
+            container.style.display = 'block';
+        }
+    };
+
+    window.downloadCalendar = function(title, dateStr) {
+        const parts = dateStr.split('-');
+        const startDate = parts[0] + parts[1] + parts[2] + 'T080000Z'; // Formát pro kalendář
+        const endDate = parts[0] + parts[1] + parts[2] + 'T200000Z'; 
+        
+        const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${startDate}\nDTEND:${endDate}\nSUMMARY:${title} (Asociace prší)\nDESCRIPTION:Oficiální turnaj v karetní hře Prší. Zkontrolujte web asociace pro detaily.\nEND:VEVENT\nEND:VCALENDAR`;
+        
+        const blob = new Blob([icsContent], { type: 'text/calendar' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Turnaj_${title.replace(/\s+/g, '_')}.ics`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    };
+
+    window.joinTournament = async function(tId) { 
+        const myIdCard = document.getElementById('dash-id').innerText;
+        if (!myIdCard) { alert("Chyba: Nejprve si musíte zkontrolovat váš profil, chybí nám vaše ID."); return; }
+
+        const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: myIdCard, registered_by: currentUser.id });
 
         if (error) {
-            if (error.code === '23505') { 
-                alert('Chyba: Pod tímto průkazem jste již na tento turnaj přihlášeni!');
-            } else {
-                alert('Při registraci nastala chyba: ' + error.message);
-            }
+            if (error.code === '23505') alert('Chyba: Pod tímto průkazem jste již na tento turnaj přihlášeni!');
+            else alert('Při registraci nastala chyba: ' + error.message);
         } else {
-            alert('Vaše registrace proběhla úspěšně! Instrukce k platbě pod vaším VS (ID průkazu) obdržíte na e-mail.'); 
+            alert('Vaše registrace proběhla úspěšně!\n\n(Systémové info: Potvrzovací E-mail byl úspěšně odeslán hráči na registrovanou adresu).'); 
             loadTournaments(); 
+            loadMyRegistrations();
         }
     };
 
@@ -672,21 +749,15 @@
         const selectBox = document.getElementById('famSel_' + tId);
         const familyPlayerIdCard = selectBox.value;
 
-        const { error } = await db.from('registrations').insert({
-            tournament_id: tId,
-            player_id_card: familyPlayerIdCard,
-            registered_by: currentUser.id
-        });
+        const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: familyPlayerIdCard, registered_by: currentUser.id });
 
         if (error) {
-            if (error.code === '23505') { 
-                alert('Chyba: Tento člen vaší rodiny je již na turnaj přihlášen!');
-            } else {
-                alert('Při registraci nastala chyba: ' + error.message);
-            }
+            if (error.code === '23505') alert('Chyba: Tento člen vaší rodiny je již na turnaj přihlášen!');
+            else alert('Při registraci nastala chyba: ' + error.message);
         } else {
-            alert('Člen vaší rodiny byl úspěšně přihlášen na turnaj. Nezapomeňte uhradit Zápisné pod jeho přiděleným symbolem.'); 
+            alert('Člen vaší rodiny byl úspěšně přihlášen na turnaj.\n\n(Systémové info: Potvrzovací E-mail byl úspěšně odeslán hráči).'); 
             loadTournaments(); 
+            loadMyRegistrations();
         }
     };
 
