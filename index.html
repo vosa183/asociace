@@ -69,6 +69,13 @@
         
         .vote-stats { display: flex; gap: 15px; margin-top: 10px; background: #e2e8f0; padding: 10px; border-radius: 6px; font-size: 0.9rem; }
         .vote-stats span { font-weight: bold; }
+
+        /* Styly pro tabulku statistik */
+        .stats-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.95rem; }
+        .stats-table th, .stats-table td { padding: 0.8rem; text-align: left; border-bottom: 1px solid #cbd5e0; }
+        .stats-table th { background: var(--primary); color: white; font-weight: 600; }
+        .stats-table tr:hover { background: #f7fafc; }
+        .highlight-row { background: #e6fffa !important; font-weight: bold; color: #2c7a7b; }
     </style>
 </head>
 <body>
@@ -85,6 +92,7 @@
             <li><a onclick="switchTab('host')" id="nav-host">Pořádejte turnaj</a></li>
             <li id="menu-auth"><a onclick="switchTab('auth')" id="nav-auth">Pro členy</a></li>
             <li id="menu-tournaments" style="display:none;"><a onclick="switchTab('tournaments')" id="nav-tournaments">Turnaje</a></li>
+            <li id="menu-stats" style="display:none;"><a onclick="switchTab('stats')" id="nav-stats">Statistiky</a></li>
             <li id="menu-voting" style="display:none; color:#d69e2e;"><a onclick="switchTab('voting')" id="nav-voting">Hlasování a Návrhy</a></li>
             <li id="menu-profile" style="display:none;"><a onclick="switchTab('dashboard')" id="nav-dashboard">Můj profil</a></li>
             <li id="menu-admin" style="display:none; color:#d69e2e;"><a onclick="switchTab('admin')" id="nav-admin">Administrace</a></li>
@@ -158,7 +166,7 @@
             <form id="profileForm" style="max-width: 500px;">
                 <label>Celé jméno a příjmení</label>
                 <input type="text" id="profName" required>
-                <label>Průkazka</label>
+                <label>Průkazka (Slouží jako Variabilní symbol)</label>
                 <input type="text" id="profIdCard" required>
                 <label>E-mail pro komunikaci</label>
                 <input type="email" id="profEmail" required>
@@ -218,6 +226,28 @@
             <h2>Vypsané turnaje</h2>
             <p style="margin-bottom: 1.5rem;">Zápisné se hradí bankovním převodem.</p>
             <div id="tournamentsList">Načítám vypsané turnaje...</div>
+        </div>
+    </section>
+
+    <section id="stats" class="page-section">
+        <div class="card">
+            <h2>Statistika nuda je, má však tvoje údaje :-)</h2>
+            
+            <div style="background: #ebf8ff; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #90cdf4;">
+                <label>Vyberte hráče pro osobní vysvědčení:</label>
+                <select id="statsPlayerSelect" onchange="renderPersonalStats()" style="max-width: 400px;"></select>
+                <div id="personalStatsBox" style="margin-top: 1rem;">
+                    </div>
+            </div>
+
+            <h3 style="border-top: 1px solid #ccc; padding-top: 2rem;">Historický archiv turnajů</h3>
+            <p style="font-size: 0.9rem; margin-bottom: 1rem;">Z důvodu ochrany soukromí jsou jména cizích hráčů skryta pod jejich značkou. Jmenovitě vidíte pouze sebe a členy své rodiny.</p>
+            <label>Vyberte proběhlý turnaj:</label>
+            <select id="statsTournamentSelect" onchange="renderTournamentResults()" style="max-width: 500px;"></select>
+            
+            <div id="tournamentResultsBox" style="margin-top: 1rem; overflow-x: auto;">
+                Načítám historická data...
+            </div>
         </div>
     </section>
 
@@ -340,6 +370,10 @@
     let myFamily = [];
     let globalBankAccount = 'CZ0000000000000000000000';
     let globalFioToken = '';
+    
+    // Proměnné pro statistiky
+    let historicalData = [];
+    let uniqueTournaments = [];
 
     const roleNames = { 
         'player': 'Hráč', 
@@ -364,6 +398,7 @@
             loadTournaments();
             loadMyRegistrations();
         }
+        if (tabId === 'stats') loadHistoricalData();
         if (tabId === 'voting') loadVotes();
         if (tabId === 'admin') loadAdminData();
     }
@@ -374,6 +409,7 @@
             document.getElementById('menu-auth').style.display = 'none';
             document.getElementById('menu-profile').style.display = 'block';
             document.getElementById('menu-tournaments').style.display = 'block';
+            document.getElementById('menu-stats').style.display = 'block';
             document.getElementById('menu-logout').style.display = 'block';
 
             try {
@@ -409,12 +445,13 @@
             document.getElementById('menu-auth').style.display = 'block';
             document.getElementById('menu-profile').style.display = 'none';
             document.getElementById('menu-tournaments').style.display = 'none';
+            document.getElementById('menu-stats').style.display = 'none';
             document.getElementById('menu-voting').style.display = 'none';
             document.getElementById('menu-admin').style.display = 'none';
             document.getElementById('menu-logout').style.display = 'none';
             
             const currentTab = document.querySelector('.page-section.active').id;
-            if (['dashboard', 'profile-setup', 'admin', 'tournaments'].includes(currentTab)) {
+            if (['dashboard', 'profile-setup', 'admin', 'tournaments', 'stats'].includes(currentTab)) {
                 switchTab('home');
             }
         }
@@ -801,6 +838,122 @@
             }
         }
     };
+
+    // -------------------------------------------------------------
+    // LOGIKA STATISTIK A HISTORIE
+    // -------------------------------------------------------------
+
+    async function loadHistoricalData() {
+        const box = document.getElementById('tournamentResultsBox');
+        
+        // Zabráníme zbytečnému znovunačítání, pokud data už máme stažená
+        if (historicalData.length === 0) {
+            box.innerHTML = 'Stahuji historický archiv ze serveru...';
+            const { data, error } = await db.from('historical_results').select('*').order('tournament_name', { ascending: true });
+            
+            if (error) {
+                box.innerHTML = '<p class="error">Nepodařilo se načíst historii.</p>';
+                return;
+            }
+            
+            historicalData = data;
+            // Získáme unikátní názvy turnajů pro roletku
+            uniqueTournaments = [...new Set(data.map(item => item.tournament_name))].filter(Boolean);
+        }
+        
+        populateStatsDropdowns();
+        renderPersonalStats();
+        renderTournamentResults();
+    }
+
+    function populateStatsDropdowns() {
+        const pSelect = document.getElementById('statsPlayerSelect');
+        const myId = document.getElementById('dash-id').innerText;
+        const myName = document.getElementById('dash-name').innerText;
+        
+        let pOptions = `<option value="${myId}">${myName} (VY)</option>`;
+        myFamily.forEach(f => {
+            pOptions += `<option value="${f.player_id_card}">${f.full_name} (Rodina)</option>`;
+        });
+        pSelect.innerHTML = pOptions;
+
+        const tSelect = document.getElementById('statsTournamentSelect');
+        let tOptions = '';
+        uniqueTournaments.forEach(t => {
+            tOptions += `<option value="${t}">${t}</option>`;
+        });
+        tSelect.innerHTML = tOptions;
+    }
+
+    window.renderPersonalStats = function() {
+        const pid = document.getElementById('statsPlayerSelect').value;
+        const box = document.getElementById('personalStatsBox');
+        if (!pid) { box.innerHTML = ''; return; }
+
+        let pData = historicalData.filter(d => d.player_id_card === pid);
+        let ucast = pData.length;
+        let maxBody = 0;
+        let bestRank = 9999;
+        
+        pData.forEach(d => {
+            let pts = parseInt(d.points);
+            let rnk = parseInt(d.rank);
+            if (!isNaN(pts) && pts > maxBody) maxBody = pts;
+            if (!isNaN(rnk) && rnk > 0 && rnk < bestRank) bestRank = rnk;
+        });
+
+        if (ucast === 0) {
+            box.innerHTML = '<p style="color: #718096; font-style: italic;">Železná zásoba bodů je prázdná. Tento hráč nemá v databázi žádné historické výsledky.</p>';
+            return;
+        }
+
+        let rankText = bestRank === 9999 ? '-' : bestRank + '.';
+
+        box.innerHTML = `
+            <p style="font-size: 1.1rem; margin-bottom: 0.5rem; color: #2a4365;">🛡️ <strong>Železný hráč:</strong> Odehráno úctyhodných <strong>${ucast}</strong> turnajů.</p>
+            <p style="font-size: 1.1rem; margin-bottom: 0.5rem; color: #2a4365;">🔥 <strong>Absolutní rekord:</strong> Největší bodový zisk v kariéře je <strong>${maxBody}</strong> bodů.</p>
+            <p style="font-size: 1.1rem; color: #2a4365;">🏆 <strong>Historické maximum:</strong> Osobní rekord na žebříčku je krásné <strong>${rankText} místo</strong>.</p>
+        `;
+    }
+
+    window.renderTournamentResults = function() {
+        const tName = document.getElementById('statsTournamentSelect').value;
+        const box = document.getElementById('tournamentResultsBox');
+        if (!tName) { box.innerHTML = ''; return; }
+
+        let tData = historicalData.filter(d => d.tournament_name === tName);
+        
+        // Seřadíme data podle pořadí (musíme převést na číslo, protože v DB to prošlo jako text)
+        tData.sort((a, b) => parseInt(a.rank) - parseInt(b.rank));
+
+        // Získáme seznam ID, která smíme zobrazit jmenovitě
+        let allowedIds = [document.getElementById('dash-id').innerText];
+        myFamily.forEach(f => allowedIds.push(f.player_id_card));
+
+        let html = '<table class="stats-table"><tr><th>Pořadí</th><th>Hráč a Město</th><th>Body</th></tr>';
+        
+        tData.forEach(row => {
+            let pid = row.player_id_card || 'Bez ID';
+            let isKnown = allowedIds.includes(pid) && pid !== 'Bez ID' && pid !== '0' && pid !== 'NEMA';
+            
+            // Logika skrývání identity
+            let displayName = isKnown ? `${row.first_name} ${row.last_name}` : `Hráč (Značka: ${pid})`;
+            let displayCity = row.city && row.city !== '-' && row.city !== '0' ? ` <span style="color:#718096; font-size:0.85rem;">- ${row.city}</span>` : '';
+            
+            let rowClass = isKnown ? 'class="highlight-row"' : '';
+            let parsedRank = parseInt(row.rank);
+            let displayRank = isNaN(parsedRank) || parsedRank === 0 ? '-' : parsedRank + '.';
+            
+            html += `<tr ${rowClass}>
+                <td style="font-weight: bold;">${displayRank}</td>
+                <td>${displayName}${displayCity}</td>
+                <td><strong>${row.points}</strong></td>
+            </tr>`;
+        });
+        
+        html += '</table>';
+        box.innerHTML = html;
+    }
 
     // -------------------------------------------------------------
     // LOGIKA HLASOVÁNÍ A NÁVRHŮ
