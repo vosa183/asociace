@@ -106,15 +106,33 @@
     <section id="home" class="page-section active">
         <div class="card" style="background: linear-gradient(135deg, var(--primary), #2a4365); color: white;">
             <h2 style="color: white; border: none;">Tradiční česká hra na profesionální úrovni</h2>
-            <p>Jsme spolek spojující komunitu hráčů. Staráme se o jednotná pravidla, organizaci turnajů a vedení historických statistik našich členů.</p>
+            <p style="margin-bottom: 1rem; font-size: 1.1rem;">Vítejte na oficiálních stránkách České asociace prší! Naším cílem je sdružovat nadšence této legendární karetní hry z celé republiky.</p>
+            <p style="margin-bottom: 1rem;">Zvedáme prší z hospodských stolů a dáváme mu pevnou turnajovou strukturu. Staráme se o precizní dodržování pravidel, organizaci prestižních klání a pečlivé vedení historických statistik všech našich účastníků.</p>
+            <p>Ať už jste ostřílený matador, nebo sbíráte své první turnajové zkušenosti, u nás najdete skvělou komunitu a spravedlivou hru. Přidejte se k naší rozrůstající se rodině a zapište své jméno nesmazatelně do síně slávy!</p>
         </div>
     </section>
 
     <section id="rules" class="page-section">
         <div class="card">
-            <h2>Pravidla & VOP</h2>
-            <p>Storno podmínky: Registrace na turnaj a s ní spojené Zápisné je závazné. Pokud hráč nedorazí, zápisné propadá ve prospěch asociace.</p>
-            <p>Zastupování: Je přísně zakázáno, aby na turnaj dorazila jiná osoba, než je uvedena na přihlášce s daným průkazem.</p>
+            <h2>Oficiální pravidla a turnajový řád</h2>
+            
+            <h3 style="color: var(--secondary); margin-top: 1.5rem;">Herní balíček a rozdávání karet</h3>
+            <p style="margin-bottom: 0.8rem;">Hraje se výhradně s balíčkem třiceti dvou karet německého typu (takzvané mariášky). Karty se dělí do čtyř barev: srdce, žaludy, listy a kule. Každá barva má osm hodnot: sedmička, osmička, devítka, desítka, spodek, svršek, král a eso.</p>
+            <p>Na samém začátku hry rozdá pověřený krupiér každému hráči přesně čtyři karty. Zbytek balíčku se položí doprostřed hracího stolu lícem dolů jako lízací talón. Vrchní karta z tohoto talónu se otočí a položí vedle – čímž vzniká základ odhazovací hromádky.</p>
+            
+            <h3 style="color: var(--secondary); margin-top: 1.5rem;">Základní průběh hry</h3>
+            <p>Hráč, který je zrovna na tahu, musí na odhazovací hromádku zahrát kartu, která se shoduje buď barvou, nebo hodnotou s vrchní viditelnou kartou. Pokud takovou kartu ve své ruce nemá, případně ji z taktických důvodů nechce použít, musí si líznout jednu kartu z talónu. Absolutním vítězem partie se stává ten hráč, který se jako první prokazatelně zbaví všech svých karet.</p>
+            
+            <h3 style="color: var(--secondary); margin-top: 1.5rem;">Vlastnosti speciálních karet</h3>
+            <ul style="margin-left: 2rem; margin-bottom: 1.5rem;">
+                <li style="margin-bottom: 0.5rem;"><strong>Sedmička:</strong> Pokud hráč zahraje sedmičku, následující hráč v pořadí si musí líznout dvě karty z talónu a navíc ztrácí svůj tah. Pokud má ale tento napadený hráč ve své ruce také sedmičku, může ji bez otálení zahrát a nepříjemná povinnost lízat se tak sčítá a přesouvá na dalšího hráče (ten už musí lízat karty čtyři).</li>
+                <li style="margin-bottom: 0.5rem;"><strong>Svršek (Měnič):</strong> Tuto kartu lze zahrát na libovolnou barvu (vyjma reakce na právě zahranou sedmičku nebo eso). Hráč, který svrška úspěšně zahraje, má právo slovně určit novou barvu, ve které se musí dále pokračovat.</li>
+                <li style="margin-bottom: 0.5rem;"><strong>Eso:</strong> Hráč, který je na řadě bezprostředně po zahrání esa, musí toto hrací kolo nuceně vynechat (takzvaně stojí). Pokud má však ve své ruce také eso, může ho ihned zahrát a povinnost stát se opět přesouvá na dalšího v pořadí.</li>
+            </ul>
+
+            <h3 style="color: var(--secondary); margin-top: 1.5rem;">Všeobecné obchodní a turnajové podmínky</h3>
+            <p style="margin-bottom: 0.8rem;"><strong>Storno podmínky:</strong> Veškerá registrace na vypsaný turnaj a s ní spojené uhrazené zápisné je plně závazné. Pokud hráč na turnaj z jakéhokoliv důvodu nedorazí, zápisné automaticky propadá ve prospěch asociace na pokrytí organizačních a sálových nákladů.</p>
+            <p><strong>Zastupování na turnaji:</strong> Je přísně a nekompromisně zakázáno, aby na turnaj dorazila hrát jiná osoba, než jaká je oficiálně uvedena na přihlášce pod daným osobním registračním průkazem. Zjištěné porušení tohoto pravidla vede k okamžité diskvalifikaci z celého turnaje.</p>
         </div>
     </section>
 
@@ -339,6 +357,15 @@
                     </div>
                 </div>
 
+                <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                    <h3>Nové hlasování Zakládajících členů</h3>
+                    <form id="createVoteFormAdmin">
+                        <label>Otázka k hlasování</label>
+                        <input type="text" id="vTitleAdmin" required>
+                        <button type="submit" style="background: #d69e2e;">Zahájit hlasování</button>
+                    </form>
+                </div>
+
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px;">
                     <h3>Nahrát výsledky turnaje</h3>
                     <form id="uploadResultsForm">
@@ -540,7 +567,7 @@
             document.getElementById('votingSectionHeader').style.display = 'none';
         } else if (isZcOrHigher) {
             document.getElementById('proposalHeaderTitle').innerText = 'Vypsat ostré hlasování nebo diskuzi';
-            document.getElementById('proposalSubmitBtn').innerText = 'Vypsat hlasování';
+            document.getElementById('proposalSubmitBtn').innerText = 'Vypsat diskuzi';
             document.getElementById('votingSectionHeader').style.display = 'block';
         }
     }
@@ -975,18 +1002,21 @@
         e.preventDefault();
         const inputVal = document.getElementById('vTitle').value;
         
-        const isPcOrHigher = ['pc', 'zc', 'zcp', 'superadmin'].includes(simulatedRole);
-        const titleToSave = simulatedRole === 'pc' ? "[NÁVRH PČ] " + inputVal : inputVal;
-        
+        const titleToSave = "[NÁVRH PČ] " + inputVal;
         await db.from('votes').insert({ title: titleToSave, created_by: currentUser.id });
         
-        if (simulatedRole === 'pc') {
-            alert('Váš podnět k diskuzi byl úspěšně odeslán.');
-        } else {
-            alert('Ostré hlasování bylo úspěšně vypsáno.');
-        }
-        
+        alert('Váš podnět k diskuzi byl úspěšně odeslán.');
         document.getElementById('createVoteForm').reset();
+        loadVotes();
+    });
+
+    // ODESLÁNÍ OSTRÉHO HLASOVÁNÍ (JEN ZČ A VÝŠE)
+    document.getElementById('createVoteFormAdmin').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const inputVal = document.getElementById('vTitleAdmin').value;
+        await db.from('votes').insert({ title: inputVal, created_by: currentUser.id });
+        alert('Ostré hlasování bylo úspěšně vypsáno.');
+        document.getElementById('createVoteFormAdmin').reset();
         loadVotes();
     });
 
@@ -1153,10 +1183,10 @@
         const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
         await db.from('voting_records').insert({ vote_id: voteId, voter_id: currentUser.id, choice: choice, vote_hash: hash });
         
-        // Zjišťování reálného počtu ZČ s ohledem na testovací simulaci
         const { count: zcCount } = await db.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['zc', 'zcp', 'superadmin']);
         const { data: records } = await db.from('voting_records').select('*').eq('vote_id', voteId);
         
+        // Zohledníme simulaci
         let requiredVotes = (zcCount !== null && zcCount > 0) ? zcCount : 1;
         
         if (records && records.length >= requiredVotes) {
@@ -1177,7 +1207,7 @@
                     }).catch(e => console.log(e));
                 }
             }
-            alert(`Váš hlas byl odeslán (Klíč: ${hash}). Hlasování dosáhlo 100% účasti a bylo automaticky UZAVŘENO.`);
+            alert(`Váš hlas byl odeslán (Klíč: ${hash}). Hlasování dosáhlo maximální účasti a bylo automaticky UZAVŘENO.`);
         } else {
             alert('Váš hlas byl odeslán do systému! Klíč je: ' + hash);
         }
