@@ -243,7 +243,7 @@
 
                     <!-- Zde se vygeneruje grafická pozvánka -->
                     <canvas id="inviteCanvas"></canvas>
-                    <button id="downloadInviteBtn" type="button" onclick="downloadInvitation()" style="display:none; background: #48bb78; margin-top: 1rem;">⬇ Stáhnout pozvánku do PC (JPG)</button>
+                    <button id="downloadInviteBtn" type="button" onclick="downloadInvitation()" style="display:none; background: #48bb78; margin-top: 1rem;">⬇ Stáhnout pozvánku do PC (PNG)</button>
                 </div>
 
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
@@ -617,7 +617,7 @@
         img.crossOrigin = "Anonymous";
         
         // Zde načítáme obrázek šablony, který musí být nahrán na GitHubu vedle index.html
-        img.src = 'sablona.jpg'; 
+        img.src = 'sablona.png'; 
 
         img.onload = () => {
             canvas.style.display = 'block';
@@ -670,15 +670,15 @@
         };
 
         img.onerror = () => {
-            alert("CHYBA: Šablona pozvánky (sablona.jpg) nebyla nalezena. Prosím, ujistěte se, že je obrázek nahrán na webu pod přesným názvem 'sablona.jpg'.");
+            alert("CHYBA: Šablona pozvánky (sablona.png) nebyla nalezena. Prosím, ujistěte se, že je obrázek nahrán na webu pod přesným názvem 'sablona.png'.");
         };
     };
 
     window.downloadInvitation = function() {
         const canvas = document.getElementById('inviteCanvas');
         const link = document.createElement('a');
-        link.download = `Pozvanka_${document.getElementById('tName').value.replace(/\s+/g, '_')}.jpg`;
-        link.href = canvas.toDataURL('image/jpeg', 0.9);
+        link.download = `Pozvanka_${document.getElementById('tName').value.replace(/\s+/g, '_')}.png`;
+        link.href = canvas.toDataURL('image/png');
         link.click();
     };
 
