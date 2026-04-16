@@ -723,13 +723,18 @@
             const list = document.getElementById('adminUsersList');
             const { data: usersData } = await db.from('profiles').select('*').order('full_name');
             if (usersData) {
+                let availableRoles = Object.keys(roleNames);
+                if (simulatedRole !== 'superadmin') {
+                    availableRoles = availableRoles.filter(k => k !== 'superadmin');
+                }
+
                 let uHtml = '<table class="stats-table" style="font-size:0.85rem;"><tr><th>Jméno a Značka</th><th>Aktuální role</th><th>Akce</th></tr>';
                 usersData.forEach(u => {
-                    let opts = Object.keys(roleNames).map(k => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${roleNames[k]}</option>`).join('');
+                    let opts = availableRoles.map(k => `<option value="${k}" ${u.role === k ? 'selected' : ''}>${roleNames[k]}</option>`).join('');
                     uHtml += `<tr>
                         <td><strong>${u.full_name}</strong> (${u.player_id_card})</td>
                         <td><select id="role_sel_${u.id}" style="margin:0; padding:0.3rem;">${opts}</select></td>
-                        <td><button class="btn-small" style="background:var(--primary);" onclick="changeUserRole('${u.id}', '${u.full_name}')">Uložit roli</button></td>
+                        <td><button class="btn-small" style="background:var(--primary);" onclick="changeUserRole('${u.id}', '${u.full_name.replace(/'/g, "\\'")}')">Uložit roli</button></td>
                     </tr>`;
                 });
                 uHtml += '</table>';
@@ -758,10 +763,38 @@
 
     window.changeUserRole = async function(uid, uName) {
         const newRole = document.getElementById('role_sel_' + uid).value;
+        
+        if (simulatedRole === 'zcp' && newRole === 'zcp' && uid !== currentUser.id) {
+            if(confirm('Opravdu chcete předat svou funkci Předsedy? Tímto krokem se z vás stane běžný Zakládající člen a ztratíte aktuální administrátorská práva.')) {
+                
+                const { error: err1 } = await db.from('profiles').update({ role: 'zcp' }).eq('id', uid);
+                if (err1) {
+                    alert('Chyba při povyšování: ' + err1.message);
+                    return;
+                }
+                
+                const { error: err2 } = await db.from('profiles').update({ role: 'zc' }).eq('id', currentUser.id);
+                if (err2) {
+                    alert('Chyba při změně vaší role: ' + err2.message);
+                    return;
+                }
+                
+                logAction('Předání funkce', `Předseda předal svou funkci uživateli ${uName}`);
+                alert('Funkce Předsedy byla úspěšně předána. Nyní budete přesměrováni s novými právy.');
+                
+                checkAuthState(currentUser);
+                return;
+            } else {
+                loadAdminData();
+                return;
+            }
+        }
+
         const { error } = await db.from('profiles').update({ role: newRole }).eq('id', uid);
         if(!error) {
             alert('Role byla úspěšně změněna.');
-            logAction('Změna oprávnění', `Předseda změnil roli uživateli ${uName} na ${newRole}`);
+            logAction('Změna oprávnění', `Změněna role uživateli ${uName} na ${newRole}`);
+            loadAdminData(); 
         } else {
             alert('Chyba při změně role: ' + error.message);
         }
@@ -1188,6 +1221,36 @@
         box.innerHTML = html;
     }
 
+    document.getElementById('createVoteForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const inputVal = document.getElementById('vTitle').value;
+        
+        const titleToSave = "[NÁVRH PČ] " + inputVal;
+        await db.from('votes').insert({ title: titleToSave, created_by: currentUser.id });
+        
+        const zcEmails = await getAllZcEmails();
+        sendEmailNotification('Nový podnět k diskuzi', 'Byl vložen nový podnět k diskuzi: ' + inputVal, zcEmails);
+        logAction('Nový podnět', 'Uživatel otevřel nové téma k diskuzi');
+        
+        alert('Váš podnět k diskuzi byl úspěšně odeslán.');
+        document.getElementById('createVoteForm').reset();
+        loadVotes();
+    });
+
+    document.getElementById('createVoteFormAdmin').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const inputVal = document.getElementById('vTitleAdmin').value;
+        await db.from('votes').insert({ title: inputVal, created_by: currentUser.id });
+        
+        const zcEmails = await getAllZcEmails();
+        sendEmailNotification('Nové ostré hlasování', 'Bylo vypsáno nové hlasování: ' + inputVal, zcEmails);
+        logAction('Vypsání hlasování', `Bylo zahájeno ostré hlasování s názvem: ${inputVal}`);
+        
+        alert('Ostré hlasování bylo úspěšně vypsáno.');
+        document.getElementById('createVoteFormAdmin').reset();
+        loadVotes();
+    });
+
     window.replyTo = function(name, voteId) {
         const input = document.getElementById('commentInput_' + voteId);
         if(input) {
@@ -1225,7 +1288,7 @@
         if(confirm('Opravdu chcete tuto diskuzi trvale uzavřít a zamknout komentáře?')) {
             const { error } = await db.from('votes').update({ is_closed: true }).eq('id', voteId);
             if (error) {
-                alert('Chyba při úpravě v databázi (pravděpodobně chybí RLS UPDATE práva pro votes): ' + error.message);
+                alert('Chyba při úpravě v databázi: ' + error.message);
                 return;
             }
             logAction('Uzavření diskuze', 'Autor trvale uzavřel diskuzní vlákno');
@@ -1247,7 +1310,7 @@
                 const { error: updateErr } = await db.from('votes').update({ title: newTitle }).eq('id', voteId);
 
                 if (updateErr) {
-                    alert('Chyba při úpravě v databázi (pravděpodobně chybí RLS UPDATE práva pro tabulku votes): ' + updateErr.message);
+                    alert('Chyba při úpravě v databázi: ' + updateErr.message);
                     return;
                 }
                 
@@ -1439,7 +1502,7 @@
             const { error: updateErr } = await db.from('votes').update({ is_closed: true }).eq('id', voteId);
             
             if (updateErr) {
-                alert('Hlas byl uložen, ale systém nemá RLS práva hlasování uzavřít. Prosím opravte databázi. Chyba: ' + updateErr.message);
+                alert('Hlas byl uložen, ale systém nemá práva hlasování uzavřít. Chyba: ' + updateErr.message);
                 loadVotes();
                 return;
             }
