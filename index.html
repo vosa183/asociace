@@ -441,7 +441,6 @@
         'superadmin': 'Super Admin' 
     };
 
-    // Nová funkce pro zápis do auditu
     async function logAction(akce, detaily) {
         if (!currentUser || !myProfileData) return;
         try {
@@ -456,19 +455,33 @@
         }
     }
 
-    // Bezpečné odeslání e-mailu přes Vercel Backend
-    async function sendEmailNotification(predmet, zprava) {
+    async function getAllZcEmails() {
         try {
-            await fetch('/api/mail', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    subject: predmet,
-                    message: zprava
-                })
-            });
-        } catch (e) {
-            console.log('Chyba při komunikaci s Vercel trezorem:', e);
+            const { data } = await db.from('profiles').select('email').in('role', ['zc', 'zcp', 'superadmin']);
+            if (data) return data.map(p => p.email).filter(e => e);
+        } catch(e) {
+            console.log(e);
+        }
+        return [];
+    }
+
+    async function sendEmailNotification(predmet, zprava, prijemci) {
+        if (!prijemci) return;
+        const recipients = Array.isArray(prijemci) ? prijemci : [prijemci];
+        for (let to of recipients) {
+            try {
+                await fetch('/api/mail', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        subject: predmet,
+                        message: zprava,
+                        to: to
+                    })
+                });
+            } catch (e) {
+                console.log('Chyba pri komunikaci s trezorem:', e);
+            }
         }
     }
 
@@ -1007,6 +1020,7 @@
         } else {
             alert('Vaše registrace proběhla úspěšně!'); 
             logAction('Registrace do hry', `Hlavní profil přihlášen na turnaj ID: ${tId}`);
+            sendEmailNotification('Potvrzení registrace na turnaj', 'Byli jste úspěšně přihlášeni na turnaj. Děkujeme!', myProfileData.email);
             loadTournaments(); 
             loadMyRegistrations();
         }
@@ -1024,6 +1038,7 @@
         } else {
             alert('Člen vaší rodiny byl úspěšně přihlášen na turnaj.'); 
             logAction('Registrace rodiny', `Člen rodiny přihlášen na turnaj ID: ${tId}`);
+            sendEmailNotification('Potvrzení registrace na turnaj pro člena rodiny', 'Člen vaší rodiny byl úspěšně přihlášen na turnaj.', myProfileData.email);
             loadTournaments(); 
             loadMyRegistrations();
         }
@@ -1151,7 +1166,6 @@
         box.innerHTML = html;
     }
 
-    // ODESLÁNÍ NÁVRHU DO SYSTÉMU
     document.getElementById('createVoteForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const inputVal = document.getElementById('vTitle').value;
@@ -1159,7 +1173,8 @@
         const titleToSave = "[NÁVRH PČ] " + inputVal;
         await db.from('votes').insert({ title: titleToSave, created_by: currentUser.id });
         
-        sendEmailNotification('Novy podnet k diskuzi', 'Byl vlozen novy podnet: ' + inputVal);
+        const zcEmails = await getAllZcEmails();
+        sendEmailNotification('Nový podnět k diskuzi', 'Byl vložen nový podnět k diskuzi: ' + inputVal, zcEmails);
         logAction('Nový podnět', 'Uživatel otevřel nové téma k diskuzi');
         
         alert('Váš podnět k diskuzi byl úspěšně odeslán.');
@@ -1167,13 +1182,13 @@
         loadVotes();
     });
 
-    // ODESLÁNÍ OSTRÉHO HLASOVÁNÍ (JEN ZČ A VÝŠE)
     document.getElementById('createVoteFormAdmin').addEventListener('submit', async (e) => {
         e.preventDefault();
         const inputVal = document.getElementById('vTitleAdmin').value;
         await db.from('votes').insert({ title: inputVal, created_by: currentUser.id });
         
-        sendEmailNotification('Nove ostre hlasovani', 'Bylo vypsano hlasovani: ' + inputVal);
+        const zcEmails = await getAllZcEmails();
+        sendEmailNotification('Nové ostré hlasování', 'Bylo vypsáno nové hlasování: ' + inputVal, zcEmails);
         logAction('Vypsání hlasování', `Bylo zahájeno ostré hlasování s názvem: ${inputVal}`);
         
         alert('Ostré hlasování bylo úspěšně vypsáno.');
@@ -1201,6 +1216,15 @@
         } else {
             logAction('Komentář', 'Uživatel se zapojil do diskuze');
             input.value = '';
+            
+            const { data: voteInfo } = await db.from('votes').select('created_by, title').eq('id', voteId).single();
+            if (voteInfo && voteInfo.created_by !== currentUser.id) {
+                const { data: creatorProfile } = await db.from('profiles').select('email').eq('id', voteInfo.created_by).single();
+                if (creatorProfile && creatorProfile.email) {
+                    sendEmailNotification('Nový komentář v diskuzi', `Uživatel ${myProfileData.full_name} přidal komentář k vašemu tématu: ${voteInfo.title}`, creatorProfile.email);
+                }
+            }
+            
             loadVotes();
         }
     };
@@ -1218,7 +1242,8 @@
             const newTitle = currentTitle.replace('[NÁVRH PČ] ', '');
             await db.from('votes').update({ title: newTitle }).eq('id', voteId);
             
-            sendEmailNotification('Nove ostre hlasovani', 'Diskuze byla preklopena do hlasovani: ' + newTitle);
+            const zcEmails = await getAllZcEmails();
+            sendEmailNotification('Nové ostré hlasování', 'Diskuze byla překlopena do hlasování: ' + newTitle, zcEmails);
             logAction('Překlopení podnětu', 'Diskuze byla povýšena na Ostré hlasování ZČ');
             
             loadVotes();
@@ -1237,7 +1262,6 @@
             allProfiles.forEach(p => profileMap[p.id] = p.full_name);
         }
 
-        // Získání celkového počtu ZČ pro zobrazení
         const { count: zcCount } = await db.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['zc', 'zcp', 'superadmin']);
         let ocekavaneHlasy = (zcCount !== null && zcCount > 0) ? zcCount : 1;
 
@@ -1401,7 +1425,9 @@
         if (records && records.length >= ocekavaneHlasy) {
             await db.from('votes').update({ is_closed: true }).eq('id', voteId);
             
-            sendEmailNotification('Hlasovani ukonceno', 'Vsichni opravneni clenove odhlasovali.');
+            const zcEmails = await getAllZcEmails();
+            const { data: voteInfo } = await db.from('votes').select('title').eq('id', voteId).single();
+            sendEmailNotification('Hlasování uzavřeno', `Hlasování "${voteInfo ? voteInfo.title : ''}" dosáhlo potřebné účasti a bylo uzavřeno.`, zcEmails);
             logAction('Uzavření hlasování', 'Dosaženo maximální účasti, systém uzavřel hlasování');
             
             alert(`Váš hlas byl odeslán (Klíč: ${hash}). Hlasování dosáhlo maximální účasti a bylo automaticky UZAVŘENO.`);
