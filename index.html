@@ -410,6 +410,23 @@
         'superadmin': 'Super Admin' 
     };
 
+    // Pomocná funkce pro odesílání e-mailových upozornění
+    async function sendEmailNotification(predmet, zprava) {
+        const formspreeUrl = 'https://formspree.io/f/TVUJ_KOD';
+        try {
+            await fetch(formspreeUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    subject: predmet,
+                    message: zprava
+                })
+            });
+        } catch (e) {
+            console.log('Chyba při odesílání e-mailu:', e);
+        }
+    }
+
     function switchTab(tabId) {
         document.querySelectorAll('.page-section').forEach(sec => sec.classList.remove('active'));
         const targetSec = document.getElementById(tabId);
@@ -1005,6 +1022,9 @@
         const titleToSave = "[NÁVRH PČ] " + inputVal;
         await db.from('votes').insert({ title: titleToSave, created_by: currentUser.id });
         
+        // E-mailové upozornění vedení
+        sendEmailNotification('Novy podnet k diskuzi', 'Byl vlozen novy podnet: ' + inputVal);
+        
         alert('Váš podnět k diskuzi byl úspěšně odeslán.');
         document.getElementById('createVoteForm').reset();
         loadVotes();
@@ -1015,12 +1035,16 @@
         e.preventDefault();
         const inputVal = document.getElementById('vTitleAdmin').value;
         await db.from('votes').insert({ title: inputVal, created_by: currentUser.id });
+        
+        // E-mailové upozornění
+        sendEmailNotification('Nove ostre hlasovani', 'Bylo vypsano hlasovani: ' + inputVal);
+        
         alert('Ostré hlasování bylo úspěšně vypsáno.');
         document.getElementById('createVoteFormAdmin').reset();
         loadVotes();
     });
 
-    // ODPOVĚDĚT NA KOMENTÁŘ (PŘEDVYPLNĚNÍ JMÉNA)
+    // ODPOVĚDĚT NA KOMENTÁŘ
     window.replyTo = function(name, voteId) {
         const input = document.getElementById('commentInput_' + voteId);
         if(input) {
@@ -1029,7 +1053,7 @@
         }
     };
 
-    // PŘIDÁNÍ KOMENTÁŘE K DEBATĚ S HLASITOU CHYBOU
+    // PŘIDÁNÍ KOMENTÁŘE K DEBATĚ
     window.addComment = async function(voteId) {
         const input = document.getElementById('commentInput_' + voteId);
         const text = input.value.trim();
@@ -1038,7 +1062,7 @@
         const { error } = await db.from('comments').insert({ vote_id: voteId, user_id: currentUser.id, comment_text: text });
         
         if (error) {
-            alert("Chyba při ukládání komentáře: " + error.message + "\nUjistěte se, že jste v Supabase vytvořili tabulku 'comments'.");
+            alert("Chyba při ukládání komentáře: " + error.message);
         } else {
             input.value = '';
             loadVotes();
@@ -1058,6 +1082,9 @@
         if(confirm('Opravdu chcete tento podnět vyjmout z diskuzí a překlopit ho do Ostrého hlasování?')) {
             const newTitle = currentTitle.replace('[NÁVRH PČ] ', '');
             await db.from('votes').update({ title: newTitle }).eq('id', voteId);
+            
+            sendEmailNotification('Nove ostre hlasovani', 'Diskuze byla preklopena do hlasovani: ' + newTitle);
+            
             loadVotes();
         }
     };
@@ -1083,7 +1110,7 @@
 
         let zobrazenoNecoOstreho = false;
         let zobrazenoNecoDebat = false;
-        const DEBATE_LIFESPAN_MS = 14 * 24 * 60 * 60 * 1000; // 14 dní v milisekundách
+        const DEBATE_LIFESPAN_MS = 14 * 24 * 60 * 60 * 1000; 
 
         for (let v of votes) {
             const isProposal = v.title.startsWith('[NÁVRH PČ] ');
@@ -1226,7 +1253,6 @@
         const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
         await db.from('voting_records').insert({ vote_id: voteId, voter_id: currentUser.id, choice: choice, vote_hash: hash });
         
-        // Zjišťování reálného počtu ZČ s ohledem na testovací simulaci
         const { count: zcCount } = await db.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['zc', 'zcp', 'superadmin']);
         const { data: records } = await db.from('voting_records').select('*').eq('vote_id', voteId);
         
@@ -1235,22 +1261,9 @@
         if (records && records.length >= requiredVotes) {
             await db.from('votes').update({ is_closed: true }).eq('id', voteId);
             
-            const { data: voteInfo } = await db.from('votes').select('created_by, title').eq('id', voteId).single();
-            if (voteInfo) {
-                const { data: creatorProfile } = await db.from('profiles').select('email').eq('id', voteInfo.created_by).single();
-                if (creatorProfile && creatorProfile.email) {
-                    fetch('https://formspree.io/f/TVUJ_KOD', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            email: creatorProfile.email,
-                            subject: 'Hlasovani ukonceno',
-                            message: 'Všichni oprávnění členové odhlasovali v návrhu: ' + voteInfo.title
-                        })
-                    }).catch(e => console.log(e));
-                }
-            }
-            alert(`Váš hlas byl odeslán (Klíč: ${hash}). Hlasování dosáhlo 100% účasti a bylo automaticky UZAVŘENO.`);
+            sendEmailNotification('Hlasovani ukonceno', 'Vsichni opravneni clenove odhlasovali.');
+            
+            alert(`Váš hlas byl odeslán (Klíč: ${hash}). Hlasování dosáhlo maximální účasti a bylo automaticky UZAVŘENO.`);
         } else {
             alert('Váš hlas byl odeslán do systému! Klíč je: ' + hash);
         }
