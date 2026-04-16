@@ -1020,24 +1020,42 @@
         loadVotes();
     });
 
-    // PŘIDÁNÍ KOMENTÁŘE K DEBATĚ
+    // ODPOVĚDĚT NA KOMENTÁŘ (PŘEDVYPLNĚNÍ JMÉNA)
+    window.replyTo = function(name, voteId) {
+        const input = document.getElementById('commentInput_' + voteId);
+        if(input) {
+            input.value = `@${name}: ` + input.value;
+            input.focus();
+        }
+    };
+
+    // PŘIDÁNÍ KOMENTÁŘE K DEBATĚ S HLASITOU CHYBOU
     window.addComment = async function(voteId) {
         const input = document.getElementById('commentInput_' + voteId);
         const text = input.value.trim();
         if (!text) return;
         
-        try {
-            await db.from('comments').insert({ vote_id: voteId, user_id: currentUser.id, comment_text: text });
+        const { error } = await db.from('comments').insert({ vote_id: voteId, user_id: currentUser.id, comment_text: text });
+        
+        if (error) {
+            alert("Chyba při ukládání komentáře: " + error.message + "\nUjistěte se, že jste v Supabase vytvořili tabulku 'comments'.");
+        } else {
             input.value = '';
             loadVotes();
-        } catch (e) {
-            alert("Nezapomeňte v Supabase vytvořit tabulku 'comments' podle mého SQL návodu!");
         }
     };
 
-    // PŘEVOD DEBATY NA HLASOVÁNÍ
+    // UZAVŘENÍ DEBATY AUTOREM
+    window.closeDebate = async function(voteId) {
+        if(confirm('Opravdu chcete tuto diskuzi trvale uzavřít a zamknout komentáře?')) {
+            await db.from('votes').update({ is_closed: true }).eq('id', voteId);
+            loadVotes();
+        }
+    };
+
+    // PŘEVOD DEBATY NA OSTRÉ HLASOVÁNÍ
     window.convertToVote = async function(voteId, currentTitle) {
-        if(confirm('Opravdu chcete tento podnět ukončit a překlopit ho do Ostrého hlasování?')) {
+        if(confirm('Opravdu chcete tento podnět vyjmout z diskuzí a překlopit ho do Ostrého hlasování?')) {
             const newTitle = currentTitle.replace('[NÁVRH PČ] ', '');
             await db.from('votes').update({ title: newTitle }).eq('id', voteId);
             loadVotes();
@@ -1065,6 +1083,7 @@
 
         let zobrazenoNecoOstreho = false;
         let zobrazenoNecoDebat = false;
+        const DEBATE_LIFESPAN_MS = 14 * 24 * 60 * 60 * 1000; // 14 dní v milisekundách
 
         for (let v of votes) {
             const isProposal = v.title.startsWith('[NÁVRH PČ] ');
@@ -1081,7 +1100,14 @@
 
             if (isProposal) {
                 zobrazenoNecoDebat = true;
-                let statusBadge = '<span class="badge" style="background:#ed8936; margin-bottom:10px; display:inline-block;">PODNĚT K DISKUZI</span>';
+                
+                let ageMs = Date.now() - new Date(v.created_at).getTime();
+                let isExpired = ageMs > DEBATE_LIFESPAN_MS;
+                let isDebateClosed = v.is_closed || isExpired;
+
+                let statusBadge = isDebateClosed
+                    ? '<span class="badge" style="background:#718096; margin-bottom:10px; display:inline-block;">UZAVŘENÁ DISKUZE</span>'
+                    : '<span class="badge" style="background:#ed8936; margin-bottom:10px; display:inline-block;">AKTIVNÍ DISKUZE</span>';
                 
                 let commentsHtml = '';
                 try {
@@ -1090,13 +1116,34 @@
                         comments.forEach(c => {
                             let cName = profileMap[c.user_id] || 'Člen';
                             let cDate = new Date(c.created_at).toLocaleString('cs-CZ');
-                            commentsHtml += `<div style="padding: 5px; border-bottom: 1px dashed #cbd5e0; margin-bottom: 5px;"><strong>${cName}</strong> <span style="color:#718096; font-size:0.75rem;">(${cDate})</span><br>${c.comment_text}</div>`;
+                            let replyBtn = isDebateClosed ? '' : `<button class="btn-small" style="background:transparent; color:var(--primary); padding:0; border:none; text-decoration:underline; margin-left:10px;" onclick="replyTo('${cName}', '${v.id}')">Odpovědět</button>`;
+                            
+                            commentsHtml += `<div style="padding: 8px; border-bottom: 1px solid #e2e8f0; margin-bottom: 5px;"><strong>${cName}</strong> <span style="color:#718096; font-size:0.75rem;">(${cDate})</span>${replyBtn}<br><span style="color:#2d3748; margin-top:4px; display:block;">${c.comment_text}</span></div>`;
                         });
                     } else {
                         commentsHtml = '<p style="color:#718096; font-size:0.85rem; font-style:italic;">Zatím žádné komentáře. Buďte první!</p>';
                     }
                 } catch (e) {
                     commentsHtml = '<p style="color:#c53030; font-size:0.8rem;">Pro zobrazení komentářů chybí tabulka v databázi.</p>';
+                }
+
+                let controlsHtml = '';
+                if (!isDebateClosed) {
+                    controlsHtml = `
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <input type="text" id="commentInput_${v.id}" placeholder="Napište svůj názor..." style="margin: 0; flex: 1;">
+                        <button class="btn-small btn-orange" onclick="addComment('${v.id}')">Odeslat</button>
+                    </div>`;
+                    
+                    if (v.created_by === currentUser.id) {
+                        controlsHtml += `<button class="btn-small btn-danger" style="margin-top: 10px; width: 100%;" onclick="closeDebate('${v.id}')">Uzavřít tuto diskuzi (jako autor)</button>`;
+                    }
+                    
+                    if (isZcOrHigher) {
+                        controlsHtml += `<button class="btn-small" style="background:var(--primary); margin-top: 10px; width: 100%;" onclick="convertToVote('${v.id}', '${v.title}')">Ukončit diskuzi a vyvolat z tohoto Ostré hlasování</button>`;
+                    }
+                } else {
+                    controlsHtml = `<p style="color:#718096; font-style:italic; margin-top:10px; padding:10px; background:#e2e8f0; border-radius:6px; text-align:center;">Tato diskuze je již trvale uzavřena.</p>`;
                 }
 
                 let html = `<div class="list-item" style="flex-direction:column; align-items:flex-start; background: #fff; border: 1px solid #e2e8f0; margin-bottom: 1rem; border-top: 4px solid var(--orange);">
@@ -1108,11 +1155,7 @@
                         <div id="comments_${v.id}" style="margin-bottom: 10px; font-size: 0.9rem; max-height: 200px; overflow-y: auto;">
                             ${commentsHtml}
                         </div>
-                        <div style="display: flex; gap: 10px;">
-                            <input type="text" id="commentInput_${v.id}" placeholder="Napište svůj názor..." style="margin: 0; flex: 1;">
-                            <button class="btn-small btn-orange" onclick="addComment('${v.id}')">Přidat komentář</button>
-                        </div>
-                        ${isZcOrHigher ? `<button class="btn-small" style="background:var(--primary); margin-top: 15px; width: 100%;" onclick="convertToVote('${v.id}', '${v.title}')">Ukončit diskuzi a vyvolat z tohoto Ostré hlasování</button>` : ''}
+                        ${controlsHtml}
                     </div>
                 </div>`;
                 dList.innerHTML += html;
@@ -1183,6 +1226,7 @@
         const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
         await db.from('voting_records').insert({ vote_id: voteId, voter_id: currentUser.id, choice: choice, vote_hash: hash });
         
+        // Zjišťování reálného počtu ZČ s ohledem na testovací simulaci
         const { count: zcCount } = await db.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['zc', 'zcp', 'superadmin']);
         const { data: records } = await db.from('voting_records').select('*').eq('vote_id', voteId);
         
@@ -1206,7 +1250,7 @@
                     }).catch(e => console.log(e));
                 }
             }
-            alert(`Váš hlas byl odeslán (Klíč: ${hash}). Hlasování dosáhlo maximální účasti a bylo automaticky UZAVŘENO.`);
+            alert(`Váš hlas byl odeslán (Klíč: ${hash}). Hlasování dosáhlo 100% účasti a bylo automaticky UZAVŘENO.`);
         } else {
             alert('Váš hlas byl odeslán do systému! Klíč je: ' + hash);
         }
