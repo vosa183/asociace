@@ -1188,36 +1188,6 @@
         box.innerHTML = html;
     }
 
-    document.getElementById('createVoteForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const inputVal = document.getElementById('vTitle').value;
-        
-        const titleToSave = "[NÁVRH PČ] " + inputVal;
-        await db.from('votes').insert({ title: titleToSave, created_by: currentUser.id });
-        
-        const zcEmails = await getAllZcEmails();
-        sendEmailNotification('Nový podnět k diskuzi', 'Byl vložen nový podnět k diskuzi: ' + inputVal, zcEmails);
-        logAction('Nový podnět', 'Uživatel otevřel nové téma k diskuzi');
-        
-        alert('Váš podnět k diskuzi byl úspěšně odeslán.');
-        document.getElementById('createVoteForm').reset();
-        loadVotes();
-    });
-
-    document.getElementById('createVoteFormAdmin').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const inputVal = document.getElementById('vTitleAdmin').value;
-        await db.from('votes').insert({ title: inputVal, created_by: currentUser.id });
-        
-        const zcEmails = await getAllZcEmails();
-        sendEmailNotification('Nové ostré hlasování', 'Bylo vypsáno nové hlasování: ' + inputVal, zcEmails);
-        logAction('Vypsání hlasování', `Bylo zahájeno ostré hlasování s názvem: ${inputVal}`);
-        
-        alert('Ostré hlasování bylo úspěšně vypsáno.');
-        document.getElementById('createVoteFormAdmin').reset();
-        loadVotes();
-    });
-
     window.replyTo = function(name, voteId) {
         const input = document.getElementById('commentInput_' + voteId);
         if(input) {
@@ -1253,22 +1223,43 @@
 
     window.closeDebate = async function(voteId) {
         if(confirm('Opravdu chcete tuto diskuzi trvale uzavřít a zamknout komentáře?')) {
-            await db.from('votes').update({ is_closed: true }).eq('id', voteId);
+            const { error } = await db.from('votes').update({ is_closed: true }).eq('id', voteId);
+            if (error) {
+                alert('Chyba při úpravě v databázi (pravděpodobně chybí RLS UPDATE práva pro votes): ' + error.message);
+                return;
+            }
             logAction('Uzavření diskuze', 'Autor trvale uzavřel diskuzní vlákno');
             loadVotes();
         }
     };
 
-    window.convertToVote = async function(voteId, currentTitle) {
+    window.convertToVote = async function(voteId) {
         if(confirm('Opravdu chcete tento podnět vyjmout z diskuzí a překlopit ho do Ostrého hlasování?')) {
-            const newTitle = currentTitle.replace('[NÁVRH PČ] ', '');
-            await db.from('votes').update({ title: newTitle }).eq('id', voteId);
-            
-            const zcEmails = await getAllZcEmails();
-            sendEmailNotification('Nové ostré hlasování', 'Diskuze byla překlopena do hlasování: ' + newTitle, zcEmails);
-            logAction('Překlopení podnětu', 'Diskuze byla povýšena na Ostré hlasování ZČ');
-            
-            loadVotes();
+            try {
+                const { data: voteInfo, error: fetchErr } = await db.from('votes').select('title').eq('id', voteId).single();
+                if (fetchErr) {
+                    alert('Chyba při načítání dat: ' + fetchErr.message);
+                    return;
+                }
+
+                const newTitle = voteInfo.title.replace('[NÁVRH PČ] ', '');
+
+                const { error: updateErr } = await db.from('votes').update({ title: newTitle }).eq('id', voteId);
+
+                if (updateErr) {
+                    alert('Chyba při úpravě v databázi (pravděpodobně chybí RLS UPDATE práva pro tabulku votes): ' + updateErr.message);
+                    return;
+                }
+                
+                const zcEmails = await getAllZcEmails();
+                sendEmailNotification('Nové ostré hlasování', 'Diskuze byla překlopena do hlasování: ' + newTitle, zcEmails);
+                logAction('Překlopení podnětu', 'Diskuze byla povýšena na Ostré hlasování ZČ');
+                
+                alert('Podnět byl úspěšně překlopen do Ostrého hlasování!');
+                loadVotes();
+            } catch (e) {
+                console.error(e);
+            }
         }
     };
 
@@ -1329,7 +1320,7 @@
                         comments.forEach(c => {
                             let cName = profileMap[c.user_id] || 'Člen';
                             let cDate = new Date(c.created_at).toLocaleString('cs-CZ');
-                            let replyBtn = isDebateClosed ? '' : `<button class="btn-small" style="background:transparent; color:var(--primary); padding:0; border:none; text-decoration:underline; margin-left:10px;" onclick="replyTo('${cName}', '${v.id}')">Odpovědět</button>`;
+                            let replyBtn = isDebateClosed ? '' : `<button class="btn-small" style="background:transparent; color:var(--primary); padding:0; border:none; text-decoration:underline; margin-left:10px;" onclick="replyTo('${cName.replace(/'/g, "\\'")}', '${v.id}')">Odpovědět</button>`;
                             
                             commentsHtml += `<div style="padding: 8px; border-bottom: 1px solid #e2e8f0; margin-bottom: 5px;"><strong>${cName}</strong> <span style="color:#718096; font-size:0.75rem;">(${cDate})</span>${replyBtn}<br><span style="color:#2d3748; margin-top:4px; display:block;">${c.comment_text}</span></div>`;
                         });
@@ -1353,7 +1344,7 @@
                     }
                     
                     if (isZcOrHigher) {
-                        controlsHtml += `<button class="btn-small" style="background:var(--primary); margin-top: 10px; width: 100%;" onclick="convertToVote('${v.id}', '${v.title}')">Ukončit diskuzi a vyvolat z tohoto Ostré hlasování</button>`;
+                        controlsHtml += `<button class="btn-small" style="background:var(--primary); margin-top: 10px; width: 100%;" onclick="convertToVote('${v.id}')">Ukončit diskuzi a vyvolat z tohoto Ostré hlasování</button>`;
                     }
                 } else {
                     controlsHtml = `<p style="color:#718096; font-style:italic; margin-top:10px; padding:10px; background:#e2e8f0; border-radius:6px; text-align:center;">Tato diskuze je již trvale uzavřena.</p>`;
@@ -1445,7 +1436,13 @@
         const { data: records } = await db.from('voting_records').select('*').eq('vote_id', voteId);
         
         if (records && records.length >= ocekavaneHlasy) {
-            await db.from('votes').update({ is_closed: true }).eq('id', voteId);
+            const { error: updateErr } = await db.from('votes').update({ is_closed: true }).eq('id', voteId);
+            
+            if (updateErr) {
+                alert('Hlas byl uložen, ale systém nemá RLS práva hlasování uzavřít. Prosím opravte databázi. Chyba: ' + updateErr.message);
+                loadVotes();
+                return;
+            }
             
             const zcEmails = await getAllZcEmails();
             const { data: voteInfo } = await db.from('votes').select('title').eq('id', voteId).single();
