@@ -14,13 +14,26 @@
         :root { --primary: #1a365d; --secondary: #c53030; --bg: #f4f7f6; --text: #2d3748; --white: #ffffff; --gray: #e2e8f0; --orange: #dd6b20; }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: var(--bg); color: var(--text); line-height: 1.6; }
-        header { background: var(--white); padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; }
+        header { background: var(--white); padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
         .logo-container { display: flex; align-items: center; gap: 1rem; cursor: pointer; }
         .logo-container img { height: 50px; }
         .logo-container h1 { font-size: 1.2rem; color: var(--primary); text-transform: uppercase; }
+        
+        .menu-toggle { display: none; font-size: 2rem; cursor: pointer; color: var(--primary); user-select: none; }
+        
         nav ul { display: flex; list-style: none; gap: 1rem; flex-wrap: wrap; }
-        nav a { text-decoration: none; color: var(--primary); font-weight: 600; cursor: pointer; padding: 0.5rem 1rem; border-radius: 6px; transition: 0.2s; }
+        nav a { text-decoration: none; color: var(--primary); font-weight: 600; cursor: pointer; padding: 0.5rem 1rem; border-radius: 6px; transition: 0.2s; display: block; }
         nav a:hover, nav a.active { background: var(--gray); color: var(--secondary); }
+        
+        @media (max-width: 768px) {
+            .menu-toggle { display: block; }
+            nav { display: none; width: 100%; order: 3; margin-top: 1rem; }
+            nav.mobile-active { display: block; }
+            nav ul { flex-direction: column; gap: 0.5rem; }
+            nav a { padding: 1rem; text-align: center; background: #f8fafc; }
+            nav a.active { background: var(--gray); }
+        }
+
         .admin-link { color: #d69e2e; }
         main { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; min-height: 60vh; }
         .page-section { display: none; animation: fadeIn 0.3s ease; }
@@ -30,6 +43,7 @@
         h2 { color: var(--primary); border-bottom: 2px solid var(--secondary); padding-bottom: 0.5rem; margin-bottom: 1.5rem; font-size: 1.5rem; }
         h3 { color: var(--primary); margin-bottom: 1rem; font-size: 1.2rem; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
         label { display: block; font-weight: bold; margin-bottom: 0.3rem; font-size: 0.9rem; }
         input, textarea, select { width: 100%; padding: 0.8rem; margin-bottom: 1.2rem; border-radius: 6px; border: 1px solid #ccc; font-family: inherit; }
         button { background: var(--primary); color: white; border: none; padding: 0.8rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; }
@@ -42,7 +56,7 @@
         .msg { margin-top: 1rem; font-weight: bold; padding: 0.8rem; border-radius: 6px; display: none; text-align: center; }
         .error { background: #fed7d7; color: #c53030; display: block; }
         .success { background: #c6f6d5; color: #2f855a; display: block; }
-        .list-item { background: var(--gray); padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
+        .list-item { background: var(--gray); padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;}
         .badge { background: var(--primary); color: white; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.8rem; }
         .hash-box { background: #1a202c; color: #48bb78; padding: 0.5rem; font-family: monospace; font-size: 0.8rem; border-radius: 4px; word-break: break-all;}
         footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 2rem; }
@@ -62,12 +76,13 @@
         }
         .invite-card .header-text { color: #a0aec0; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 1.5rem; position: relative; z-index: 1; }
         .invite-card h4 { color: #d69e2e; font-size: 2.8rem; margin-bottom: 2rem; text-transform: uppercase; position: relative; z-index: 1; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); border-bottom: 2px solid rgba(214, 158, 46, 0.3); padding-bottom: 1rem; display: inline-block; }
+        @media (max-width: 768px) { .invite-card h4 { font-size: 1.8rem; } }
         .invite-card .date { font-size: 1.8rem; font-weight: bold; margin-bottom: 1.5rem; position: relative; z-index: 1; }
         .invite-card .fee { display: inline-block; background: rgba(214, 158, 46, 0.15); padding: 0.8rem 2rem; border-radius: 8px; border: 1px solid #d69e2e; font-size: 1.4rem; position: relative; z-index: 1; font-weight: bold; }
         .invite-card .footer-text { margin-top: 3rem; font-size: 1rem; color: #a0aec0; position: relative; z-index: 1; letter-spacing: 1px; }
 
-        .qr-container { display: none; text-align: center; background: white; padding: 1rem; border-radius: 8px; margin-top: 1rem; border: 1px solid #ccc; }
-        .qr-container img { max-width: 200px; height: auto; }
+        .qr-container { display: none; text-align: center; background: white; padding: 1rem; border-radius: 8px; margin-top: 1rem; border: 1px solid #ccc; width: 100%;}
+        .qr-container img { max-width: 200px; height: auto; margin: auto; display: block;}
         
         .vote-stats { display: flex; gap: 15px; margin-top: 10px; background: #e2e8f0; padding: 10px; border-radius: 6px; font-size: 0.9rem; align-items: center; flex-wrap: wrap;}
         .vote-stats span { font-weight: bold; }
@@ -88,7 +103,8 @@
         <img src="logo.png" alt="Logo" onerror="this.style.display='none';">
         <h1>Česká asociace prší</h1>
     </div>
-    <nav>
+    <div class="menu-toggle" onclick="toggleMobileMenu()">☰</div>
+    <nav id="mainNav">
         <ul>
             <li><a onclick="switchTab('home')" id="nav-home" class="active">Úvod</a></li>
             <li><a onclick="switchTab('rules')" id="nav-rules">Pravidla</a></li>
@@ -210,7 +226,7 @@
                 Načítám data z databáze...
             </div>
             <div id="dashContent" style="display: none;">
-                <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+                <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; word-break: break-all;">
                     <p><strong>Jméno:</strong> <span id="dash-name"></span></p>
                     <p><strong>Značka:</strong> <span id="dash-id"></span> <span class="badge" id="dash-role"></span></p>
                     <p><strong>E-mail:</strong> <span id="dash-email"></span></p>
@@ -229,7 +245,7 @@
                 </p>
                 
                 <form id="addFamilyForm" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
-                    <div style="flex: 2; min-width: 200px;">
+                    <div style="flex: 1; min-width: 150px;">
                         <label>Jméno hráče</label>
                         <input type="text" id="famName" style="margin:0;" required>
                     </div>
@@ -240,7 +256,7 @@
                     <button type="submit" style="flex: 1; min-width: 100px; margin:0;">+ Přidat</button>
                 </form>
                 <div id="famMsg" class="msg"></div>
-                <ul class="family-list" id="familyList"></ul>
+                <ul class="family-list" id="familyList" style="margin-top: 1rem;"></ul>
             </div>
         </div>
     </section>
@@ -311,7 +327,7 @@
             <div id="superAdminZone" style="display: none; background: #fffbeb; border: 1px solid #f6e05e; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 10px;">
                     <h3 style="color: #b7791f; margin: 0;">Pohled pod kapotu</h3>
-                    <div style="display: flex; gap: 15px;">
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                         <p style="margin: 0; color: #2b6cb0; background: #ebf8ff; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem;">
                             🟢 Online: <strong id="onlineCount">1</strong>
                         </p>
@@ -441,6 +457,10 @@
         'superadmin': 'Super Admin' 
     };
 
+    function toggleMobileMenu() {
+        document.getElementById('mainNav').classList.toggle('mobile-active');
+    }
+
     async function logAction(akce, detaily) {
         if (!currentUser || !myProfileData) return;
         try {
@@ -486,6 +506,8 @@
     }
 
     function switchTab(tabId) {
+        document.getElementById('mainNav').classList.remove('mobile-active');
+
         document.querySelectorAll('.page-section').forEach(sec => sec.classList.remove('active'));
         const targetSec = document.getElementById(tabId);
         if(targetSec) targetSec.classList.add('active');
