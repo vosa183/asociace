@@ -11,7 +11,7 @@
     <title>Česká asociace prší z. s.</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --primary: #1a365d; --secondary: #c53030; --bg: #f4f7f6; --text: #2d3748; --white: #ffffff; --gray: #e2e8f0; --orange: #dd6b20; }
+        :root { --primary: #1a365d; --secondary: #c53030; --bg: #f4f7f6; --text: #2d3748; --white: #ffffff; --gray: #e2e8f0; --orange: #dd6b20; --blue: #3182ce; }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: var(--bg); color: var(--text); line-height: 1.6; }
         header { background: var(--white); padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
@@ -53,6 +53,8 @@
         .btn-danger:hover { background: #9b2c2c; }
         .btn-orange { background: var(--orange); }
         .btn-orange:hover { background: #c05621; }
+        .btn-blue { background: var(--blue); }
+        .btn-blue:hover { background: #2b6cb0; }
         .msg { margin-top: 1rem; font-weight: bold; padding: 0.8rem; border-radius: 6px; display: none; text-align: center; }
         .error { background: #fed7d7; color: #c53030; display: block; }
         .success { background: #c6f6d5; color: #2f855a; display: block; }
@@ -109,10 +111,10 @@
             <li><a onclick="switchTab('home')" id="nav-home" class="active">Úvod</a></li>
             <li><a onclick="switchTab('rules')" id="nav-rules">Pravidla</a></li>
             <li><a onclick="switchTab('host')" id="nav-host">Pořádejte turnaj</a></li>
+            <li id="menu-tournaments" style="display:block;"><a onclick="switchTab('tournaments')" id="nav-tournaments">Turnaje</a></li>
+            <li id="menu-stats" style="display:block;"><a onclick="switchTab('stats')" id="nav-stats">Statistiky</a></li>
+            <li id="menu-voting" style="display:block;"><a onclick="switchTab('voting')" id="nav-voting">Hlasování</a></li>
             <li id="menu-auth"><a onclick="switchTab('auth')" id="nav-auth">Pro členy</a></li>
-            <li id="menu-tournaments" style="display:none;"><a onclick="switchTab('tournaments')" id="nav-tournaments">Turnaje</a></li>
-            <li id="menu-stats" style="display:none;"><a onclick="switchTab('stats')" id="nav-stats">Statistiky</a></li>
-            <li id="menu-voting" style="display:none; color:#d69e2e;"><a onclick="switchTab('voting')" id="nav-voting">Hlasování a Návrhy</a></li>
             <li id="menu-profile" style="display:none;"><a onclick="switchTab('dashboard')" id="nav-dashboard">Můj profil</a></li>
             <li id="menu-admin" style="display:none; color:#d69e2e;"><a onclick="switchTab('admin')" id="nav-admin">Administrace</a></li>
             <li id="menu-logout" style="display:none;"><a onclick="logOutUser()" style="color: var(--secondary);">Odhlásit</a></li>
@@ -203,6 +205,8 @@
             <form id="profileForm" style="max-width: 500px;">
                 <label>Celé jméno a příjmení</label>
                 <input type="text" id="profName" required>
+                <label>Bydliště (Město/Obec)</label>
+                <input type="text" id="profCity" required>
                 <label>Průkazka (Slouží jako Variabilní symbol)</label>
                 <input type="text" id="profIdCard" required>
                 <label>E-mail pro komunikaci</label>
@@ -211,7 +215,7 @@
                 <input type="text" id="profPhone" required>
                 <div style="margin-bottom: 1rem;">
                     <input type="checkbox" id="profConsent" required style="width: auto; transform: scale(1.2); margin-right: 8px;"> 
-                    Souhlasím se zpracováním údajů, VOP a zveřejněním turnajových statistik.
+                    Souhlasím se zpracováním údajů a zveřejněním mého jména v členských sekcích statistik. <strong>Beru na vědomí, že mé osobní ID hráče je důvěrný údaj a nebude veřejně zobrazován.</strong>
                 </div>
                 <button type="submit">Uložit a pokračovat</button>
                 <div id="profMsg" class="msg"></div>
@@ -221,14 +225,19 @@
 
     <section id="dashboard" class="page-section">
         <div class="card">
-            <h2>Váš profil</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--secondary); margin-bottom: 1.5rem; padding-bottom: 0.5rem; flex-wrap: wrap; gap: 10px;">
+                <h2 style="border: none; margin: 0; padding: 0;">Váš profil</h2>
+                <button class="btn-small btn-blue" onclick="printMyCard()">🖨️ Vytisknout můj průkaz</button>
+            </div>
+
             <div id="dashLoading" style="display: block; font-weight: bold; color: var(--primary);">
                 Načítám data z databáze...
             </div>
             <div id="dashContent" style="display: none;">
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; word-break: break-all;">
                     <p><strong>Jméno:</strong> <span id="dash-name"></span></p>
-                    <p><strong>Značka:</strong> <span id="dash-id"></span> <span class="badge" id="dash-role"></span></p>
+                    <p><strong>Bydliště:</strong> <span id="dash-city"></span></p>
+                    <p><strong>Tajná Značka (ID):</strong> <span id="dash-id" style="font-family: monospace; font-weight:bold; color: var(--secondary);"></span> <span class="badge" id="dash-role"></span></p>
                     <p><strong>E-mail:</strong> <span id="dash-email"></span></p>
                 </div>
 
@@ -249,8 +258,12 @@
                         <label>Jméno hráče</label>
                         <input type="text" id="famName" style="margin:0;" required>
                     </div>
-                    <div style="flex: 1; min-width: 150px;">
-                        <label>Průkazka</label>
+                    <div style="flex: 1; min-width: 120px;">
+                        <label>Bydliště</label>
+                        <input type="text" id="famCity" style="margin:0;" required>
+                    </div>
+                    <div style="flex: 1; min-width: 120px;">
+                        <label>Tajné ID (Průkazka)</label>
                         <input type="text" id="famId" style="margin:0;" required>
                     </div>
                     <button type="submit" style="flex: 1; min-width: 100px; margin:0;">+ Přidat</button>
@@ -263,21 +276,27 @@
 
     <section id="tournaments" class="page-section">
         <div class="card">
-            <h2 style="border-bottom: 2px solid #48bb78; color: #2f855a;">Moje přihlášky</h2>
-            <p style="margin-bottom: 1.5rem; font-size: 0.9rem;">Přehled turnajů, na které jste přihlášeni vy nebo členové vaší rodiny.</p>
-            <div id="myRegistrationsList" style="margin-bottom: 3rem;">Načítám vaše přihlášky...</div>
-
-            <h2>Vypsané turnaje</h2>
+            <h2>Vypsané turnaje (Veřejné)</h2>
             <p style="margin-bottom: 1.5rem;">Zápisné se hradí bankovním převodem.</p>
             <div id="tournamentsList">Načítám vypsané turnaje...</div>
+
+            <div id="myRegistrationsContainer" style="display: none; margin-top: 3rem;">
+                <h2 style="border-bottom: 2px solid #48bb78; color: #2f855a;">Moje přihlášky</h2>
+                <p style="margin-bottom: 1.5rem; font-size: 0.9rem;">Přehled turnajů, na které jste přihlášeni vy nebo členové vaší rodiny.</p>
+                <div id="myRegistrationsList">Načítám vaše přihlášky...</div>
+            </div>
         </div>
     </section>
 
     <section id="stats" class="page-section">
         <div class="card">
-            <h2>Statistika nuda je, má však tvoje údaje :-)</h2>
+            <h2>Statistika a výsledky</h2>
+
+            <div id="statsAuthWarning" style="background: #ebf8ff; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #90cdf4; color: #2b6cb0;">
+                <strong>Jste v anonymním režimu.</strong> Z důvodu ochrany soukromí se nezobrazují osobní jména hráčů, ale pouze jejich tajné průkazové ID. Pro plnohodnotné zobrazení se musíte přihlásit do členské sekce.
+            </div>
             
-            <div style="background: #ebf8ff; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #90cdf4;">
+            <div id="personalStatsSection" style="display: none; background: #ebf8ff; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #90cdf4;">
                 <label>Vyberte hráče pro osobní vysvědčení:</label>
                 <select id="statsPlayerSelect" onchange="renderPersonalStats()" style="max-width: 400px;"></select>
                 <div id="personalStatsBox" style="margin-top: 1rem;">
@@ -285,7 +304,7 @@
             </div>
 
             <h3 style="border-top: 1px solid #ccc; padding-top: 2rem;">Historický archiv turnajů</h3>
-            <p style="font-size: 0.9rem; margin-bottom: 1rem;">Z důvodu ochrany soukromí jsou jména cizích hráčů skryta pod jejich značkou. Jmenovitě vidíte pouze sebe a členy své rodiny.</p>
+            <p style="font-size: 0.9rem; margin-bottom: 1rem;">Vyberte turnaj ze seznamu a prohlédněte si konečné pořadí.</p>
             <label>Vyberte proběhlý turnaj:</label>
             <select id="statsTournamentSelect" onchange="renderTournamentResults()" style="max-width: 500px;"></select>
             
@@ -297,26 +316,31 @@
 
     <section id="voting" class="page-section">
         <div class="card" style="border-top: 4px solid #d69e2e;">
-            <h2 style="color: #d69e2e; border-color: #d69e2e;">Návrhy a Hlasování</h2>
-            <p style="margin-bottom: 1.5rem;">Prostor pro podněty k diskuzi a ostré hlasování Zakládajících členů.</p>
+            <h2 style="color: #d69e2e; border-color: #d69e2e;">Veřejná hlasování a Návrhy PČ</h2>
             
-            <div id="proposalZone" style="background: #fffbeb; border: 1px solid #f6e05e; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
-                <h3 style="color: #b7791f; font-size: 1.1rem;" id="proposalHeaderTitle">Zadat nový podnět k diskuzi</h3>
-                <form id="createVoteForm" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
-                    <div style="flex: 3; min-width: 200px;">
-                        <label>Znění návrhu nebo otázky</label>
-                        <input type="text" id="vTitle" style="margin:0;" required>
-                    </div>
-                    <button type="submit" id="proposalSubmitBtn" style="flex: 1; min-width: 150px; background: #d69e2e; margin:0;">Odeslat podnět</button>
-                </form>
+            <div id="publicVotingZone" style="margin-bottom: 3rem;">
+                </div>
+
+            <div id="memberVotingZone" style="display: none;">
+                <p style="margin-bottom: 1.5rem;">Prostor pro interní podněty k diskuzi a ostré hlasování Zakládajících členů.</p>
+                
+                <div id="proposalZone" style="background: #fffbeb; border: 1px solid #f6e05e; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
+                    <h3 style="color: #b7791f; font-size: 1.1rem;" id="proposalHeaderTitle">Zadat nový podnět k diskuzi</h3>
+                    <form id="createVoteForm" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+                        <div style="flex: 3; min-width: 200px;">
+                            <label>Znění návrhu nebo otázky</label>
+                            <input type="text" id="vTitle" style="margin:0;" required>
+                        </div>
+                        <button type="submit" id="proposalSubmitBtn" style="flex: 1; min-width: 150px; background: #d69e2e; margin:0;">Odeslat podnět</button>
+                    </form>
+                </div>
+
+                <h3 style="color: #c53030; display: none;" id="votingSectionHeader">Ostrá hlasování ZČ</h3>
+                <div id="votingList"></div>
+
+                <h3 style="color: #dd6b20; margin-top: 2.5rem; border-top: 1px solid #ccc; padding-top: 1rem;">Debaty a podněty PČ</h3>
+                <div id="debateList"></div>
             </div>
-
-            <h3 style="color: #c53030; display: none;" id="votingSectionHeader">Ostrá hlasování</h3>
-            <div id="votingList"></div>
-
-            <h3 style="color: #dd6b20; margin-top: 2.5rem; border-top: 1px solid #ccc; padding-top: 1rem;">Debaty a podněty</h3>
-            <div id="debateList"></div>
-
         </div>
     </section>
 
@@ -370,6 +394,78 @@
             </div>
 
             <div id="zcZone" style="display: none;">
+
+                <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                    <h3>Generátor průkazů hráčů</h3>
+                    <p style="font-size: 0.85rem; margin-bottom: 1rem;">Rychlý tisk průkazu pro jakéhokoliv registrovaného hráče (včetně rodinných příslušníků).</p>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <select id="adminPrintSelect" style="max-width: 400px; margin:0;"></select>
+                        <button class="btn-small btn-blue" onclick="adminPrintCard()">🖨️ Vygenerovat a Tisknout</button>
+                    </div>
+                </div>
+
+                <div style="background: #fff5f5; padding: 1.5rem; border-radius: 8px; border: 1px solid #feb2b2; margin-bottom: 1.5rem;">
+                    <h3 style="color: var(--secondary);">Hromadný rozesílač e-mailů</h3>
+                    <form id="massEmailForm">
+                        <label>Komu chcete zprávu odeslat?</label>
+                        <select id="massEmailTarget">
+                            <option value="members">Všem registrovaným členům (Účty na webu)</option>
+                            <option value="external">Pouze externím odběratelům (Tabulka databáze)</option>
+                            <option value="all">Úplně všem (Členové webu + Externí databáze)</option>
+                        </select>
+                        <label>Předmět zprávy</label>
+                        <input type="text" id="massEmailSubject" required>
+                        <label>Text zprávy</label>
+                        <textarea id="massEmailBody" rows="5" required></textarea>
+                        <button type="submit" class="btn-danger">Odeslat hromadnou zprávu</button>
+                    </form>
+                </div>
+
+                <div style="background: #ebf8ff; padding: 1.5rem; border-radius: 8px; border: 1px solid #90cdf4; margin-bottom: 1.5rem;">
+                    <h3 style="color: #2b6cb0;">Vypsat veřejné [MODRÉ] hlasování</h3>
+                    <form id="createBlueVoteForm">
+                        <label>Otázka k hlasování (Přístupné i neregistrovaným přes ověření ID)</label>
+                        <input type="text" id="vTitleBlue" required>
+                        <button type="submit" class="btn-blue">Zahájit [MODRÉ] hlasování</button>
+                    </form>
+                </div>
+
+                <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                    <h3>Evidence majetku a revizí</h3>
+                    <form id="addAssetForm" style="margin-bottom: 2rem;">
+                        <div class="grid-2" style="gap: 1rem;">
+                            <div>
+                                <label>Název položky</label>
+                                <input type="text" id="assetName" required>
+                            </div>
+                            <div>
+                                <label>Evidenční číslo</label>
+                                <input type="text" id="assetNumber" required>
+                            </div>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <input type="checkbox" id="assetElectric" style="width: auto; transform: scale(1.2);"> 
+                            Jedná se o elektrozařízení (vyžaduje pravidelnou revizi)
+                        </div>
+                        <div class="grid-2" style="gap: 1rem; display: none;" id="revFields">
+                            <div>
+                                <label>Datum konce platnosti revize</label>
+                                <input type="date" id="assetRevDate">
+                            </div>
+                            <div>
+                                <label>Dokument k revizi (PDF)</label>
+                                <input type="file" id="assetFile" accept=".pdf" style="background: white;">
+                            </div>
+                        </div>
+                        <button type="submit">Přidat majetek do evidence</button>
+                    </form>
+                    
+                    <h4 style="margin-bottom: 1rem; border-top: 1px solid #ccc; padding-top: 1rem;">Aktuální seznam majetku</h4>
+                    <div id="assetsList" style="max-height: 300px; overflow-y: auto;">
+                        Načítám evidenci...
+                    </div>
+                </div>
+
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
                     <h3>Vypsat nový turnaj a Živý náhled pozvánky</h3>
                     <form id="createTournamentForm">
@@ -403,11 +499,11 @@
                 </div>
 
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
-                    <h3>Nové hlasování Zakládajících členů</h3>
+                    <h3>Nové hlasování Zakládajících členů (Interní)</h3>
                     <form id="createVoteFormAdmin">
                         <label>Otázka k hlasování</label>
                         <input type="text" id="vTitleAdmin" required>
-                        <button type="submit" style="background: #d69e2e;">Zahájit hlasování</button>
+                        <button type="submit" style="background: #d69e2e;">Zahájit hlasování ZČ</button>
                     </form>
                 </div>
 
@@ -486,7 +582,7 @@
     }
 
     async function sendEmailNotification(predmet, zprava, prijemci) {
-        if (!prijemci) return;
+        if (!prijemci || prijemci.length === 0) return;
         const recipients = Array.isArray(prijemci) ? prijemci : [prijemci];
         for (let to of recipients) {
             try {
@@ -518,11 +614,12 @@
 
         sessionStorage.setItem('activeTab', tabId);
 
+        if (tabId === 'tournaments') { loadTournaments(); if (currentUser) loadMyRegistrations(); }
+        if (tabId === 'stats') loadHistoricalData();
+        if (tabId === 'voting') loadVotes();
+
         if (currentUser && myProfileData) {
             if (tabId === 'dashboard') renderDashboard();
-            if (tabId === 'tournaments') { loadTournaments(); loadMyRegistrations(); }
-            if (tabId === 'stats') loadHistoricalData();
-            if (tabId === 'voting') loadVotes();
             if (tabId === 'admin') loadAdminData();
         }
     }
@@ -534,7 +631,13 @@
             document.getElementById('menu-profile').style.display = 'block';
             document.getElementById('menu-tournaments').style.display = 'block';
             document.getElementById('menu-stats').style.display = 'block';
+            document.getElementById('menu-voting').style.display = 'block';
             document.getElementById('menu-logout').style.display = 'block';
+
+            document.getElementById('myRegistrationsContainer').style.display = 'block';
+            document.getElementById('memberVotingZone').style.display = 'block';
+            document.getElementById('personalStatsSection').style.display = 'block';
+            document.getElementById('statsAuthWarning').style.display = 'none';
 
             try {
                 const { data: settingsData } = await db.from('system_settings').select('*').eq('id', 1).maybeSingle();
@@ -603,16 +706,18 @@
             
             document.getElementById('menu-auth').style.display = 'block';
             document.getElementById('menu-profile').style.display = 'none';
-            document.getElementById('menu-tournaments').style.display = 'none';
-            document.getElementById('menu-stats').style.display = 'none';
-            document.getElementById('menu-voting').style.display = 'none';
             document.getElementById('menu-admin').style.display = 'none';
             document.getElementById('menu-logout').style.display = 'none';
+            document.getElementById('myRegistrationsContainer').style.display = 'none';
+            document.getElementById('memberVotingZone').style.display = 'none';
+            document.getElementById('personalStatsSection').style.display = 'none';
+            document.getElementById('statsAuthWarning').style.display = 'block';
             
-            sessionStorage.removeItem('activeTab');
-            const currentTab = document.querySelector('.page-section.active')?.id;
-            if (currentTab && ['dashboard', 'profile-setup', 'admin', 'tournaments', 'stats'].includes(currentTab)) {
+            const currentTab = sessionStorage.getItem('activeTab') || 'home';
+            if (['dashboard', 'profile-setup', 'admin'].includes(currentTab)) {
                 switchTab('home');
+            } else {
+                switchTab(currentTab);
             }
         }
     }
@@ -680,7 +785,6 @@
         const isPcOrHigher = ['pc', 'zc', 'zcp', 'superadmin'].includes(simulatedRole);
         const isZcOrHigher = ['zc', 'zcp', 'superadmin'].includes(simulatedRole);
         
-        document.getElementById('menu-voting').style.display = isPcOrHigher ? 'block' : 'none';
         document.getElementById('menu-admin').style.display = isZcOrHigher ? 'block' : 'none';
         
         document.getElementById('zcZone').style.display = isZcOrHigher ? 'block' : 'none';
@@ -712,6 +816,51 @@
         if (currentTab === 'voting') loadVotes();
     });
 
+    /* GENERATOR KARTICEK */
+    function generateIdCardHTML(name, city, idStr) {
+        return `<html><head><title>Průkaz - ${name}</title><style>
+            body { font-family: 'Arial', sans-serif; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: flex-start; background: #fff; }
+            .card { width: 85.6mm; height: 53.98mm; border: 2px solid #e2e8f0; border-radius: 12px; overflow: hidden; position: relative; background: #fff; box-sizing: border-box; }
+            .header { background: #1a365d; color: white; text-align: center; padding: 6px 0; font-size: 16px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
+            .content { display: flex; padding: 12px; align-items: center; }
+            .qr { width: 80px; height: 80px; margin-right: 15px; }
+            .info { flex: 1; }
+            .info label { display: block; font-size: 10px; color: #718096; margin-top: 6px; text-transform: uppercase; letter-spacing: 1px; }
+            .info div { font-size: 15px; font-weight: bold; color: #2d3748; line-height: 1.2; }
+            .info .id-box { color: #c53030; font-family: monospace; font-size: 16px; }
+        </style></head><body>
+            <div class="card">
+                <div class="header">Průkaz Hráče</div>
+                <div class="content">
+                    <img class="qr" src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(idStr)}" />
+                    <div class="info">
+                        <label>Jméno a příjmení</label><div>${name}</div>
+                        <label>Bydliště</label><div>${city || '-'}</div>
+                        <label>Identifikátor (ID)</label><div class="id-box">${idStr}</div>
+                    </div>
+                </div>
+            </div>
+            <script>window.onload=function(){window.print();setTimeout(function(){window.close();}, 500);}<\/script>
+        </body></html>`;
+    }
+
+    window.printMyCard = function() {
+        if(!myProfileData) return;
+        const w = window.open('', '_blank', 'width=600,height=400');
+        w.document.write(generateIdCardHTML(myProfileData.full_name, myProfileData.city, myProfileData.player_id_card));
+        w.document.close();
+    };
+
+    window.adminPrintCard = function() {
+        const sel = document.getElementById('adminPrintSelect');
+        if(!sel.value) return;
+        const [id, name, city] = sel.value.split('|');
+        const w = window.open('', '_blank', 'width=600,height=400');
+        w.document.write(generateIdCardHTML(name, city, id));
+        w.document.close();
+    };
+
+    /* ADMINISTRACE */
     async function loadAdminData() {
         document.getElementById('bankAccountInput').value = globalBankAccount;
         document.getElementById('fioTokenInput').value = globalFioToken;
@@ -723,7 +872,6 @@
             const list = document.getElementById('adminUsersList');
             const { data: usersData } = await db.from('profiles').select('*').order('full_name');
             if (usersData) {
-                // Odstranění Super Admina z možností přiřazení pro všechny
                 let availableRoles = Object.keys(roleNames).filter(k => k !== 'superadmin');
 
                 let uHtml = '<table class="stats-table" style="font-size:0.85rem;"><tr><th>Jméno a Značka</th><th>Aktuální role</th><th>Akce</th></tr>';
@@ -745,6 +893,17 @@
                 uHtml += '</table>';
                 list.innerHTML = uHtml;
             }
+        }
+
+        if (['zc', 'zcp', 'superadmin'].includes(simulatedRole)) {
+            // Tisk karet pro kohokoliv
+            const { data: allP } = await db.from('profiles').select('player_id_card, full_name, city');
+            const { data: allF } = await db.from('players').select('player_id_card, full_name, city');
+            const combo = [...(allP || []), ...(allF || [])].sort((a,b) => a.full_name.localeCompare(b.full_name));
+            document.getElementById('adminPrintSelect').innerHTML = combo.map(c => `<option value="${c.player_id_card}|${c.full_name}|${c.city||''}">${c.full_name} (${c.player_id_card})</option>`).join('');
+            
+            // Majetek
+            loadAssets();
         }
 
         if (simulatedRole === 'superadmin') {
@@ -787,11 +946,10 @@
                 logAction('Předání funkce', `Předseda předal svou funkci uživateli ${uName}`);
                 alert('Funkce Předsedy byla úspěšně předána. Nyní budete přesměrováni s novými právy.');
                 
-                // Násilné znovunačtení stránky pro kompletní smazání starých práv z paměti prohlížeče
                 window.location.reload(); 
                 return;
             } else {
-                loadAdminData(); // Resetuje zobrazení roletek zpět do normálu
+                loadAdminData(); 
                 return;
             }
         }
@@ -820,6 +978,90 @@
         }
     };
 
+    /* HROMADNÝ E-MAIL */
+    document.getElementById('massEmailForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const target = document.getElementById('massEmailTarget').value;
+        const subj = document.getElementById('massEmailSubject').value;
+        const msg = document.getElementById('massEmailBody').value;
+        
+        let emails = [];
+        if (target === 'members' || target === 'all') {
+            const { data } = await db.from('profiles').select('email');
+            if (data) emails = emails.concat(data.map(d => d.email).filter(em => em));
+        }
+        if (target === 'external' || target === 'all') {
+            const { data } = await db.from('newsletter_subscribers').select('email');
+            if (data) emails = emails.concat(data.map(d => d.email).filter(em => em));
+        }
+        
+        const uniqueEmails = [...new Set(emails)];
+        if(uniqueEmails.length === 0) { 
+            alert('Nenalezeni žádní příjemci v databázi.'); 
+            return; 
+        }
+        
+        if(confirm(`Opravdu si přejete odeslat zprávu na ${uniqueEmails.length} e-mailových adres?`)) {
+            await sendEmailNotification(subj, msg, uniqueEmails);
+            logAction('Hromadný e-mail', `Odeslána zpráva s předmětem: "${subj}" na ${uniqueEmails.length} adres`);
+            alert('Hromadná zpráva byla zařazena k odeslání.');
+            document.getElementById('massEmailForm').reset();
+        }
+    });
+
+    /* EVIENCE MAJETKU */
+    document.getElementById('assetElectric').addEventListener('change', (e) => { 
+        document.getElementById('revFields').style.display = e.target.checked ? 'grid' : 'none'; 
+    });
+    
+    document.getElementById('addAssetForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('assetName').value;
+        const no = document.getElementById('assetNumber').value;
+        const el = document.getElementById('assetElectric').checked;
+        let revDate = null, fName = null;
+
+        if (el) {
+            revDate = document.getElementById('assetRevDate').value;
+            const f = document.getElementById('assetFile').files[0];
+            if (f) {
+                fName = `revize_${Date.now()}_${f.name}`;
+                const { error: fErr } = await db.storage.from('revisions').upload(fName, f);
+                if(fErr) { alert('Chyba nahrávání PDF: ' + fErr.message); return; }
+            }
+        }
+        
+        const { error } = await db.from('assets').insert({ name: name, asset_number: no, is_electric: el, revision_date: revDate || null, file_name: fName });
+        if(!error) { 
+            alert('Majetek úspěšně zaevidován.'); 
+            document.getElementById('addAssetForm').reset(); 
+            document.getElementById('revFields').style.display = 'none';
+            loadAssets(); 
+            logAction('Evidence majetku', `Zapsán nový majetek: ${name}`); 
+        } else {
+            alert('Chyba při zápisu majetku: ' + error.message);
+        }
+    });
+
+    async function loadAssets() {
+        const { data } = await db.from('assets').select('*').order('created_at', { ascending: false });
+        const list = document.getElementById('assetsList');
+        if (!data || data.length === 0) {
+            list.innerHTML = '<p style="color:#718096; font-style:italic;">Žádný majetek v evidenci.</p>';
+            return;
+        }
+        
+        list.innerHTML = data.map(a => `
+            <div class="list-item" style="align-items:start; flex-direction:column; background: #fff; border: 1px solid #e2e8f0; margin-bottom: 10px;">
+                <strong>${a.name} (Ev. č.: ${a.asset_number})</strong>
+                ${a.is_electric ? `<span style="color:#c53030; font-size:0.85rem; margin-top:5px; display:block;">⚡ Elektrozařízení | Konec platnosti revize: ${a.revision_date ? new Date(a.revision_date).toLocaleDateString('cs-CZ') : 'Nezadáno datum'}</span>` : '<span style="color:#48bb78; font-size:0.85rem; margin-top:5px; display:block;">✔️ Běžný majetek</span>'}
+                ${a.file_name ? `<a href="https://gqciprgrzdpckhhqcsjx.supabase.co/storage/v1/object/public/revisions/${a.file_name}" target="_blank" style="font-size:0.85rem; margin-top:5px; display:inline-block;">📄 Zobrazit dokument revize</a>` : ''}
+            </div>
+        `).join('');
+    }
+
+
+    /* PROFILY A REGISTRACE */
     function renderDashboard() {
         if (!myProfileData) return;
 
@@ -827,6 +1069,7 @@
         document.getElementById('dashContent').style.display = 'block';
 
         document.getElementById('dash-name').innerText = myProfileData.full_name;
+        document.getElementById('dash-city').innerText = myProfileData.city || '-';
         document.getElementById('dash-id').innerText = myProfileData.player_id_card;
         document.getElementById('dash-email').innerText = myProfileData.email || currentUser.email;
         
@@ -840,8 +1083,11 @@
             if (myFamily.length > 0) {
                 myFamily.forEach(p => {
                     list.innerHTML += `<li class="list-item">
-                        <span><strong>${p.full_name}</strong> (Průkaz: ${p.player_id_card})</span>
-                        <button class="btn-small btn-danger" onclick="removeFamily('${p.id}')">Odebrat z rodiny</button>
+                        <span><strong>${p.full_name}</strong> (${p.city || '-'})</span>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <span class="badge" style="background:#718096;">ID: ${p.player_id_card}</span>
+                            <button class="btn-small btn-danger" onclick="removeFamily('${p.id}')">Odebrat</button>
+                        </div>
                     </li>`;
                 });
             } else { 
@@ -874,6 +1120,7 @@
         const updates = { 
             id: currentUser.id, 
             full_name: document.getElementById('profName').value, 
+            city: document.getElementById('profCity').value,
             player_id_card: enteredId, 
             email: document.getElementById('profEmail').value, 
             phone: document.getElementById('profPhone').value 
@@ -891,9 +1138,13 @@
         e.preventDefault();
         const msg = document.getElementById('famMsg');
         const jmeno = document.getElementById('famName').value;
+        const mesto = document.getElementById('famCity').value;
+        const průkaz = document.getElementById('famId').value;
+        
         const { error } = await db.from('players').insert({ 
-            owner_id: currentUser.id, full_name: jmeno, player_id_card: document.getElementById('famId').value 
+            owner_id: currentUser.id, full_name: jmeno, city: mesto, player_id_card: průkaz 
         });
+        
         if (!error) { 
             document.getElementById('addFamilyForm').reset(); 
             msg.style.display = 'none'; 
@@ -953,6 +1204,7 @@
             logAction('Vypsání turnaje', `Založen nový turnaj: ${inputTName.value}`);
             document.getElementById('createTournamentForm').reset();
             updateLivePreview(); 
+            loadTournaments();
         }
     });
 
@@ -971,18 +1223,26 @@
             let btnText = isFull ? 'Přihlásit jako NÁHRADNÍK' : 'Přihlásit SEBE na turnaj';
             let btnColor = isFull ? '#ed8936' : 'var(--primary)';
             
-            let familySelectOptions = myFamily.map(f => `<option value="${f.player_id_card}">${f.full_name}</option>`).join('');
-            
-            list.innerHTML += `
-            <div class="list-item" style="flex-direction: column; align-items: flex-start;">
-                <h4>${t.title} (Datum konání: ${t.event_date})</h4>
-                <p>Obsazeno: ${count || 0} / ${t.capacity}</p>
-                <div style="display:flex; gap:10px; width:100%; margin-top:10px; flex-wrap: wrap;">
+            let btnHtml = '';
+            if (currentUser) {
+                let familySelectOptions = myFamily.map(f => `<option value="${f.player_id_card}">${f.full_name}</option>`).join('');
+                btnHtml = `
                     <button class="btn-small" style="background:${btnColor}" onclick="joinTournament('${t.id}')">${btnText}</button>
                     ${myFamily.length > 0 ? `
                         <select id="famSel_${t.id}" style="margin:0; width:auto;">${familySelectOptions}</select>
                         <button class="btn-small" onclick="joinFamilyTournament('${t.id}')">Přihlásit člena rodiny</button>
                     ` : ''}
+                `;
+            } else {
+                btnHtml = `<p style="color: #718096; font-size: 0.9rem; font-style: italic;">Pro přihlášení na turnaj se prosím přihlaste nebo si vytvořte účet.</p>`;
+            }
+            
+            list.innerHTML += `
+            <div class="list-item" style="flex-direction: column; align-items: flex-start; background: #fff; border: 1px solid #e2e8f0;">
+                <h4 style="color: #2b6cb0;">${t.title} (Datum konání: ${t.event_date})</h4>
+                <p>Obsazeno: ${count || 0} / ${t.capacity} | Zápisné: <strong>${t.fee} Kč</strong></p>
+                <div style="display:flex; gap:10px; width:100%; margin-top:10px; flex-wrap: wrap; align-items: center;">
+                    ${btnHtml}
                 </div>
             </div>`;
         }
@@ -998,7 +1258,7 @@
         list.innerHTML = '';
 
         if (!myRegs || myRegs.length === 0) { 
-            list.innerHTML = '<p>Zatím nejste vy ani vaše rodina přihlášeni na žádný turnaj.</p>'; 
+            list.innerHTML = '<p style="color: #718096; font-style: italic;">Zatím nejste vy ani vaše rodina přihlášeni na žádný turnaj.</p>'; 
             return; 
         }
 
@@ -1018,7 +1278,7 @@
             if(reg.payment_status === true) {
                 paymentUI = `<span class="badge" style="background: #38a169; padding: 0.5rem 1rem; font-size: 0.9rem;">✅ Uhrazeno</span>`;
             } else {
-                paymentUI = `<button class="btn-small" style="background: #2b6cb0;" onclick="toggleQR('${uniqueQrId}', '${t.fee}', '${reg.player_id_card}')">💳 Ukázat kód k platbě</button>`;
+                paymentUI = `<button class="btn-small btn-blue" onclick="toggleQR('${uniqueQrId}', '${t.fee}', '${reg.player_id_card}')">💳 Ukázat kód k platbě</button>`;
             }
 
             list.innerHTML += `
@@ -1081,7 +1341,7 @@
         } else {
             alert('Vaše registrace proběhla úspěšně!'); 
             logAction('Registrace do hry', `Hlavní profil přihlášen na turnaj ID: ${tId}`);
-            sendEmailNotification('Potvrzení registrace na turnaj', 'Byli jste úspěšně přihlášeni na turnaj. Děkujeme!', myProfileData.email);
+            sendEmailNotification('Potvrzení registrace na turnaj', 'Byli jste úspěšně přihlášeni na turnaj. Děkujeme a těšíme se na vás!', myProfileData.email);
             loadTournaments(); 
             loadMyRegistrations();
         }
@@ -1099,7 +1359,7 @@
         } else {
             alert('Člen vaší rodiny byl úspěšně přihlášen na turnaj.'); 
             logAction('Registrace rodiny', `Člen rodiny přihlášen na turnaj ID: ${tId}`);
-            sendEmailNotification('Potvrzení registrace na turnaj pro člena rodiny', 'Člen vaší rodiny byl úspěšně přihlášen na turnaj.', myProfileData.email);
+            sendEmailNotification('Potvrzení registrace na turnaj', 'Člen vaší rodiny byl úspěšně přihlášen na turnaj.', myProfileData.email);
             loadTournaments(); 
             loadMyRegistrations();
         }
@@ -1136,21 +1396,26 @@
         }
         
         populateStatsDropdowns();
-        renderPersonalStats();
+        
+        if (currentUser) {
+            renderPersonalStats();
+        }
+        
         renderTournamentResults();
     }
 
     function populateStatsDropdowns() {
-        if (!myProfileData) return;
-        const pSelect = document.getElementById('statsPlayerSelect');
-        const myId = myProfileData.player_id_card;
-        const myName = myProfileData.full_name;
-        
-        let pOptions = `<option value="${myId}">${myName} (VY)</option>`;
-        myFamily.forEach(f => {
-            pOptions += `<option value="${f.player_id_card}">${f.full_name} (Rodina)</option>`;
-        });
-        pSelect.innerHTML = pOptions;
+        if (currentUser && myProfileData) {
+            const pSelect = document.getElementById('statsPlayerSelect');
+            const myId = myProfileData.player_id_card;
+            const myName = myProfileData.full_name;
+            
+            let pOptions = `<option value="${myId}">${myName} (VY)</option>`;
+            myFamily.forEach(f => {
+                pOptions += `<option value="${f.player_id_card}">${f.full_name} (Rodina)</option>`;
+            });
+            pSelect.innerHTML = pOptions;
+        }
 
         const tSelect = document.getElementById('statsTournamentSelect');
         let tOptions = '';
@@ -1161,10 +1426,14 @@
     }
 
     window.renderPersonalStats = function() {
-        const pid = document.getElementById('statsPlayerSelect').value;
+        const pSelect = document.getElementById('statsPlayerSelect');
         const box = document.getElementById('personalStatsBox');
-        if (!pid) { box.innerHTML = ''; return; }
+        if (!pSelect || !pSelect.value || !currentUser) { 
+            if(box) box.innerHTML = ''; 
+            return; 
+        }
 
+        const pid = pSelect.value;
         let pData = historicalData.filter(d => d.player_id_card === pid);
         let ucast = pData.length;
         let maxBody = 0;
@@ -1194,31 +1463,49 @@
     window.renderTournamentResults = function() {
         const tName = document.getElementById('statsTournamentSelect').value;
         const box = document.getElementById('tournamentResultsBox');
-        if (!tName || !myProfileData) { box.innerHTML = ''; return; }
+        if (!tName) { box.innerHTML = ''; return; }
 
         let tData = historicalData.filter(d => d.tournament_name === tName);
-        
         tData.sort((a, b) => parseInt(a.rank) - parseInt(b.rank));
 
-        let allowedIds = [myProfileData.player_id_card];
-        myFamily.forEach(f => allowedIds.push(f.player_id_card));
+        let allowedIds = [];
+        if (currentUser && myProfileData) {
+            allowedIds.push(myProfileData.player_id_card);
+            myFamily.forEach(f => allowedIds.push(f.player_id_card));
+        }
 
-        let html = '<table class="stats-table"><tr><th>Pořadí</th><th>Hráč a Město</th><th>Body</th></tr>';
+        let html = '<table class="stats-table"><tr><th>Pořadí</th><th>Hráč</th><th>Body</th></tr>';
         
         tData.forEach(row => {
             let pid = row.player_id_card || 'Bez ID';
-            let isKnown = allowedIds.includes(pid) && pid !== 'Bez ID' && pid !== '0' && pid !== 'NEMA';
+            let isUnknown = pid === 'Bez ID' || pid === '0' || pid === 'NEMA';
+            let displayName = '';
+            let rowClass = '';
+
+            if (currentUser) {
+                // Přihlášený člen: Vidí plná jména a města, ale ZAKRYJEME ID cizích hráčů. 
+                // Vlastní ID zná ze svého profilu.
+                displayName = isUnknown ? `Hráč bez záznamu` : `${row.first_name || ''} ${row.last_name || ''}`;
+                if (!displayName.trim()) displayName = `Neznámý Hráč`;
+                
+                if (row.city && row.city !== '-' && row.city !== '0') {
+                    displayName += ` <span style="color:#718096; font-size:0.85rem;">(${row.city})</span>`;
+                }
+
+                if (allowedIds.includes(pid)) {
+                    rowClass = 'class="highlight-row"';
+                }
+            } else {
+                // Anonymní veřejnost: NEVIDÍ jména ani města. Vidí POUZE anonymní štítek a vnitřní ID značku.
+                displayName = isUnknown ? `Anonymní hráč` : `Hráč (Značka: ${pid})`;
+            }
             
-            let displayName = isKnown ? `${row.first_name} ${row.last_name}` : `Hráč (Značka: ${pid})`;
-            let displayCity = row.city && row.city !== '-' && row.city !== '0' ? ` <span style="color:#718096; font-size:0.85rem;">- ${row.city}</span>` : '';
-            
-            let rowClass = isKnown ? 'class="highlight-row"' : '';
             let parsedRank = parseInt(row.rank);
             let displayRank = isNaN(parsedRank) || parsedRank === 0 ? '-' : parsedRank + '.';
             
             html += `<tr ${rowClass}>
                 <td style="font-weight: bold;">${displayRank}</td>
-                <td>${displayName}${displayCity}</td>
+                <td>${displayName}</td>
                 <td><strong>${row.points}</strong></td>
             </tr>`;
         });
@@ -1227,11 +1514,51 @@
         box.innerHTML = html;
     }
 
+    /* MODRÉ HLASOVÁNÍ (VEŘEJNÉ) */
+    document.getElementById('createBlueVoteForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const inputVal = document.getElementById('vTitleBlue').value;
+        const titleToSave = "[MODRÉ] " + inputVal;
+        
+        await db.from('votes').insert({ title: titleToSave, created_by: currentUser.id });
+        
+        const zcEmails = await getAllZcEmails();
+        sendEmailNotification('Nové VEŘEJNÉ hlasování', 'Bylo vypsáno modré veřejné hlasování: ' + inputVal, zcEmails);
+        logAction('Vypsání hlasování', `Zahájeno Modré hlasování s názvem: ${inputVal}`);
+        
+        alert('Veřejné [MODRÉ] hlasování bylo úspěšně vypsáno.');
+        document.getElementById('createBlueVoteForm').reset();
+        loadVotes();
+    });
+
+    window.castBlueVote = async function(vid, c) { 
+        await db.from('voting_records').insert({ vote_id: vid, voter_id: currentUser.id, choice: c }); 
+        alert('Váš hlas byl zaznamenán!'); 
+        loadVotes(); 
+    };
+    
+    window.castAnonBlueVote = async function(vid) {
+        const enteredId = document.getElementById('anonId_'+vid).value.trim();
+        if(!enteredId) {
+            alert('Pro hlasování musíte zadat vaše platné tajné ID hráče (Průkazku).');
+            return;
+        }
+        
+        const { error } = await db.from('voting_records').insert({ vote_id: vid, voter_id_card: enteredId, choice: 'pro' });
+        if(!error) {
+            alert('Váš anonymní hlas byl úspěšně zaznamenán přes ID.');
+        } else {
+            alert('Chyba při odesílání hlasu: ' + error.message);
+        }
+        loadVotes();
+    };
+
+    /* DISKUZE A INTERNÍ HLASOVÁNÍ PČ/ZČ */
     document.getElementById('createVoteForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const inputVal = document.getElementById('vTitle').value;
-        
         const titleToSave = "[NÁVRH PČ] " + inputVal;
+        
         await db.from('votes').insert({ title: titleToSave, created_by: currentUser.id });
         
         const zcEmails = await getAllZcEmails();
@@ -1249,10 +1576,10 @@
         await db.from('votes').insert({ title: inputVal, created_by: currentUser.id });
         
         const zcEmails = await getAllZcEmails();
-        sendEmailNotification('Nové ostré hlasování', 'Bylo vypsáno nové hlasování: ' + inputVal, zcEmails);
-        logAction('Vypsání hlasování', `Bylo zahájeno ostré hlasování s názvem: ${inputVal}`);
+        sendEmailNotification('Nové ostré hlasování ZČ', 'Bylo vypsáno nové interní hlasování: ' + inputVal, zcEmails);
+        logAction('Vypsání hlasování', `Zahájeno ostré hlasování ZČ s názvem: ${inputVal}`);
         
-        alert('Ostré hlasování bylo úspěšně vypsáno.');
+        alert('Ostré hlasování ZČ bylo úspěšně vypsáno.');
         document.getElementById('createVoteFormAdmin').reset();
         loadVotes();
     });
@@ -1293,10 +1620,7 @@
     window.closeDebate = async function(voteId) {
         if(confirm('Opravdu chcete tuto diskuzi trvale uzavřít a zamknout komentáře?')) {
             const { error } = await db.from('votes').update({ is_closed: true }).eq('id', voteId);
-            if (error) {
-                alert('Chyba při úpravě v databázi (pravděpodobně chybí RLS UPDATE práva pro votes): ' + error.message);
-                return;
-            }
+            if (error) { alert('Chyba při úpravě v databázi: ' + error.message); return; }
             logAction('Uzavření diskuze', 'Autor trvale uzavřel diskuzní vlákno');
             loadVotes();
         }
@@ -1306,69 +1630,99 @@
         if(confirm('Opravdu chcete tento podnět vyjmout z diskuzí a překlopit ho do Ostrého hlasování?')) {
             try {
                 const { data: voteInfo, error: fetchErr } = await db.from('votes').select('title').eq('id', voteId).single();
-                if (fetchErr) {
-                    alert('Chyba při načítání dat: ' + fetchErr.message);
-                    return;
-                }
+                if (fetchErr) { alert('Chyba: ' + fetchErr.message); return; }
 
                 const newTitle = voteInfo.title.replace('[NÁVRH PČ] ', '');
-
                 const { error: updateErr } = await db.from('votes').update({ title: newTitle }).eq('id', voteId);
-
-                if (updateErr) {
-                    alert('Chyba při úpravě v databázi (pravděpodobně chybí RLS UPDATE práva pro tabulku votes): ' + updateErr.message);
-                    return;
-                }
+                if (updateErr) { alert('Chyba úpravy: ' + updateErr.message); return; }
                 
                 const zcEmails = await getAllZcEmails();
                 sendEmailNotification('Nové ostré hlasování', 'Diskuze byla překlopena do hlasování: ' + newTitle, zcEmails);
                 logAction('Překlopení podnětu', 'Diskuze byla povýšena na Ostré hlasování ZČ');
                 
-                alert('Podnět byl úspěšně překlopen do Ostrého hlasování!');
                 loadVotes();
-            } catch (e) {
-                console.error(e);
-            }
+            } catch (e) { console.error(e); }
         }
     };
 
     async function loadVotes() {
         const vList = document.getElementById('votingList'); 
         const dList = document.getElementById('debateList'); 
-        vList.innerHTML = '';
-        dList.innerHTML = '';
+        const pubZone = document.getElementById('publicVotingZone');
+        
+        if(vList) vList.innerHTML = ''; 
+        if(dList) dList.innerHTML = ''; 
+        if(pubZone) pubZone.innerHTML = '';
 
         const { data: allProfiles } = await db.from('profiles').select('id, full_name');
         const profileMap = {};
-        if (allProfiles) {
-            allProfiles.forEach(p => profileMap[p.id] = p.full_name);
-        }
+        if (allProfiles) { allProfiles.forEach(p => profileMap[p.id] = p.full_name); }
 
         const { count: zcCount } = await db.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['zc', 'zcp', 'superadmin']);
         let ocekavaneHlasy = (zcCount !== null && zcCount > 0) ? zcCount : 1;
 
         const { data: votes } = await db.from('votes').select('*').order('created_at', { ascending: false });
-        
         if (!votes || votes.length === 0) { 
-            dList.innerHTML = '<p>Zatím neprobíhá žádné aktivní projednávání návrhů.</p>'; 
+            if(dList) dList.innerHTML = '<p style="color:#718096; font-style:italic;">Zatím neprobíhá žádné aktivní projednávání návrhů.</p>'; 
             return; 
         }
 
         let zobrazenoNecoOstreho = false;
         let zobrazenoNecoDebat = false;
+        let zobrazenoNecoModreho = false;
         const DEBATE_LIFESPAN_MS = 14 * 24 * 60 * 60 * 1000; 
 
         for (let v of votes) {
+            const isBlue = v.title.startsWith('[MODRÉ] ');
             const isProposal = v.title.startsWith('[NÁVRH PČ] ');
+            const displayTitle = v.title.replace('[NÁVRH PČ] ', '').replace('[MODRÉ] ', '');
             
-            if (simulatedRole === 'pc' && !isProposal) {
-                continue; 
+            /* --- 1. MODRÉ (VEŘEJNÉ) HLASOVÁNÍ --- */
+            if (isBlue) {
+                zobrazenoNecoModreho = true;
+                const { data: recs } = await db.from('voting_records').select('*').eq('vote_id', v.id);
+                let pCount = recs ? recs.filter(r => r.choice === 'pro').length : 0;
+                let cCount = recs ? recs.filter(r => r.choice === 'proti').length : 0;
+                
+                let html = `
+                <div class="list-item" style="flex-direction:column; align-items:start; border-top:4px solid var(--blue); background:#ebf8ff; border: 1px solid #90cdf4; margin-bottom:1rem;">
+                    <span class="badge" style="background:var(--blue); margin-bottom:10px;">VEŘEJNÉ HLASOVÁNÍ</span>
+                    <h4 style="color:#2b6cb0; font-size:1.2rem;">${displayTitle}</h4>
+                    <p style="font-size:0.95rem; font-weight:bold; margin-top:10px;">Průběžný stav celkem: <span style="color:#2f855a">PRO (${pCount})</span> | <span style="color:#c53030">PROTI (${cCount})</span></p>`;
+                
+                if (currentUser) {
+                    let voted = recs ? recs.find(r => r.voter_id === currentUser.id) : null;
+                    if (voted) {
+                        html += `<p style="color:var(--blue); font-weight:bold; margin-top:10px;">Váš hlas z webového profilu byl zaznamenán.</p>`;
+                    } else {
+                        html += `<p style="margin-top:10px; font-size:0.85rem;">Hlasujete jako přihlášený člen.</p>
+                        <div style="display:flex; gap:10px; margin-top:5px;">
+                            <button class="btn-small btn-blue" onclick="castBlueVote('${v.id}','pro')">Hlasovat PRO</button>
+                            <button class="btn-small btn-danger" onclick="castBlueVote('${v.id}','proti')">Hlasovat PROTI</button>
+                        </div>`;
+                    }
+                } else {
+                    html += `
+                    <div style="margin-top:15px; width:100%; background:white; padding:10px; border-radius:6px; border:1px solid #cbd5e0;">
+                        <label style="font-size:0.85rem;">Zadejte své Tajné ID (z vaší průkazky) pro ověření:</label>
+                        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                            <input type="text" id="anonId_${v.id}" placeholder="např. 123456" style="margin:0; flex:1; min-width:150px;">
+                            <button class="btn-small btn-blue" onclick="castAnonBlueVote('${v.id}')">Odeslat anonymní hlas (PRO)</button>
+                        </div>
+                    </div>`;
+                }
+                
+                html += `</div>`;
+                if(pubZone) pubZone.innerHTML += html;
+                continue;
             }
-            if (simulatedRole === 'pc' && isProposal && v.created_by !== currentUser.id) {
-                continue; 
-            }
+
+            /* --- 2. OSTATNÍ INTERNÍ (Vyžaduje přihlášení) --- */
+            if (!currentUser) continue;
+
+            if (simulatedRole === 'pc' && !isProposal) continue; 
+            if (simulatedRole === 'pc' && isProposal && v.created_by !== currentUser.id) continue;
             
-            let displayTitle = isProposal ? v.title.replace('[NÁVRH PČ] ', '') : v.title;
             let isZcOrHigher = ['zc', 'zcp', 'superadmin'].includes(simulatedRole);
 
             if (isProposal) {
@@ -1380,7 +1734,7 @@
 
                 let statusBadge = isDebateClosed
                     ? '<span class="badge" style="background:#718096; margin-bottom:10px; display:inline-block;">UZAVŘENÁ DISKUZE</span>'
-                    : '<span class="badge" style="background:#ed8936; margin-bottom:10px; display:inline-block;">AKTIVNÍ DISKUZE</span>';
+                    : '<span class="badge" style="background:#ed8936; margin-bottom:10px; display:inline-block;">AKTIVNÍ DISKUZE PČ</span>';
                 
                 let commentsHtml = '';
                 try {
@@ -1397,7 +1751,7 @@
                         commentsHtml = '<p style="color:#718096; font-size:0.85rem; font-style:italic;">Zatím žádné komentáře. Buďte první!</p>';
                     }
                 } catch (e) {
-                    commentsHtml = '<p style="color:#c53030; font-size:0.8rem;">Pro zobrazení komentářů chybí tabulka v databázi.</p>';
+                    commentsHtml = '<p style="color:#c53030; font-size:0.8rem;">Chyba databáze pro komentáře.</p>';
                 }
 
                 let controlsHtml = '';
@@ -1413,16 +1767,15 @@
                     }
                     
                     if (isZcOrHigher) {
-                        controlsHtml += `<button class="btn-small" style="background:var(--primary); margin-top: 10px; width: 100%;" onclick="convertToVote('${v.id}')">Ukončit diskuzi a vyvolat z tohoto Ostré hlasování</button>`;
+                        controlsHtml += `<button class="btn-small" style="background:var(--primary); margin-top: 10px; width: 100%;" onclick="convertToVote('${v.id}')">Ukončit diskuzi a vyvolat z tohoto Ostré hlasování ZČ</button>`;
                     }
                 } else {
-                    controlsHtml = `<p style="color:#718096; font-style:italic; margin-top:10px; padding:10px; background:#e2e8f0; border-radius:6px; text-align:center;">Tato diskuze je již trvale uzavřena.</p>`;
+                    controlsHtml = `<p style="color:#718096; font-style:italic; margin-top:10px; padding:10px; background:#e2e8f0; border-radius:6px; text-align:center;">Tato diskuze je trvale uzavřena.</p>`;
                 }
 
                 let html = `<div class="list-item" style="flex-direction:column; align-items:flex-start; background: #fff; border: 1px solid #e2e8f0; margin-bottom: 1rem; border-top: 4px solid var(--orange);">
                     ${statusBadge}
                     <h4>${displayTitle}</h4>
-                    
                     <div style="margin-top: 15px; width: 100%; background: #f7fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
                         <h5 style="margin-bottom: 10px; color: #4a5568;">Vlákno diskuze:</h5>
                         <div id="comments_${v.id}" style="margin-bottom: 10px; font-size: 0.9rem; max-height: 200px; overflow-y: auto;">
@@ -1431,11 +1784,11 @@
                         ${controlsHtml}
                     </div>
                 </div>`;
-                dList.innerHTML += html;
+                if(dList) dList.innerHTML += html;
                 continue;
             }
 
-            // OSTRÁ HLASOVÁNÍ
+            // OSTRÁ HLASOVÁNÍ ZČ
             zobrazenoNecoOstreho = true;
             const { data: records } = await db.from('voting_records').select('*').eq('vote_id', v.id);
             let proCount = records ? records.filter(r => r.choice === 'pro').length : 0;
@@ -1446,7 +1799,7 @@
             
             let statusBadge = v.is_closed 
                 ? '<span class="badge" style="background:#c53030; margin-bottom:10px; display:inline-block;">UZAVŘENO</span>'
-                : '<span class="badge" style="background:#38a169; margin-bottom:10px; display:inline-block;">AKTIVNÍ OSTRÉ HLASOVÁNÍ</span>';
+                : '<span class="badge" style="background:#38a169; margin-bottom:10px; display:inline-block;">AKTIVNÍ OSTRÉ HLASOVÁNÍ ZČ</span>';
 
             let html = `<div class="list-item" style="flex-direction:column; align-items:flex-start; background: #fff; border: 1px solid #e2e8f0; margin-bottom: 1rem; border-top: 4px solid var(--secondary);">
                 ${statusBadge}
@@ -1490,11 +1843,12 @@
             }
 
             html += `</div>`;
-            vList.innerHTML += html;
+            if(vList) vList.innerHTML += html;
         }
 
-        if (!zobrazenoNecoOstreho && vList) vList.innerHTML = '<p style="color:#718096;">Nejsou zde žádná ostrá hlasování.</p>';
-        if (!zobrazenoNecoDebat && dList) dList.innerHTML = '<p style="color:#718096;">Nejsou zde žádné podněty k diskuzi.</p>';
+        if (!zobrazenoNecoModreho && pubZone) pubZone.innerHTML = '<p style="color:#718096; font-style:italic;">Aktuálně neprobíhá žádné Modré (veřejné) hlasování.</p>';
+        if (!zobrazenoNecoOstreho && vList) vList.innerHTML = '<p style="color:#718096; font-style:italic;">Nejsou zde žádná ostrá hlasování ZČ.</p>';
+        if (!zobrazenoNecoDebat && dList) dList.innerHTML = '<p style="color:#718096; font-style:italic;">Nejsou zde žádné podněty k diskuzi PČ.</p>';
     }
 
     window.castVote = async function(voteId, choice, ocekavaneHlasy) {
@@ -1506,17 +1860,12 @@
         
         if (records && records.length >= ocekavaneHlasy) {
             const { error: updateErr } = await db.from('votes').update({ is_closed: true }).eq('id', voteId);
-            
-            if (updateErr) {
-                alert('Hlas byl uložen, ale systém nemá RLS práva hlasování uzavřít. Prosím opravte databázi. Chyba: ' + updateErr.message);
-                loadVotes();
-                return;
-            }
+            if (updateErr) { alert('Hlas uložen, ale chyba RLS pro UPDATE votes: ' + updateErr.message); loadVotes(); return; }
             
             const zcEmails = await getAllZcEmails();
             const { data: voteInfo } = await db.from('votes').select('title').eq('id', voteId).single();
-            sendEmailNotification('Hlasování uzavřeno', `Hlasování "${voteInfo ? voteInfo.title : ''}" dosáhlo potřebné účasti a bylo uzavřeno.`, zcEmails);
-            logAction('Uzavření hlasování', 'Dosaženo maximální účasti, systém uzavřel hlasování');
+            sendEmailNotification('Hlasování uzavřeno', `Hlasování "${voteInfo ? voteInfo.title : ''}" dosáhlo potřebné účasti a bylo automaticky uzavřeno.`, zcEmails);
+            logAction('Uzavření hlasování', 'Dosaženo maximální účasti ZČ, systém uzavřel hlasování');
             
             alert(`Váš hlas byl odeslán (Klíč: ${hash}). Hlasování dosáhlo maximální účasti a bylo automaticky UZAVŘENO.`);
         } else {
@@ -1538,7 +1887,7 @@
         if (error) { 
             msg.className = 'msg error'; msg.innerText = 'Během nahrávání došlo k chybě: ' + error.message; 
         } else { 
-            logAction('Nahrání výsledků', `Uživatel úspěšně nahrál soubor: ${file.name}`);
+            logAction('Nahrání výsledků', `Uživatel nahrál soubor s výsledky: ${file.name}`);
             msg.className = 'msg success'; msg.innerText = 'Výsledková listina byla úspěšně uložena do systému!'; document.getElementById('uploadResultsForm').reset(); 
         }
     });
