@@ -183,12 +183,10 @@
         <div class="card">
             <h2>Dokončení registrace profilu</h2>
             <form id="profileForm" style="max-width: 500px;">
-                <label>Celé jméno a příjmení</label>
-                <input type="text" id="profName" required>
-                <label>Bydliště (Město/Obec)</label>
-                <input type="text" id="profCity" required>
-                <label>Průkazka (Slouží jako Variabilní symbol)</label>
+                <label>Vaše Průkazka (Tajné ID)</label>
                 <input type="text" id="profIdCard" required>
+                <p style="font-size: 0.85rem; color: #718096; margin-top: -0.8rem; margin-bottom: 1rem;">Vaše jméno a město se automaticky a bezpečně načtou z centrální databáze asociace.</p>
+                
                 <label>E-mail pro komunikaci</label>
                 <input type="email" id="profEmail" required>
                 <label>Telefonní kontakt</label>
@@ -197,7 +195,7 @@
                     <input type="checkbox" id="profConsent" required style="width: auto; transform: scale(1.2); margin-right: 8px;"> 
                     Souhlasím se zpracováním údajů a zveřejněním mého jména v členských sekcích statistik. <strong>Beru na vědomí, že mé osobní ID hráče je přísně důvěrný údaj a nebude nikdy veřejně zobrazován.</strong>
                 </div>
-                <button type="submit">Uložit a pokračovat</button>
+                <button type="submit">Spárovat účet a pokračovat</button>
                 <div id="profMsg" class="msg"></div>
             </form>
         </div>
@@ -210,7 +208,7 @@
                 <button class="btn-small btn-blue" onclick="printMyCard()">🖨️ Vytisknout můj průkaz</button>
             </div>
             
-            <div id="dashLoading">Načítám data z databáze...</div>
+            <div id="dashLoading" style="font-weight: bold; color: var(--primary);">Načítám data z databáze...</div>
             <div id="dashContent" style="display: none;">
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; word-break: break-all;">
                     <p><strong>Jméno:</strong> <span id="dash-name"></span></p>
@@ -229,11 +227,13 @@
                 <h3 style="border-top: 1px solid #ccc; padding-top: 2rem;">Hráčská rodina</h3>
                 <p style="font-size: 0.9rem; margin-bottom: 1.5rem;">Zde přidávejte členy rodiny pro společné přihlašování na turnaje.</p>
                 <form id="addFamilyForm" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
-                    <div style="flex: 1; min-width: 150px;"><label>Jméno</label><input type="text" id="famName" style="margin:0;" required></div>
-                    <div style="flex: 1; min-width: 120px;"><label>Bydliště</label><input type="text" id="famCity" style="margin:0;" required></div>
-                    <div style="flex: 1; min-width: 120px;"><label>Tajné ID</label><input type="text" id="famId" style="margin:0;" required></div>
-                    <button type="submit" style="flex: 1; min-width: 100px; margin:0;">+ Přidat</button>
+                    <div style="flex: 2; min-width: 200px;">
+                        <label>Tajné ID člena rodiny</label>
+                        <input type="text" id="famId" style="margin:0;" placeholder="ID z průkazu" required>
+                    </div>
+                    <button type="submit" style="flex: 1; min-width: 100px; margin:0;">+ Přidat z DB</button>
                 </form>
+                <div id="famMsg" class="msg"></div>
                 <ul id="familyList" style="margin-top:1rem;"></ul>
             </div>
         </div>
@@ -581,7 +581,7 @@
         try {
             await db.from('audit_logs').insert({ 
                 user_id: currentUser.id, 
-                user_name: myProfileData.full_name, 
+                user_name: myProfileData.full_name || 'Neznámý', 
                 action: akce, 
                 details: detaily 
             });
@@ -616,7 +616,6 @@
         }
     }
 
-    // Centrální přesměrování
     function handleInitialRouting() {
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('invite')) {
@@ -661,7 +660,6 @@
         currentUser = user;
 
         if (user) {
-            // Logika pro PŘIHLÁŠENÉHO
             document.getElementById('menu-auth').style.display = 'none';
             document.getElementById('menu-tournaments').style.display = 'block';
             document.getElementById('menu-stats').style.display = 'block';
@@ -683,7 +681,7 @@
 
                 const { data: prof } = await db.from('profiles').select('*').eq('id', user.id).maybeSingle();
                 
-                if (prof && prof.full_name) {
+                if (prof && prof.player_id_card) {
                     myProfileData = prof; 
                     actualUserRole = prof.role || 'player';
                     if (simulatedRole === 'player' && actualUserRole !== 'player') {
@@ -698,7 +696,7 @@
                             const el = document.getElementById('onlineCount');
                             if (el) el.innerText = count || 1;
                         }).subscribe(async (s) => { 
-                            if (s === 'SUBSCRIBED') await presenceChannel.track({ user: prof.full_name }); 
+                            if (s === 'SUBSCRIBED') await presenceChannel.track({ user: prof.full_name || 'Neznámý' }); 
                         });
                     }
                     
@@ -729,7 +727,6 @@
                 switchTab('profile-setup');
             }
         } else {
-            // Logika pro NEPŘIHLÁŠENÉHO návštěvníka
             if (presenceChannel) { 
                 presenceChannel.unsubscribe(); 
                 presenceChannel = null; 
@@ -824,6 +821,52 @@
         }
     });
 
+    /* BEZPEČNÁ TVORBA PROFILU PŘES DB */
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = document.getElementById('profMsg'); 
+        msg.className = 'msg'; 
+        msg.innerText = 'Ověřuji vaši značku v databázi a ukládám...'; 
+        msg.style.display = 'block';
+        
+        const enteredId = document.getElementById('profIdCard').value.trim();
+        
+        // Zkontrolovat, zda ID nepatří už jinému webovému účtu
+        const { data: profCheck } = await db.from('profiles').select('id').eq('player_id_card', enteredId).neq('id', currentUser.id);
+        if (profCheck && profCheck.length > 0) { 
+            msg.className = 'msg error'; 
+            msg.innerText = 'Tento průkaz je již přiřazen k jinému účtu.'; 
+            return; 
+        }
+
+        // Najít hráče v centrální excelovské databázi
+        const { data: dbPlayer } = await db.from('player_database').select('full_name, city').eq('player_id_card', enteredId).single();
+        if (!dbPlayer) {
+             msg.className = 'msg error'; 
+             msg.innerText = 'Tato značka není evidována v centrální databázi. Zkontrolujte překlepy nebo se nejdříve zaregistrujte na turnaj jako nováček a získejte ID.'; 
+             return;
+        }
+
+        const updates = { 
+            id: currentUser.id, 
+            full_name: dbPlayer.full_name, 
+            city: dbPlayer.city || '-',
+            player_id_card: enteredId, 
+            email: document.getElementById('profEmail').value, 
+            phone: document.getElementById('profPhone').value 
+        };
+
+        const { error } = await db.from('profiles').upsert(updates);
+        if (error) { 
+            msg.className = 'msg error'; 
+            msg.innerText = 'Chyba při ukládání: ' + error.message; 
+        } else { 
+            msg.style.display = 'none'; 
+            authInitialized = false; 
+            checkAuthState(currentUser); 
+        }
+    });
+
     function updateMenuByRole() {
         const isZcPlus = ['zc','zcp','superadmin'].includes(simulatedRole);
         
@@ -849,6 +892,88 @@
         const activeTab = document.querySelector('.page-section.active');
         if (activeTab) switchTab(activeTab.id); 
     });
+
+    /* NEROZBITNÝ DASHBOARD */
+    function renderDashboard() {
+        if (!myProfileData) return;
+        try {
+            document.getElementById('dashLoading').style.display = 'none';
+            document.getElementById('dashContent').style.display = 'block';
+
+            document.getElementById('dash-name').innerText = myProfileData.full_name || 'Neznámé jméno';
+            document.getElementById('dash-city').innerText = myProfileData.city || '-';
+            document.getElementById('dash-id').innerText = myProfileData.player_id_card || 'Nezadáno';
+            document.getElementById('dash-email').innerText = myProfileData.email || currentUser.email || 'Nezadáno';
+            
+            let roleText = roleNames[simulatedRole] || 'Hráč';
+            if (actualUserRole === 'superadmin' && simulatedRole !== 'superadmin') roleText += ' (Simulace)';
+            document.getElementById('dash-role').innerText = roleText;
+
+            const list = document.getElementById('familyList'); 
+            if (list) {
+                list.innerHTML = '';
+                if (myFamily && myFamily.length > 0) {
+                    myFamily.forEach(p => {
+                        list.innerHTML += `<li class="list-item">
+                            <span><strong>${p.full_name || 'Neznámý'}</strong> (Průkaz: ${p.player_id_card || '-'})</span>
+                            <button class="btn-small btn-danger" onclick="removeFamily('${p.id}')">Odebrat z rodiny</button>
+                        </li>`;
+                    });
+                } else { 
+                    list.innerHTML = '<li><span style="color: #777;">Zatím nemáte přidané žádné další členy.</span></li>'; 
+                }
+            }
+        } catch (e) {
+            console.error('Chyba při vykreslování dashboardu:', e);
+        }
+    }
+
+    /* PŘIDÁVÁNÍ RODINY PŘES DB */
+    document.getElementById('addFamilyForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = document.getElementById('famMsg');
+        const famId = document.getElementById('famId').value.trim();
+        
+        const { data: dbPlayer } = await db.from('player_database').select('full_name, city').eq('player_id_card', famId).single();
+        if (!dbPlayer) {
+             msg.className = 'msg error'; 
+             msg.innerText = 'Tato značka není v centrální databázi evidována.'; 
+             msg.style.display = 'block'; 
+             return;
+        }
+
+        const { error } = await db.from('players').insert({ 
+            owner_id: currentUser.id, 
+            full_name: dbPlayer.full_name, 
+            city: dbPlayer.city || '-', 
+            player_id_card: famId 
+        });
+
+        if (!error) { 
+            document.getElementById('addFamilyForm').reset(); 
+            msg.style.display = 'none'; 
+            logAction('Rodina', `Přidán člen z DB: ${dbPlayer.full_name}`); 
+            
+            const { data: famData } = await db.from('players').select('*').eq('owner_id', currentUser.id);
+            myFamily = famData || [];
+            renderDashboard(); 
+        } 
+        else { 
+            msg.className = 'msg error'; 
+            msg.innerText = 'Chyba při přidávání. Možná je značka již zaregistrována.'; 
+            msg.style.display = 'block'; 
+        }
+    });
+
+    window.removeFamily = async function(id) {
+        if (confirm('Jste si jistí, že chcete tohoto člena trvale odebrat ze své rodiny?')) { 
+            await db.from('players').delete().eq('id', id); 
+            const { data: famData } = await db.from('players').select('*').eq('owner_id', currentUser.id);
+            myFamily = famData || [];
+            logAction('Odebrání rodiny', 'Uživatel odebral člena ze svého seznamu');
+            renderDashboard();
+        }
+    };
 
     /* TISK KARTIČEK */
     function generateIdCardHTML(name, city, idStr) {
@@ -933,7 +1058,6 @@
         w.document.close();
     };
 
-    // Logika pro vyhledávač u hromadného tisku
     window.filterPrintList = function() {
         const term = document.getElementById('printSearchInput').value.toLowerCase();
         const labels = document.querySelectorAll('#adminPrintList label');
@@ -972,7 +1096,7 @@
         }
     });
 
-    /* ADMINISTRACE - VČETNĚ API KLÍČŮ A DATABÁZE HRÁČŮ A E-MAILŮ */
+    /* ADMINISTRACE */
     async function loadAdminData() {
         const { count } = await db.from('profiles').select('*', { count: 'exact', head: true });
         document.getElementById('totalUsersCount').innerText = count || 0;
@@ -1616,15 +1740,6 @@
         if (!hasB && pubZone) pubZone.innerHTML = '<p style="color:#718096;font-style:italic;">Žádné veřejné hlasování.</p>';
         if (!hasV && vList) vList.innerHTML = '<p style="color:#718096;font-style:italic;">Žádná ostrá hlasování ZČ.</p>';
         if (!hasD && dList) dList.innerHTML = '<p style="color:#718096;font-style:italic;">Žádné podněty.</p>';
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const voteIdToScroll = urlParams.get('vote');
-        if (voteIdToScroll) {
-            setTimeout(() => {
-                const el = document.getElementById('vote_' + voteIdToScroll);
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 500);
-        }
     }
 
     window.replyTo = function(n, vid) { 
