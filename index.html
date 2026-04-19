@@ -1779,67 +1779,92 @@
     };
     
     window.castBlueVote = async function(vid, c) { 
-        const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
-        const { error } = await db.from('voting_records').insert({ vote_id: vid, voter_id: currentUser.id, choice: c, vote_hash: hash }); 
-        
-        if(!error) {
-            alert('Hlasováno!'); 
-        } else {
-            alert('Chyba databáze: ' + error.message);
+        try {
+            const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
+            const { error } = await db.from('voting_records').insert({ vote_id: vid, voter_id: currentUser.id, choice: c, vote_hash: hash }); 
+            
+            if(!error) {
+                alert('Váš hlas byl úspěšně zaznamenán!'); 
+                loadVotes(); 
+            } else {
+                alert('Chyba databáze (RLS politika nebo sloupec neexistuje): ' + error.message);
+            }
+        } catch (e) {
+            alert('Kritická chyba v prohlížeči: ' + e.message);
+            console.error(e);
         }
-        loadVotes(); 
     };
     
     window.castAnonBlueVote = async function(vid, choice) {
-        const eid = document.getElementById('anonId_'+vid).value.trim(); 
-        if(!eid) {
-            alert('Zadejte ID!');
-            return;
-        }
-        
-        // STŘEDOBOD CHECK
-        const { data: dbCheck, error: chkErr } = await db.from('player_database').select('player_id_card').eq('player_id_card', eid);
-        if(chkErr) {
-            alert('Chyba spojení s databází: ' + chkErr.message); 
-            return;
-        }
-        
-        if(!dbCheck || dbCheck.length === 0) {
-            alert('Neplatné ID, nelze hlasovat. Tato značka není evidována v centrální databázi (středobodu).');
-            return;
-        }
+        try {
+            const eidInput = document.getElementById('anonId_'+vid);
+            if (!eidInput) {
+                alert('Chyba: Vstupní pole pro ID nebylo na stránce nalezeno!');
+                return;
+            }
+            
+            const eid = eidInput.value.trim(); 
+            if(!eid) {
+                alert('Pro odeslání hlasu musíte nejprve zadat vaše Tajné ID hráče!');
+                return;
+            }
+            
+            // STŘEDOBOD CHECK
+            const { data: dbCheck, error: chkErr } = await db.from('player_database').select('player_id_card').eq('player_id_card', eid);
+            if(chkErr) {
+                alert('Chyba při komunikaci se středobodem databáze: ' + chkErr.message); 
+                return;
+            }
+            
+            if(!dbCheck || dbCheck.length === 0) {
+                alert('Neplatné ID, nelze hlasovat! Zadaná značka není evidována v centrální databázi (středobodu). Zkontrolujte překlepy.');
+                return;
+            }
 
-        // KONTROLA DUPLICITY
-        const { data: alreadyVoted } = await db.from('voting_records').select('id').eq('vote_id', vid).eq('voter_id_card', eid);
-        if (alreadyVoted && alreadyVoted.length > 0) {
-            alert('Chyba: Značka ' + eid + ' již v tomto hlasování byla použita!');
-            return;
+            // KONTROLA DUPLICITY
+            const { data: alreadyVoted, error: dupErr } = await db.from('voting_records').select('id').eq('vote_id', vid).eq('voter_id_card', eid);
+            if(dupErr) {
+                alert('Chyba při kontrole vaší účasti v databázi: ' + dupErr.message);
+                return;
+            }
+            if (alreadyVoted && alreadyVoted.length > 0) {
+                alert('Chyba: Zadaná značka (' + eid + ') již v tomto hlasování byla použita!');
+                return;
+            }
+            
+            const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
+            const { error } = await db.from('voting_records').insert({ vote_id: vid, voter_id_card: eid, choice: choice, vote_hash: hash });
+            
+            if(!error) {
+                alert('Váš hlas byl úspěšně zaznamenán a zabezpečen proti falšování.'); 
+                loadVotes();
+            } else {
+                alert('Chyba při zápisu hlasu (Pravděpodobně chybí oprávnění RLS pro nepřihlášené v databázi): ' + error.message); 
+            }
+        } catch (e) {
+            alert('Kritická chyba v prohlížeči (JavaScript): ' + e.message);
+            console.error(e);
         }
-        
-        const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
-        const { error } = await db.from('voting_records').insert({ vote_id: vid, voter_id_card: eid, choice: choice, vote_hash: hash });
-        
-        if(!error) {
-            alert('Váš hlas byl zaznamenán a zabezpečen.'); 
-        } else {
-            alert('Chyba při zápisu hlasu: ' + error.message + ' (Pravděpodobně chybí oprávnění v databázi pro nepřihlášené, zkontrolujte SQL politiky).'); 
-        }
-        loadVotes();
     };
     
     window.castVote = async function(vid, c, req) {
-        const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
-        const { error } = await db.from('voting_records').insert({ vote_id: vid, voter_id: currentUser.id, choice: c, vote_hash: hash });
-        
-        if(!error) {
-            const { data } = await db.from('voting_records').select('id').eq('vote_id', vid);
-            if(data.length >= req) {
-                await db.from('votes').update({ is_closed: true }).eq('id', vid);
+        try {
+            const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
+            const { error } = await db.from('voting_records').insert({ vote_id: vid, voter_id: currentUser.id, choice: c, vote_hash: hash });
+            
+            if(!error) {
+                const { data } = await db.from('voting_records').select('id').eq('vote_id', vid);
+                if(data && data.length >= req) {
+                    await db.from('votes').update({ is_closed: true }).eq('id', vid);
+                }
+                loadVotes();
+            } else {
+                alert('Chyba při ukládání ostrého hlasování: ' + error.message);
             }
-        } else {
-            alert('Chyba při hlasování: ' + error.message);
+        } catch (e) {
+            alert('Kritická chyba v prohlížeči: ' + e.message);
+            console.error(e);
         }
-        loadVotes();
     };
 
     document.getElementById('uploadResultsForm').addEventListener('submit', async (e) => {
