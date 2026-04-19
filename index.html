@@ -64,19 +64,7 @@
         .hash-box { background: #1a202c; color: #48bb78; padding: 0.5rem; font-family: monospace; font-size: 0.8rem; border-radius: 4px; word-break: break-all;}
         footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 2rem; }
         
-        .invite-card {
-            background: linear-gradient(135deg, #1a365d, #0f2038);
-            border: 3px solid #d69e2e;
-            border-radius: 12px;
-            padding: 4rem 2rem;
-            text-align: center;
-            color: white;
-            margin-top: 2rem;
-            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
-            position: relative;
-            overflow: hidden;
-            display: block; 
-        }
+        .invite-card { background: linear-gradient(135deg, #1a365d, #0f2038); border: 3px solid #d69e2e; border-radius: 12px; padding: 4rem 2rem; text-align: center; color: white; margin-top: 2rem; box-shadow: 0 15px 30px rgba(0,0,0,0.2); position: relative; overflow: hidden; display: block; }
         .invite-card .header-text { color: #a0aec0; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 1.5rem; position: relative; z-index: 1; }
         .invite-card h4 { color: #d69e2e; font-size: 2.8rem; margin-bottom: 2rem; text-transform: uppercase; position: relative; z-index: 1; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); border-bottom: 2px solid rgba(214, 158, 46, 0.3); padding-bottom: 1rem; display: inline-block; }
         @media (max-width: 768px) { .invite-card h4 { font-size: 1.8rem; } }
@@ -118,7 +106,7 @@
             <li><a onclick="switchTab('rules')" id="nav-rules">Pravidla</a></li>
             <li id="menu-tournaments" style="display:block;"><a onclick="switchTab('tournaments')" id="nav-tournaments">Turnaje</a></li>
             <li id="menu-stats" style="display:block;"><a onclick="switchTab('stats')" id="nav-stats">Statistiky</a></li>
-            <li id="menu-voting" style="display:none;"><a onclick="switchTab('voting')" id="nav-voting">Hlasování</a></li>
+            <li id="menu-voting" style="display:block;"><a onclick="switchTab('voting')" id="nav-voting">Hlasování</a></li>
             <li id="menu-auth"><a onclick="switchTab('auth')" id="nav-auth">Pro členy</a></li>
             <li id="menu-profile" style="display:none;"><a onclick="switchTab('dashboard')" id="nav-dashboard">Můj profil</a></li>
             <li id="menu-admin" style="display:none; color:#d69e2e;"><a onclick="switchTab('admin')" id="nav-admin">Administrace</a></li>
@@ -314,7 +302,7 @@
                     <h3 style="color: #b7791f; margin: 0;">Pohled pod kapotu</h3>
                     <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                         <p style="margin: 0; color: #2b6cb0; background: #ebf8ff; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem;">🟢 Online: <strong id="onlineCount">1</strong></p>
-                        <p style="margin: 0; color: #4a5568; background: #e2e8f0; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem;">👥 Registrováno: <strong id="totalUsersCount">0</strong></p>
+                        <p style="margin: 0; color: #4a5568; background: #e2e8f0; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem;">👥 Registrováno (Web): <strong id="totalUsersCount">0</strong></p>
                     </div>
                 </div>
                 <label>Simulace role:</label>
@@ -494,27 +482,12 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-    let currentUser = null;
-    let actualUserRole = 'player';
-    let simulatedRole = 'player';
-    let myProfileData = null;
-    let myFamily = [];
-    let authInitialized = false;
-
-    let globalBankAccount = 'CZ0000000000000000000000';
-    let globalFioToken = '';
-    
-    let historicalData = [];
-    let uniqueTournaments = [];
+    let currentUser = null, actualUserRole = 'player', simulatedRole = 'player', myProfileData = null, myFamily = [], authInitialized = false;
+    let globalBankAccount = 'CZ0000000000000000000000', globalFioToken = '';
+    let historicalData = [], uniqueTournaments = [];
     let presenceChannel = null;
 
-    const roleNames = { 
-        'player': 'Hráč', 
-        'pc': 'Přidružený člen', 
-        'zc': 'Zakládající člen', 
-        'zcp': 'Předseda', 
-        'superadmin': 'Super Admin' 
-    };
+    const roleNames = { 'player': 'Hráč', 'pc': 'Přidružený člen', 'zc': 'Zakládající člen', 'zcp': 'Předseda', 'superadmin': 'Super Admin' };
 
     function isPrime(num) {
         if (num <= 1) return false;
@@ -615,6 +588,21 @@
         }
     }
 
+    // Centrální přesměrování
+    function handleInitialRouting() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('invite')) {
+            switchTab('public-invite');
+            loadPublicInvite(urlParams.get('invite'));
+            return true;
+        }
+        if (urlParams.has('vote')) {
+            switchTab('voting');
+            return true;
+        }
+        return false;
+    }
+
     function switchTab(tabId) {
         document.getElementById('mainNav').classList.remove('mobile-active');
         
@@ -643,11 +631,9 @@
 
     async function checkAuthState(user) {
         currentUser = user;
-        const urlParams = new URLSearchParams(window.location.search);
-        const isInvite = urlParams.has('invite');
-        const isVote = urlParams.has('vote');
 
         if (user) {
+            // Logika pro PŘIHLÁŠENÉHO
             document.getElementById('menu-auth').style.display = 'none';
             document.getElementById('menu-tournaments').style.display = 'block';
             document.getElementById('menu-stats').style.display = 'block';
@@ -695,16 +681,9 @@
                         authInitialized = true; 
                         logAction('Přihlášení', 'Uživatel vstoupil do systému');
                         
-                        if (isInvite) { 
-                            switchTab('public-invite'); 
-                            loadPublicInvite(urlParams.get('invite'));
-                        }
-                        else if (isVote) { 
-                            switchTab('voting'); 
-                        }
-                        else {
+                        if (!handleInitialRouting()) {
                             const savedTab = sessionStorage.getItem('activeTab') || 'dashboard';
-                            if (savedTab === 'public-invite' || savedTab === 'auth' || savedTab === 'profile-setup') { 
+                            if (savedTab === 'auth' || savedTab === 'profile-setup') { 
                                 switchTab('dashboard'); 
                             } else { 
                                 switchTab(savedTab); 
@@ -722,6 +701,7 @@
                 switchTab('profile-setup');
             }
         } else {
+            // Logika pro NEPŘIHLÁŠENÉHO (Nového) návštěvníka
             if (presenceChannel) { 
                 presenceChannel.unsubscribe(); 
                 presenceChannel = null; 
@@ -741,14 +721,8 @@
             document.getElementById('personalStatsSection').style.display = 'none';
             document.getElementById('statsAuthWarning').style.display = 'block';
 
-            if (isInvite) { 
-                switchTab('public-invite'); 
-                loadPublicInvite(urlParams.get('invite'));
-            }
-            else if (isVote) { 
-                switchTab('voting'); 
-            }
-            else {
+            // Zásadní oprava - nesmí se přemazávat speciální linky z URL
+            if (!handleInitialRouting()) {
                 const currentTab = sessionStorage.getItem('activeTab') || 'home';
                 if (['dashboard', 'profile-setup', 'admin'].includes(currentTab)) {
                     switchTab('home');
@@ -767,7 +741,7 @@
     async function logOutUser() { 
         if (currentUser) await logAction('Odhlášení', 'Uživatel odešel'); 
         await db.auth.signOut(); 
-        window.location.reload(); 
+        window.location.href = window.location.origin + window.location.pathname; 
     }
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -1615,6 +1589,15 @@
         if (!hasB && pubZone) pubZone.innerHTML = '<p style="color:#718096;font-style:italic;">Žádné veřejné hlasování.</p>';
         if (!hasV && vList) vList.innerHTML = '<p style="color:#718096;font-style:italic;">Žádná ostrá hlasování ZČ.</p>';
         if (!hasD && dList) dList.innerHTML = '<p style="color:#718096;font-style:italic;">Žádné podněty.</p>';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const voteIdToScroll = urlParams.get('vote');
+        if (voteIdToScroll) {
+            setTimeout(() => {
+                const el = document.getElementById('vote_' + voteIdToScroll);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 500);
+        }
     }
 
     window.replyTo = function(n, vid) { 
