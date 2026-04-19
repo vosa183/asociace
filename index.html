@@ -12,19 +12,90 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --primary: #1a365d; --secondary: #c53030; --bg: #f4f7f6; --text: #2d3748; --white: #ffffff; --gray: #e2e8f0; --orange: #dd6b20; --blue: #3182ce; }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        body { background: var(--bg); color: var(--text); line-height: 1.6; }
-        header { background: var(--white); padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-        .logo-container { display: flex; align-items: center; gap: 1rem; cursor: pointer; }
-        .logo-container img { height: 50px; }
-        .logo-container h1 { font-size: 1.2rem; color: var(--primary); text-transform: uppercase; }
+        :root { 
+            --primary: #1a365d; 
+            --secondary: #c53030; 
+            --bg: #f4f7f6; 
+            --text: #2d3748; 
+            --white: #ffffff; 
+            --gray: #e2e8f0; 
+            --orange: #dd6b20; 
+            --blue: #3182ce; 
+        }
         
-        .menu-toggle { display: none; font-size: 2rem; cursor: pointer; color: var(--primary); user-select: none; }
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            font-family: 'Inter', sans-serif; 
+        }
         
-        nav ul { display: flex; list-style: none; gap: 1rem; flex-wrap: wrap; }
-        nav a { text-decoration: none; color: var(--primary); font-weight: 600; cursor: pointer; padding: 0.5rem 1rem; border-radius: 6px; transition: 0.2s; display: block; }
-        nav a:hover, nav a.active { background: var(--gray); color: var(--secondary); }
+        body { 
+            background: var(--bg); 
+            color: var(--text); 
+            line-height: 1.6; 
+        }
+        
+        header { 
+            background: var(--white); 
+            padding: 1rem 2rem; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05); 
+            position: sticky; 
+            top: 0; 
+            z-index: 100; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            flex-wrap: wrap; 
+        }
+        
+        .logo-container { 
+            display: flex; 
+            align-items: center; 
+            gap: 1rem; 
+            cursor: pointer; 
+        }
+        
+        .logo-container img { 
+            height: 50px; 
+        }
+        
+        .logo-container h1 { 
+            font-size: 1.2rem; 
+            color: var(--primary); 
+            text-transform: uppercase; 
+        }
+        
+        .menu-toggle { 
+            display: none; 
+            font-size: 2rem; 
+            cursor: pointer; 
+            color: var(--primary); 
+            user-select: none; 
+        }
+        
+        nav ul { 
+            display: flex; 
+            list-style: none; 
+            gap: 1rem; 
+            flex-wrap: wrap; 
+        }
+        
+        nav a { 
+            text-decoration: none; 
+            color: var(--primary); 
+            font-weight: 600; 
+            cursor: pointer; 
+            padding: 0.5rem 1rem; 
+            border-radius: 6px; 
+            transition: 0.2s; 
+            display: block; 
+        }
+        
+        nav a:hover, nav a.active { 
+            background: var(--gray); 
+            color: var(--secondary); 
+        }
         
         @media (max-width: 768px) {
             .menu-toggle { display: block; }
@@ -36,18 +107,88 @@
         }
 
         .admin-link { color: #d69e2e; }
-        main { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; min-height: 60vh; }
-        .page-section { display: none; animation: fadeIn 0.3s ease; }
-        .page-section.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        .card { background: var(--white); padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 2rem; }
-        h2 { color: var(--primary); border-bottom: 2px solid var(--secondary); padding-bottom: 0.5rem; margin-bottom: 1.5rem; font-size: 1.5rem; }
-        h3 { color: var(--primary); margin-bottom: 1rem; font-size: 1.2rem; }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
-        @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
-        label { display: block; font-weight: bold; margin-bottom: 0.3rem; font-size: 0.9rem; }
-        input, textarea, select { width: 100%; padding: 0.8rem; margin-bottom: 1.2rem; border-radius: 6px; border: 1px solid #ccc; font-family: inherit; }
-        button { background: var(--primary); color: white; border: none; padding: 0.8rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; }
+        
+        main { 
+            max-width: 1000px; 
+            margin: 2rem auto; 
+            padding: 0 1rem; 
+            min-height: 60vh; 
+        }
+        
+        .page-section { 
+            display: none; 
+            animation: fadeIn 0.3s ease; 
+        }
+        
+        .page-section.active { 
+            display: block; 
+        }
+        
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(5px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        
+        .card { 
+            background: var(--white); 
+            padding: 2rem; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03); 
+            margin-bottom: 2rem; 
+        }
+        
+        h2 { 
+            color: var(--primary); 
+            border-bottom: 2px solid var(--secondary); 
+            padding-bottom: 0.5rem; 
+            margin-bottom: 1.5rem; 
+            font-size: 1.5rem; 
+        }
+        
+        h3 { 
+            color: var(--primary); 
+            margin-bottom: 1rem; 
+            font-size: 1.2rem; 
+        }
+        
+        .grid-2 { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 2rem; 
+        }
+        
+        @media (max-width: 768px) { 
+            .grid-2 { grid-template-columns: 1fr; } 
+        }
+        
+        label { 
+            display: block; 
+            font-weight: bold; 
+            margin-bottom: 0.3rem; 
+            font-size: 0.9rem; 
+        }
+        
+        input, textarea, select { 
+            width: 100%; 
+            padding: 0.8rem; 
+            margin-bottom: 1.2rem; 
+            border-radius: 6px; 
+            border: 1px solid #ccc; 
+            font-family: inherit; 
+        }
+        
+        button { 
+            background: var(--primary); 
+            color: white; 
+            border: none; 
+            padding: 0.8rem 1rem; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            width: 100%; 
+            transition: 0.2s; 
+        }
+        
         button:hover { background: var(--secondary); }
         .btn-small { width: auto; padding: 0.4rem 0.8rem; font-size: 0.8rem; }
         .btn-danger { background: var(--secondary); }
@@ -56,13 +197,55 @@
         .btn-orange:hover { background: #c05621; }
         .btn-blue { background: var(--blue); }
         .btn-blue:hover { background: #2b6cb0; }
-        .msg { margin-top: 1rem; font-weight: bold; padding: 0.8rem; border-radius: 6px; display: none; text-align: center; }
+        
+        .msg { 
+            margin-top: 1rem; 
+            font-weight: bold; 
+            padding: 0.8rem; 
+            border-radius: 6px; 
+            display: none; 
+            text-align: center; 
+        }
         .error { background: #fed7d7; color: #c53030; display: block; }
         .success { background: #c6f6d5; color: #2f855a; display: block; }
-        .list-item { background: var(--gray); padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;}
-        .badge { background: var(--primary); color: white; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.8rem; }
-        .hash-box { background: #1a202c; color: #48bb78; padding: 0.5rem; font-family: monospace; font-size: 0.8rem; border-radius: 4px; word-break: break-all;}
-        footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 2rem; }
+        
+        .list-item { 
+            background: var(--gray); 
+            padding: 1rem; 
+            border-radius: 8px; 
+            margin-bottom: 0.5rem; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            gap: 1rem;
+        }
+        
+        .badge { 
+            background: var(--primary); 
+            color: white; 
+            padding: 0.2rem 0.6rem; 
+            border-radius: 20px; 
+            font-size: 0.8rem; 
+        }
+        
+        .hash-box { 
+            background: #1a202c; 
+            color: #48bb78; 
+            padding: 0.5rem; 
+            font-family: monospace; 
+            font-size: 0.8rem; 
+            border-radius: 4px; 
+            word-break: break-all;
+        }
+        
+        footer { 
+            text-align: center; 
+            padding: 2rem; 
+            color: #718096; 
+            border-top: 1px solid var(--gray); 
+            margin-top: 2rem; 
+        }
         
         .invite-card {
             background: linear-gradient(135deg, #1a365d, #0f2038);
@@ -77,32 +260,171 @@
             overflow: hidden;
             display: block; 
         }
-        .invite-card .header-text { color: #a0aec0; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 1.5rem; position: relative; z-index: 1; }
-        .invite-card h4 { color: #d69e2e; font-size: 2.8rem; margin-bottom: 2rem; text-transform: uppercase; position: relative; z-index: 1; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); border-bottom: 2px solid rgba(214, 158, 46, 0.3); padding-bottom: 1rem; display: inline-block; }
-        @media (max-width: 768px) { .invite-card h4 { font-size: 1.8rem; } }
-        .invite-card .date { font-size: 1.8rem; font-weight: bold; margin-bottom: 1.5rem; position: relative; z-index: 1; }
-        .invite-card .fee { display: inline-block; background: rgba(214, 158, 46, 0.15); padding: 0.8rem 2rem; border-radius: 8px; border: 1px solid #d69e2e; font-size: 1.4rem; position: relative; z-index: 1; font-weight: bold; }
-        .invite-card .footer-text { margin-top: 3rem; font-size: 1rem; color: #a0aec0; position: relative; z-index: 1; letter-spacing: 1px; }
-
-        .qr-container { display: none; text-align: center; background: white; padding: 1rem; border-radius: 8px; margin-top: 1rem; border: 1px solid #ccc; width: 100%;}
-        .qr-container img { max-width: 200px; height: auto; margin: auto; display: block;}
         
-        .vote-stats { display: flex; gap: 15px; margin-top: 10px; background: #e2e8f0; padding: 10px; border-radius: 6px; font-size: 0.9rem; align-items: center; flex-wrap: wrap;}
-        .vote-stats span { font-weight: bold; }
+        .invite-card .header-text { 
+            color: #a0aec0; 
+            font-size: 1.1rem; 
+            text-transform: uppercase; 
+            letter-spacing: 3px; 
+            margin-bottom: 1.5rem; 
+            position: relative; 
+            z-index: 1; 
+        }
+        
+        .invite-card h4 { 
+            color: #d69e2e; 
+            font-size: 2.8rem; 
+            margin-bottom: 2rem; 
+            text-transform: uppercase; 
+            position: relative; 
+            z-index: 1; 
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5); 
+            border-bottom: 2px solid rgba(214, 158, 46, 0.3); 
+            padding-bottom: 1rem; 
+            display: inline-block; 
+        }
+        
+        @media (max-width: 768px) { 
+            .invite-card h4 { font-size: 1.8rem; } 
+        }
+        
+        .invite-card .date { 
+            font-size: 1.8rem; 
+            font-weight: bold; 
+            margin-bottom: 1.5rem; 
+            position: relative; 
+            z-index: 1; 
+        }
+        
+        .invite-card .fee { 
+            display: inline-block; 
+            background: rgba(214, 158, 46, 0.15); 
+            padding: 0.8rem 2rem; 
+            border-radius: 8px; 
+            border: 1px solid #d69e2e; 
+            font-size: 1.4rem; 
+            position: relative; 
+            z-index: 1; 
+            font-weight: bold; 
+        }
+        
+        .invite-card .footer-text { 
+            margin-top: 3rem; 
+            font-size: 1rem; 
+            color: #a0aec0; 
+            position: relative; 
+            z-index: 1; 
+            letter-spacing: 1px; 
+        }
 
-        .stats-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.95rem; }
-        .stats-table th, .stats-table td { padding: 0.8rem; text-align: left; border-bottom: 1px solid #cbd5e0; }
-        .stats-table th { background: var(--primary); color: white; font-weight: 600; }
-        .stats-table tr:hover { background: #f7fafc; }
-        .highlight-row { background: #e6fffa !important; font-weight: bold; color: #2c7a7b; }
-        .audit-log-box { max-height: 300px; overflow-y: auto; background: #fff; padding: 1rem; border: 1px solid #ccc; border-radius: 8px; font-size: 0.85rem; }
-        .audit-log-item { border-bottom: 1px dashed #e2e8f0; padding: 0.5rem 0; }
+        .qr-container { 
+            display: none; 
+            text-align: center; 
+            background: white; 
+            padding: 1rem; 
+            border-radius: 8px; 
+            margin-top: 1rem; 
+            border: 1px solid #ccc; 
+            width: 100%;
+        }
+        
+        .qr-container img { 
+            max-width: 200px; 
+            height: auto; 
+            margin: auto; 
+            display: block;
+        }
+        
+        .vote-stats { 
+            display: flex; 
+            gap: 15px; 
+            margin-top: 10px; 
+            background: #e2e8f0; 
+            padding: 10px; 
+            border-radius: 6px; 
+            font-size: 0.9rem; 
+            align-items: center; 
+            flex-wrap: wrap;
+        }
+        
+        .vote-stats span { 
+            font-weight: bold; 
+        }
+
+        .stats-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 1rem; 
+            font-size: 0.95rem; 
+        }
+        
+        .stats-table th, .stats-table td { 
+            padding: 0.8rem; 
+            text-align: left; 
+            border-bottom: 1px solid #cbd5e0; 
+        }
+        
+        .stats-table th { 
+            background: var(--primary); 
+            color: white; 
+            font-weight: 600; 
+        }
+        
+        .stats-table tr:hover { 
+            background: #f7fafc; 
+        }
+        
+        .highlight-row { 
+            background: #e6fffa !important; 
+            font-weight: bold; 
+            color: #2c7a7b; 
+        }
+        
+        .audit-log-box { 
+            max-height: 300px; 
+            overflow-y: auto; 
+            background: #fff; 
+            padding: 1rem; 
+            border: 1px solid #ccc; 
+            border-radius: 8px; 
+            font-size: 0.85rem; 
+        }
+        
+        .audit-log-item { 
+            border-bottom: 1px dashed #e2e8f0; 
+            padding: 0.5rem 0; 
+        }
         
         /* Checkbox list pro hromadný tisk */
-        .print-checkbox-list { background: white; border: 1px solid #cbd5e0; border-radius: 6px; padding: 1rem; max-height: 250px; overflow-y: auto; margin-bottom: 1rem; font-size: 0.9rem; }
-        .print-checkbox-list label { display: block; font-weight: normal; margin-bottom: 0.4rem; cursor: pointer; padding: 4px; border-radius: 4px;}
-        .print-checkbox-list label:hover { background: #f7fafc; }
-        .print-checkbox-list input[type="checkbox"] { width: auto; margin-right: 8px; margin-bottom: 0; }
+        .print-checkbox-list { 
+            background: white; 
+            border: 1px solid #cbd5e0; 
+            border-radius: 6px; 
+            padding: 1rem; 
+            max-height: 250px; 
+            overflow-y: auto; 
+            margin-bottom: 1rem; 
+            font-size: 0.9rem; 
+        }
+        
+        .print-checkbox-list label { 
+            display: block; 
+            font-weight: normal; 
+            margin-bottom: 0.4rem; 
+            cursor: pointer; 
+            padding: 4px; 
+            border-radius: 4px;
+        }
+        
+        .print-checkbox-list label:hover { 
+            background: #f7fafc; 
+        }
+        
+        .print-checkbox-list input[type="checkbox"] { 
+            width: auto; 
+            margin-right: 8px; 
+            margin-bottom: 0; 
+        }
     </style>
 </head>
 <body>
@@ -117,6 +439,7 @@
         <ul>
             <li><a onclick="switchTab('home')" id="nav-home" class="active">Úvod</a></li>
             <li><a onclick="switchTab('rules')" id="nav-rules">Pravidla</a></li>
+            <li><a onclick="switchTab('host')" id="nav-host">Pořádejte turnaj</a></li>
             <li id="menu-tournaments" style="display:block;"><a onclick="switchTab('tournaments')" id="nav-tournaments">Turnaje</a></li>
             <li id="menu-stats" style="display:block;"><a onclick="switchTab('stats')" id="nav-stats">Statistiky</a></li>
             <li id="menu-voting" style="display:block;"><a onclick="switchTab('voting')" id="nav-voting">Hlasování</a></li>
@@ -134,39 +457,68 @@
             <h2 style="color: white; border: none;">Tradiční česká hra na profesionální úrovni</h2>
             <p style="margin-bottom: 1rem; font-size: 1.1rem;">Vítejte na oficiálních stránkách České asociace prší! Naším cílem je sdružovat nadšence této legendární karetní hry z celé republiky.</p>
             <p style="margin-bottom: 1rem;">Zvedáme prší z hospodských stolů a dáváme mu pevnou turnajovou strukturu. Staráme se o precizní dodržování pravidel, organizaci prestižních klání a pečlivé vedení historických statistik všech našich účastníků.</p>
-            <p>Ať už jste ostřílený matador, nebo sbíráte své první turnajové zkušenosti, u nás najdete skvělou komunitu a spravedlivou hru.</p>
+            <p>Ať už jste ostřílený matador, nebo sbíráte své první turnajové zkušenosti, u nás najdete skvělou komunitu a spravedlivou hru. Přidejte se k naší rozrůstající se rodině a zapište své jméno nesmazatelně do síně slávy!</p>
         </div>
     </section>
 
     <section id="rules" class="page-section">
         <div class="card">
             <h2>Oficiální pravidla a turnajový řád</h2>
+            
             <h3 style="color: var(--secondary); margin-top: 1.5rem;">Herní balíček a rozdávání karet</h3>
-            <p>Hraje se výhradně s balíčkem 32 karet německého typu. Na začátku hry rozdá rozdávající hráč každému hráči přesně čtyři karty. Zbytek balíčku tvoří talón. První otočená karta je aktivní (např. u sedmičky hráč rovnou líže).</p>
-            <h3 style="color: var(--secondary); margin-top: 1.5rem;">Speciální karty</h3>
-            <ul>
-                <li><strong>Sedmička:</strong> Další hráč líže dvě karty a stojí. Lze přebít další sedmičkou.</li>
-                <li><strong>Svršek:</strong> Mění barvu. Lze hrát na jakoukoli kartu (kromě sedmičky a esa).</li>
-                <li><strong>Eso:</strong> Další hráč stojí. Lze přebít dalším esem.</li>
+            <p style="margin-bottom: 0.8rem;">Hraje se výhradně s balíčkem třiceti dvou karet německého typu (takzvané mariášky). Karty se dělí do čtyř barev: srdce, žaludy, listy a kule. Každá barva má osm hodnot: sedmička, osmička, devítka, desítka, spodek, svršek, král a eso.</p>
+            <p>Na samém začátku hry rozdá rozdávající hráč každému hráči přesně čtyři karty. Zbytek balíčku se položí doprostřed hracího stolu lícem dolů jako lízací talón. Vrchní karta z tohoto talónu se otočí a položí vedle – čímž vzniká základ odhazovací hromádky. Tato první otočená karta je plně aktivní. Znamená to, že pokud je otočena například sedmička, hráč, který je jako první na tahu, si musí rovnou lízat dvě karty (pokud sám nemá sedmičku na přebití).</p>
+            
+            <h3 style="color: var(--secondary); margin-top: 1.5rem;">Základní průběh hry</h3>
+            <p>Hráč, který je zrovna na tahu, musí na odhazovací hromádku zahrát kartu, která se shoduje buď barvou, nebo hodnotou s vrchní viditelnou kartou. Pokud takovou kartu ve své ruce nemá, případně ji z taktických důvodů nechce použít, musí si líznout jednu kartu z talónu. Absolutním vítězem partie se stává ten hráč, který se jako první prokazatelně zbaví všech svých karet.</p>
+            
+            <h3 style="color: var(--secondary); margin-top: 1.5rem;">Vlastnosti speciálních karet</h3>
+            <ul style="margin-left: 2rem; margin-bottom: 1.5rem;">
+                <li style="margin-bottom: 0.5rem;"><strong>Sedmička:</strong> Pokud hráč zahraje sedmičku, následující hráč v pořadí si musí líznout dvě karty z talónu a navíc ztrácí svůj tah. Pokud má ale tento napadený hráč ve své ruce také sedmičku, může ji bez otálení zahrát a nepříjemná povinnost lízat se tak sčítá a přesouvá na dalšího hráče (ten už musí lízat karty čtyři).</li>
+                <li style="margin-bottom: 0.5rem;"><strong>Svršek (Měnič):</strong> Tuto kartu lze zahrát na libovolnou barvu (vyjma reakce na právě zahranou sedmičku nebo eso). Hráč, který svrška úspěšně zahraje, má právo slovně určit novou barvu, ve které se musí dále pokračovat.</li>
+                <li style="margin-bottom: 0.5rem;"><strong>Eso:</strong> Hráč, který je na řadě bezprostředně po zahrání esa, musí toto hrací kolo nuceně vynechat (takzvaně stojí). Pokud má však ve své ruce také eso, může ho ihned zahrát a povinnost stát se opět přesouvá na dalšího v pořadí.</li>
             </ul>
+
+            <h3 style="color: var(--secondary); margin-top: 1.5rem;">Všeobecné obchodní a turnajové podmínky</h3>
+            <p style="margin-bottom: 0.8rem;"><strong>Storno podmínky:</strong> Veškerá registrace na vypsaný turnaj a s ní spojené uhrazené zápisné je plně závazné. Pokud hráč na turnaj z jakéhokoliv důvodu nedorazí, zápisné automaticky propadá ve prospěch asociace na pokrytí organizačních a sálových nákladů.</p>
+            <p><strong>Zastupování na turnaji:</strong> Je přísně a nekompromisně zakázáno, aby na turnaj dorazila hrát jiná osoba, než jaká je oficiálně uvedena na přihlášce pod daným osobním registračním průkazem. Zjištěné porušení tohoto pravidla vede k okamžité diskvalifikaci z celého turnaje.</p>
+        </div>
+    </section>
+
+    <section id="host" class="page-section">
+        <div class="card">
+            <h2>Uspořádejte s námi turnaj</h2>
+            <p style="margin-bottom: 2rem;">Máte k dispozici sál nebo hospodu a chcete k vám přivést oficiální turnaj naší asociace? Napište nám a domluvíme se!</p>
+            <form action="https://formspree.io/f/TVUJ_KOD" method="POST" style="max-width: 500px;">
+                <label>Jméno nebo název podniku</label>
+                <input type="text" name="jmeno" required>
+                
+                <label>Váš e-mail</label>
+                <input type="email" name="email" required>
+                
+                <label>Město a předpokládaná kapacita hráčů</label>
+                <textarea name="misto" rows="4" required></textarea>
+                
+                <button type="submit">Odeslat poptávku</button>
+            </form>
         </div>
     </section>
 
     <section id="auth" class="page-section">
         <div class="card grid-2">
             <div>
-                <h3>Přihlášení</h3>
+                <h3>Přihlášení na web</h3>
                 <form id="loginForm">
                     <label>E-mail</label>
                     <input type="email" id="loginEmail" required>
                     <label>Heslo</label>
                     <input type="password" id="loginPassword" required>
-                    <button type="submit">Vstoupit</button>
+                    <button type="submit">Vstoupit do profilu</button>
                     <div id="loginMsg" class="msg"></div>
                 </form>
             </div>
             <div>
-                <h3>Registrace na webu</h3>
+                <h3>Nová registrace</h3>
                 <form id="regForm">
                     <label>E-mail</label>
                     <input type="email" id="regEmail" required>
@@ -189,13 +541,15 @@
                 
                 <label>E-mail pro komunikaci</label>
                 <input type="email" id="profEmail" required>
+                
                 <label>Telefonní kontakt</label>
                 <input type="text" id="profPhone" required>
+                
                 <div style="margin-bottom: 1rem; font-size: 0.85rem; color: #4a5568;">
                     <input type="checkbox" id="profConsent" required style="width: auto; transform: scale(1.2); margin-right: 8px;"> 
                     Souhlasím se zpracováním údajů a zveřejněním mého jména v členských sekcích statistik. <strong>Beru na vědomí, že mé osobní ID hráče je přísně důvěrný údaj a nebude nikdy veřejně zobrazován.</strong>
                 </div>
-                <button type="submit">Spárovat účet a pokračovat</button>
+                <button type="submit">Spárovat účet s databází a pokračovat</button>
                 <div id="profMsg" class="msg"></div>
             </form>
         </div>
@@ -1615,7 +1969,7 @@
             
             const optionsArray = v.answers ? v.answers.split(',').map(s => s.trim()).filter(s => s !== '') : ['PRO', 'PROTI'];
 
-            // MODRÉ
+            // MODRÉ HLASOVÁNÍ (DVOUKROKOVÉ PRO ANONYMY)
             if (isBlue) {
                 hasB = true;
                 const { data: recs } = await db.from('voting_records').select('*').eq('vote_id', v.id);
@@ -1655,15 +2009,24 @@
                         if (voted) {
                             html += `<p style="color:var(--blue);font-weight:bold;margin-top:10px;">Váš hlas byl zaznamenán.</p>`;
                         } else {
-                            let btnsHtml = optionsArray.map(opt => `<button class="btn-small btn-blue" onclick="castBlueVote('${v.id}','${opt}')">${opt}</button>`).join('');
+                            let btnsHtml = optionsArray.map(opt => `<button class="btn-small btn-blue" onclick="castBlueVote(event, '${v.id}','${opt}')">${opt}</button>`).join('');
                             html += `<div style="display:flex;gap:10px;margin-top:10px; flex-wrap: wrap;">${btnsHtml}</div>`;
                         }
                     } else {
-                        let btnsHtml = optionsArray.map(opt => `<button class="btn-small btn-blue" style="margin-top:5px;" onclick="castAnonBlueVote('${v.id}', '${opt}')">Hlasovat: ${opt}</button>`).join('');
+                        // DVOUKROKOVÉ HLASOVÁNÍ PRO ANONYMY
+                        let btnsHtml = optionsArray.map(opt => `<button class="btn-small btn-blue" onclick="castAnonBlueVote(event, '${v.id}', '${opt}')">${opt}</button>`).join('');
 
-                        html += `<div style="margin-top:15px; width:100%; background:white; padding:10px; border-radius:6px; border:1px solid #cbd5e0;">
-                            <label style="font-size:0.85rem;">Vaše Tajné ID (z průkazky):</label>
-                            <input type="text" id="anonId_${v.id}" placeholder="např. zadejte kód" style="margin-bottom:10px;">
+                        html += `
+                        <div id="anon_verify_step_${v.id}" style="margin-top:15px; width:100%; background:white; padding:10px; border-radius:6px; border:1px solid #cbd5e0;">
+                            <label style="font-size:0.85rem;">Pro zobrazení možností hlasování zadejte Vaše Tajné ID z průkazky:</label>
+                            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                                <input type="text" id="anonIdInput_${v.id}" placeholder="např. 12345" style="margin-bottom:0; flex:1; min-width: 150px;">
+                                <button class="btn-small btn-blue" onclick="verifyAnonIdForVote(event, '${v.id}')">Ověřit ID</button>
+                            </div>
+                        </div>
+                        
+                        <div id="anon_vote_step_${v.id}" style="display:none; margin-top:15px; width:100%; background:white; padding:10px; border-radius:6px; border:1px solid #cbd5e0;">
+                            <p style="color: #2f855a; font-weight: bold; margin-bottom: 10px;">✅ Průkaz ověřen. Vyberte svou volbu:</p>
                             <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
                                 ${btnsHtml}
                             </div>
@@ -1676,9 +2039,17 @@
                     isZcOrHigher = true;
                 }
 
+                // SKRYTÍ MODRÉHO HLASOVÁNÍ (Vidí ho jen ZČ, nebo ten, kdo má v URL ?vote=ID)
+                const urlParams = new URLSearchParams(window.location.search);
+                const specificVoteId = urlParams.get('vote');
+                
+                if (!isZcOrHigher && v.id !== specificVoteId) {
+                    continue; // Přeskočí vykreslení pro nepozvané
+                }
+
                 if (isZcOrHigher) {
                     html += `<div style="margin-top:15px; width:100%; padding-top:10px; border-top:1px dashed #90cdf4;">
-                        <label style="font-size:0.8rem; color:#4a5568;">Odkaz pro sdílení (VIDÍ POUZE ZČ):</label>
+                        <label style="font-size:0.8rem; color:#4a5568;">Odkaz pro sdílení pozvánky k hlasování (VIDÍ POUZE ZČ):</label>
                         <input type="text" value="${shareLink}" readonly style="margin:0; padding:5px; font-size:0.8rem; background:white; color:#2b6cb0;" onclick="this.select();">
                     </div>`;
                     
@@ -1735,7 +2106,7 @@
                     } else if (voted) {
                         vHtml += `<p style="color:green;">Hlas přijat.</p>`;
                     } else {
-                        let btnsHtml = optionsArray.map(opt => `<button class="btn-small btn-blue" onclick="castVote('${v.id}','${opt}',${reqV})">${opt}</button>`).join('');
+                        let btnsHtml = optionsArray.map(opt => `<button class="btn-small btn-blue" onclick="castVote(event, '${v.id}','${opt}',${reqV})">${opt}</button>`).join('');
                         vHtml += `<div style="display:flex;gap:10px;margin-top:10px; flex-wrap: wrap;">${btnsHtml}</div>`;
                     }
                 }
@@ -1778,7 +2149,74 @@
         }
     };
     
-    window.castBlueVote = async function(vid, c) { 
+    /* MODRÉ HLASOVÁNÍ - KROK 1: OVĚŘENÍ ID */
+    window.verifyAnonIdForVote = async function(event, vid) {
+        if (event) event.preventDefault();
+        try {
+            const eidInput = document.getElementById('anonIdInput_'+vid);
+            if (!eidInput) { alert('Chyba: Vstupní pole pro ID nebylo na stránce nalezeno!'); return; }
+            
+            const eid = eidInput.value.trim(); 
+            if(!eid) { alert('Pro zobrazení možností musíte nejprve zadat vaše Tajné ID hráče!'); return; }
+            
+            // STŘEDOBOD CHECK
+            const { data: dbCheck, error: chkErr } = await db.from('player_database').select('player_id_card').eq('player_id_card', eid);
+            if(chkErr) { alert('Chyba při komunikaci se středobodem databáze: ' + chkErr.message); return; }
+            
+            if(!dbCheck || dbCheck.length === 0) {
+                alert('Neplatné ID. Zadaná značka (' + eid + ') není evidována v centrální databázi (středobodu). Zkontrolujte překlepy.');
+                return;
+            }
+
+            // KONTROLA DUPLICITY
+            const { data: alreadyVoted, error: dupErr } = await db.from('voting_records').select('id').eq('vote_id', vid).eq('voter_id_card', eid);
+            if(dupErr) { alert('Chyba při kontrole vaší účasti v databázi: ' + dupErr.message); return; }
+            if (alreadyVoted && alreadyVoted.length > 0) {
+                alert('Zadaná značka (' + eid + ') již v tomto hlasování byla použita!');
+                return;
+            }
+            
+            // VŠE OK -> Zamknout input a ukázat tlačítka
+            eidInput.disabled = true;
+            eidInput.dataset.verifiedId = eid; // Uložíme si ověřené ID pro druhý krok
+            document.getElementById('anon_verify_step_'+vid).style.display = 'none';
+            document.getElementById('anon_vote_step_'+vid).style.display = 'block';
+
+        } catch (e) {
+            alert('Kritická chyba při ověřování v prohlížeči (JavaScript): ' + e.message);
+            console.error(e);
+        }
+    };
+
+    /* MODRÉ HLASOVÁNÍ - KROK 2: ZÁPIS HLASU */
+    window.castAnonBlueVote = async function(event, vid, choice) {
+        if (event) event.preventDefault();
+        try {
+            const eidInput = document.getElementById('anonIdInput_'+vid);
+            const eid = eidInput.dataset.verifiedId;
+            
+            if(!eid) {
+                alert('Kritická chyba: ID nebylo správně ověřeno!');
+                return;
+            }
+            
+            const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
+            const { error } = await db.from('voting_records').insert({ vote_id: vid, voter_id_card: eid, choice: choice, vote_hash: hash });
+            
+            if(!error) {
+                alert('Váš hlas byl úspěšně zaznamenán a zabezpečen proti falšování.'); 
+                loadVotes();
+            } else {
+                alert('Chyba při zápisu hlasu (Pravděpodobně chybí oprávnění RLS pro nepřihlášené v databázi): ' + error.message); 
+            }
+        } catch (e) {
+            alert('Fatální chyba prohlížeče při odesílání: ' + e.message);
+            console.error(e);
+        }
+    };
+
+    window.castBlueVote = async function(event, vid, c) { 
+        if (event) event.preventDefault();
         try {
             const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
             const { error } = await db.from('voting_records').insert({ vote_id: vid, voter_id: currentUser.id, choice: c, vote_hash: hash }); 
@@ -1795,59 +2233,8 @@
         }
     };
     
-    window.castAnonBlueVote = async function(vid, choice) {
-        try {
-            const eidInput = document.getElementById('anonId_'+vid);
-            if (!eidInput) {
-                alert('Chyba: Vstupní pole pro ID nebylo na stránce nalezeno!');
-                return;
-            }
-            
-            const eid = eidInput.value.trim(); 
-            if(!eid) {
-                alert('Pro odeslání hlasu musíte nejprve zadat vaše Tajné ID hráče!');
-                return;
-            }
-            
-            // STŘEDOBOD CHECK
-            const { data: dbCheck, error: chkErr } = await db.from('player_database').select('player_id_card').eq('player_id_card', eid);
-            if(chkErr) {
-                alert('Chyba při komunikaci se středobodem databáze: ' + chkErr.message); 
-                return;
-            }
-            
-            if(!dbCheck || dbCheck.length === 0) {
-                alert('Neplatné ID, nelze hlasovat! Zadaná značka není evidována v centrální databázi (středobodu). Zkontrolujte překlepy.');
-                return;
-            }
-
-            // KONTROLA DUPLICITY
-            const { data: alreadyVoted, error: dupErr } = await db.from('voting_records').select('id').eq('vote_id', vid).eq('voter_id_card', eid);
-            if(dupErr) {
-                alert('Chyba při kontrole vaší účasti v databázi: ' + dupErr.message);
-                return;
-            }
-            if (alreadyVoted && alreadyVoted.length > 0) {
-                alert('Chyba: Zadaná značka (' + eid + ') již v tomto hlasování byla použita!');
-                return;
-            }
-            
-            const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
-            const { error } = await db.from('voting_records').insert({ vote_id: vid, voter_id_card: eid, choice: choice, vote_hash: hash });
-            
-            if(!error) {
-                alert('Váš hlas byl úspěšně zaznamenán a zabezpečen proti falšování.'); 
-                loadVotes();
-            } else {
-                alert('Chyba při zápisu hlasu (Pravděpodobně chybí oprávnění RLS pro nepřihlášené v databázi): ' + error.message); 
-            }
-        } catch (e) {
-            alert('Kritická chyba v prohlížeči (JavaScript): ' + e.message);
-            console.error(e);
-        }
-    };
-    
-    window.castVote = async function(vid, c, req) {
+    window.castVote = async function(event, vid, c, req) {
+        if (event) event.preventDefault();
         try {
             const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
             const { error } = await db.from('voting_records').insert({ vote_id: vid, voter_id: currentUser.id, choice: c, vote_hash: hash });
