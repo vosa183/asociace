@@ -119,7 +119,7 @@
             <li><a onclick="switchTab('rules')" id="nav-rules">Pravidla</a></li>
             <li id="menu-tournaments" style="display:block;"><a onclick="switchTab('tournaments')" id="nav-tournaments">Turnaje</a></li>
             <li id="menu-stats" style="display:block;"><a onclick="switchTab('stats')" id="nav-stats">Statistiky</a></li>
-            <li id="menu-voting" style="display:none;"><a onclick="switchTab('voting')" id="nav-voting">Hlasování</a></li>
+            <li id="menu-voting" style="display:block;"><a onclick="switchTab('voting')" id="nav-voting">Hlasování</a></li>
             <li id="menu-auth"><a onclick="switchTab('auth')" id="nav-auth">Pro členy</a></li>
             <li id="menu-profile" style="display:none;"><a onclick="switchTab('dashboard')" id="nav-dashboard">Můj profil</a></li>
             <li id="menu-admin" style="display:none; color:#d69e2e;"><a onclick="switchTab('admin')" id="nav-admin">Administrace</a></li>
@@ -729,7 +729,7 @@
                 switchTab('profile-setup');
             }
         } else {
-            // Logika pro NEPŘIHLÁŠENÉHO (Nového) návštěvníka
+            // Logika pro NEPŘIHLÁŠENÉHO návštěvníka
             if (presenceChannel) { 
                 presenceChannel.unsubscribe(); 
                 presenceChannel = null; 
@@ -749,7 +749,6 @@
             document.getElementById('personalStatsSection').style.display = 'none';
             document.getElementById('statsAuthWarning').style.display = 'block';
 
-            // Zásadní oprava - nesmí se přemazávat speciální linky z URL
             if (!handleInitialRouting()) {
                 const currentTab = sessionStorage.getItem('activeTab') || 'home';
                 if (['dashboard', 'profile-setup', 'admin'].includes(currentTab)) {
@@ -1617,6 +1616,15 @@
         if (!hasB && pubZone) pubZone.innerHTML = '<p style="color:#718096;font-style:italic;">Žádné veřejné hlasování.</p>';
         if (!hasV && vList) vList.innerHTML = '<p style="color:#718096;font-style:italic;">Žádná ostrá hlasování ZČ.</p>';
         if (!hasD && dList) dList.innerHTML = '<p style="color:#718096;font-style:italic;">Žádné podněty.</p>';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const voteIdToScroll = urlParams.get('vote');
+        if (voteIdToScroll) {
+            setTimeout(() => {
+                const el = document.getElementById('vote_' + voteIdToScroll);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 500);
+        }
     }
 
     window.replyTo = function(n, vid) { 
