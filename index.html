@@ -97,6 +97,12 @@
         .highlight-row { background: #e6fffa !important; font-weight: bold; color: #2c7a7b; }
         .audit-log-box { max-height: 300px; overflow-y: auto; background: #fff; padding: 1rem; border: 1px solid #ccc; border-radius: 8px; font-size: 0.85rem; }
         .audit-log-item { border-bottom: 1px dashed #e2e8f0; padding: 0.5rem 0; }
+        
+        /* Checkbox list pro hromadný tisk */
+        .print-checkbox-list { background: white; border: 1px solid #cbd5e0; border-radius: 6px; padding: 1rem; max-height: 250px; overflow-y: auto; margin-bottom: 1rem; font-size: 0.9rem; }
+        .print-checkbox-list label { display: block; font-weight: normal; margin-bottom: 0.4rem; cursor: pointer; padding: 4px; border-radius: 4px;}
+        .print-checkbox-list label:hover { background: #f7fafc; }
+        .print-checkbox-list input[type="checkbox"] { width: auto; margin-right: 8px; margin-bottom: 0; }
     </style>
 </head>
 <body>
@@ -113,7 +119,7 @@
             <li><a onclick="switchTab('rules')" id="nav-rules">Pravidla</a></li>
             <li id="menu-tournaments" style="display:block;"><a onclick="switchTab('tournaments')" id="nav-tournaments">Turnaje</a></li>
             <li id="menu-stats" style="display:block;"><a onclick="switchTab('stats')" id="nav-stats">Statistiky</a></li>
-            <li id="menu-voting" style="display:block;"><a onclick="switchTab('voting')" id="nav-voting">Hlasování</a></li>
+            <li id="menu-voting" style="display:none;"><a onclick="switchTab('voting')" id="nav-voting">Hlasování</a></li>
             <li id="menu-auth"><a onclick="switchTab('auth')" id="nav-auth">Pro členy</a></li>
             <li id="menu-profile" style="display:none;"><a onclick="switchTab('dashboard')" id="nav-dashboard">Můj profil</a></li>
             <li id="menu-admin" style="display:none; color:#d69e2e;"><a onclick="switchTab('admin')" id="nav-admin">Administrace</a></li>
@@ -136,10 +142,10 @@
         <div class="card">
             <h2>Oficiální pravidla a turnajový řád</h2>
             <h3 style="color: var(--secondary); margin-top: 1.5rem;">Herní balíček a rozdávání karet</h3>
-            <p>Hraje se výhradně s balíčkem 32 karet německého typu. Na začátku hry rozdá rozdávající hráč každému hráči přesně čtyři karty. Zbytek balíčku tvoří talón. První otočená karta je aktivní (např. u sedmičky hráč rovnou líže).</p>
+            <p>Hraje se výhradně s balíčkem třiceti dvou karet německého typu. Na začátku hry rozdá rozdávající hráč každému hráči přesně čtyři karty. Zbytek balíčku tvoří talón. První otočená karta je aktivní (např. u sedmičky hráč rovnou líže).</p>
             <h3 style="color: var(--secondary); margin-top: 1.5rem;">Speciální karty</h3>
             <ul>
-                <li><strong>Sedmička:</strong> Další hráč líže 2 karty a stojí. Lze přebít další sedmičkou.</li>
+                <li><strong>Sedmička:</strong> Další hráč líže dvě karty a stojí. Lze přebít další sedmičkou.</li>
                 <li><strong>Svršek:</strong> Mění barvu. Lze hrát na jakoukoli kartu (kromě sedmičky a esa).</li>
                 <li><strong>Eso:</strong> Další hráč stojí. Lze přebít dalším esem.</li>
             </ul>
@@ -230,6 +236,13 @@
                 </form>
                 <ul id="familyList" style="margin-top:1rem;"></ul>
             </div>
+        </div>
+    </section>
+
+    <section id="public-invite" class="page-section">
+        <div class="card">
+            <h2 style="color: var(--blue); border-bottom: 2px solid var(--blue);">Registrace na turnaj přes pozvánku</h2>
+            <div id="publicInviteContent">Načítám detaily turnaje, prosím čekejte...</div>
         </div>
     </section>
 
@@ -354,11 +367,9 @@
 
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
                     <h3>Generátor průkazů hráčů</h3>
-                    <p style="font-size: 0.85rem; margin-bottom: 1rem;">Rychlý tisk pro jakéhokoliv registrovaného hráče (včetně rodiny).</p>
-                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                        <select id="adminPrintSelect" style="max-width: 400px; margin:0;"></select>
-                        <button class="btn-small btn-blue" onclick="adminPrintCard()">🖨️ Vygenerovat a Tisknout</button>
-                    </div>
+                    <p style="font-size: 0.85rem; margin-bottom: 1rem;">Rychlý tisk pro jakéhokoliv registrovaného hráče.</p>
+                    <div class="print-checkbox-list" id="adminPrintList">Načítám hráče...</div>
+                    <button class="btn-small btn-blue" onclick="adminPrintSelectedCards()">🖨️ Vygenerovat arch a Tisknout</button>
                 </div>
 
                 <div style="background: #fff5f5; padding: 1.5rem; border-radius: 8px; border: 1px solid #feb2b2; margin-bottom: 1.5rem;">
@@ -453,7 +464,8 @@
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null, actualUserRole = 'player', simulatedRole = 'player', myProfileData = null, myFamily = [], authInitialized = false;
-    let globalBankAccount = 'CZ0000000000000000000000', globalFioToken = '', historicalData = [], uniqueTournaments = [];
+    let globalBankAccount = 'CZ0000000000000000000000', globalFioToken = '';
+    let historicalData = [], uniqueTournaments = [];
     let presenceChannel = null;
 
     const roleNames = { 'player': 'Hráč', 'pc': 'Přidružený člen', 'zc': 'Zakládající člen', 'zcp': 'Předseda', 'superadmin': 'Super Admin' };
@@ -491,6 +503,11 @@
         if (tabId === 'voting') loadVotes();
         if (tabId === 'admin' && currentUser) loadAdminData();
         if (tabId === 'dashboard' && currentUser) renderDashboard();
+        if (tabId === 'public-invite') {
+            const urlParams = new URLSearchParams(window.location.search);
+            const invId = urlParams.get('invite');
+            if (invId) loadPublicInvite(invId);
+        }
     }
 
     async function checkAuthState(user) {
@@ -523,7 +540,10 @@
                 if (!authInitialized) { 
                     authInitialized = true; 
                     logAction('Přihlášení', 'Uživatel vstoupil do systému');
-                    switchTab(sessionStorage.getItem('activeTab') || 'dashboard'); 
+                    
+                    const savedTab = sessionStorage.getItem('activeTab') || 'dashboard';
+                    if (savedTab === 'public-invite') { switchTab('public-invite'); }
+                    else { switchTab(savedTab); }
                 } else if (document.querySelector('.page-section.active')?.id === 'dashboard') renderDashboard();
             } else { switchTab('profile-setup'); }
         } else {
@@ -537,7 +557,8 @@
             document.getElementById('statsAuthWarning').style.display = 'block';
 
             const currentTab = sessionStorage.getItem('activeTab') || 'home';
-            switchTab(['dashboard', 'profile-setup', 'admin'].includes(currentTab) ? 'home' : currentTab);
+            if (currentTab === 'public-invite') { switchTab('public-invite'); }
+            else { switchTab(['dashboard', 'profile-setup', 'admin'].includes(currentTab) ? 'home' : currentTab); }
         }
     }
 
@@ -604,20 +625,60 @@
         </body></html>`;
     }
 
+    function generateMultipleCardsHTML(players) {
+        let cardsHtml = players.map(p => `
+            <div class="card">
+                <div class="header">Průkaz Hráče</div>
+                <div class="content">
+                    <img class="qr" src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(p.id)}" />
+                    <div class="info">
+                        <label>Jméno a příjmení</label><div>${p.name}</div>
+                        <label>Bydliště</label><div>${p.city || '-'}</div>
+                        <label>Identifikátor (ID)</label><div class="id-box">${p.id}</div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        return `<html><head><title>Hromadný Tisk Průkazů</title><style>
+            body { font-family: 'Arial', sans-serif; margin: 0; padding: 20px; background: #fff; }
+            .print-grid { display: grid; grid-template-columns: repeat(auto-fill, 85.6mm); gap: 10mm; justify-content: center; }
+            .card { width: 85.6mm; height: 53.98mm; border: 2px dashed #a0aec0; border-radius: 12px; overflow: hidden; position: relative; background: #fff; box-sizing: border-box; page-break-inside: avoid; }
+            .header { background: #1a365d; color: white; text-align: center; padding: 6px 0; font-size: 16px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
+            .content { display: flex; padding: 12px; align-items: center; }
+            .qr { width: 80px; height: 80px; margin-right: 15px; }
+            .info { flex: 1; }
+            .info label { display: block; font-size: 10px; color: #718096; margin-top: 6px; text-transform: uppercase; letter-spacing: 1px; }
+            .info div { font-size: 15px; font-weight: bold; color: #2d3748; line-height: 1.2; }
+            .info .id-box { color: #c53030; font-family: monospace; font-size: 16px; }
+            @media print { .card { border: 1px solid #e2e8f0; } }
+        </style></head><body>
+            <div class="print-grid">${cardsHtml}</div>
+            <script>window.onload=function(){window.print(); setTimeout(function(){window.close();}, 500);}<\/script>
+        </body></html>`;
+    }
+
     window.printMyCard = function() {
         if(!myProfileData) return;
-        const w = window.open('', '_blank', 'width=600,height=400');
+        const w = window.open('', '_blank', 'width=800,height=600');
         w.document.write(generateIdCardHTML(myProfileData.full_name, myProfileData.city, myProfileData.player_id_card));
         w.document.close();
     };
 
-    window.adminPrintCard = function() {
-        const sel = document.getElementById('adminPrintSelect');
-        if(!sel.value) return;
-        const [id, name, city] = sel.value.split('|');
-        const w = window.open('', '_blank', 'width=600,height=400');
-        w.document.write(generateIdCardHTML(name, city, id));
+    window.adminPrintSelectedCards = function() {
+        const checkboxes = document.querySelectorAll('.print-check:checked');
+        if(checkboxes.length === 0) { alert('Nevybrali jste žádného hráče pro tisk.'); return; }
+        
+        let playersToPrint = [];
+        checkboxes.forEach(cb => {
+            playersToPrint.push({ id: cb.value, name: cb.dataset.name, city: cb.dataset.city });
+        });
+
+        const w = window.open('', '_blank', 'width=800,height=600');
+        w.document.write(generateMultipleCardsHTML(playersToPrint));
         w.document.close();
+        
+        checkboxes.forEach(cb => cb.checked = false);
     };
 
     /* ADMINISTRACE - VČETNĚ API KLÍČŮ A DATABÁZE HRÁČŮ */
@@ -646,7 +707,16 @@
             const { data: allP } = await db.from('profiles').select('player_id_card, full_name, city');
             const { data: allF } = await db.from('players').select('player_id_card, full_name, city');
             const combo = [...(allP||[]), ...(allF||[])].sort((a,b)=>a.full_name.localeCompare(b.full_name));
-            document.getElementById('adminPrintSelect').innerHTML = combo.map(c => `<option value="${c.player_id_card}|${c.full_name}|${c.city||''}">${c.full_name} (${c.player_id_card})</option>`).join('');
+            
+            // Plnění checkboxů pro hromadný tisk
+            const printList = document.getElementById('adminPrintList');
+            printList.innerHTML = combo.map(c => `
+                <label>
+                    <input type="checkbox" class="print-check" value="${c.player_id_card}" data-name="${c.full_name}" data-city="${c.city||''}">
+                    ${c.full_name} <span style="color:#718096; font-size:0.8rem;">(${c.player_id_card})</span>
+                </label>
+            `).join('');
+
             loadAssets();
         }
 
@@ -727,14 +797,12 @@
             try {
                 const data = new Uint8Array(ev.target.result);
                 const workbook = XLSX.read(data, {type: 'array'});
-                // Vyhledáme list podle názvu "Databáze", pokud nenajde, vezme první.
                 let sheetName = workbook.SheetNames.find(n => n.includes('Databáze')) || workbook.SheetNames[0];
                 const sheet = workbook.Sheets[sheetName];
                 const jsonRows = XLSX.utils.sheet_to_json(sheet, {header: "A"});
                 
                 let toUpsert = [];
                 jsonRows.forEach(row => {
-                    // Cílíme na sloupce B (ID), C (Jméno), D (Místo)
                     if(row.B && row.C && row.B !== 'ID pro Banku' && String(row.B).trim() !== '') {
                         toUpsert.push({ 
                             player_id_card: String(row.B).trim(), 
@@ -748,9 +816,8 @@
                     msg.className = 'msg error'; msg.innerText = 'V souboru nebyly nalezeny žádné platné záznamy ke zpracování.'; return;
                 }
                 
-                msg.innerText = `Nalezeno ${toUpsert.length} hráčů. Aktualizuji databázi (bez duplicit)...`;
+                msg.innerText = `Nalezeno hráčů. Aktualizuji databázi (bez duplicit)...`;
                 
-                // Odesíláme do Supabase v dávkách po 1000 kvůli limitům
                 for(let i = 0; i < toUpsert.length; i += 1000) {
                     const batch = toUpsert.slice(i, i + 1000);
                     const { error } = await db.from('player_database').upsert(batch, { onConflict: 'player_id_card' });
@@ -758,7 +825,7 @@
                 }
                 
                 msg.className = 'msg success'; msg.innerText = 'Databáze byla úspěšně synchronizována!';
-                logAction('Synchronizace DB', `Nahozena aktuální centrální databáze z Excelu (${toUpsert.length} záznamů).`);
+                logAction('Synchronizace DB', `Nahozena aktuální centrální databáze z Excelu.`);
                 document.getElementById('uploadDbForm').reset();
                 loadPlayerDatabase();
             } catch(err) {
@@ -804,10 +871,10 @@
         const uniqueEmails = [...new Set(emails)];
         if(uniqueEmails.length === 0) { alert('Nenalezeni žádní příjemci.'); return; }
         
-        if(confirm(`Opravdu odeslat zprávu na ${uniqueEmails.length} adres?`)) {
+        if(confirm(`Opravdu si přejete odeslat zprávu všem příjemcům v seznamu?`)) {
             await sendEmailNotification(subj, msg, uniqueEmails);
-            logAction('Hromadný e-mail', `Odeslána zpráva na ${uniqueEmails.length} adres`);
-            alert('Hromadná zpráva se odesílá.');
+            logAction('Hromadný e-mail', `Odeslána hromadná zpráva s předmětem: "${subj}"`);
+            alert('Hromadná zpráva byla zařazena k odeslání.');
             document.getElementById('massEmailForm').reset();
         }
     });
@@ -837,7 +904,7 @@
         document.getElementById('assetsList').innerHTML = data?.map(a => `
             <div class="list-item" style="align-items:start; flex-direction:column; background: #fff; border: 1px solid #e2e8f0; margin-bottom: 10px;">
                 <strong>${a.name} (Ev. č.: ${a.asset_number})</strong>
-                ${a.is_electric ? `<span style="color:#c53030; font-size:0.85rem;">⚡ Elektrozařízení | Revize do: ${a.revision_date ? new Date(a.revision_date).toLocaleDateString('cs-CZ') : 'Nezadáno'}</span>` : '<span style="color:#48bb78; font-size:0.85rem;">✔️ Běžný majetek</span>'}
+                ${a.is_electric ? `<span style="color:#c53030; font-size:0.85rem;">⚡ Elektrozařízení | Platnost revize: ${a.revision_date ? new Date(a.revision_date).toLocaleDateString('cs-CZ') : 'Nezadáno'}</span>` : '<span style="color:#48bb78; font-size:0.85rem;">✔️ Běžný majetek</span>'}
                 ${a.file_name ? `<a href="https://gqciprgrzdpckhhqcsjx.supabase.co/storage/v1/object/public/revisions/${a.file_name}" target="_blank" style="font-size:0.85rem;">📄 Zobrazit dokument revize</a>` : ''}
             </div>
         `).join('') || '<p>Žádný majetek.</p>';
@@ -887,7 +954,95 @@
         if (confirm('Odebrat z rodiny?')) { await db.from('players').delete().eq('id', id); logAction('Rodina', 'Odebrán člen'); renderDashboard(); }
     };
 
-    /* TURNAJE A REGISTRACE */
+    /* VEŘEJNÁ POZVÁNKA A REGISTRACE */
+    async function loadPublicInvite(tId) {
+        const content = document.getElementById('publicInviteContent');
+        const { data: t, error } = await db.from('tournaments').select('*').eq('id', tId).single();
+        
+        if (error || !t) {
+            content.innerHTML = '<p class="error">Tento turnaj nebyl v databázi nalezen nebo odkaz již vypršel.</p>';
+            return;
+        }
+
+        const { count } = await db.from('registrations').select('*', { count: 'exact', head: true }).eq('tournament_id', t.id);
+        let isFull = count >= t.capacity;
+
+        let html = `
+            <div style="background: #ebf8ff; padding: 1.5rem; border-radius: 8px; border: 1px solid #90cdf4; margin-bottom: 1.5rem;">
+                <h3 style="color: #2b6cb0;">${t.title}</h3>
+                <p><strong>Datum konání:</strong> ${t.event_date}</p>
+                <p><strong>Zápisné:</strong> ${t.fee} Kč</p>
+                <p><strong>Obsazeno:</strong> ${count || 0} / ${t.capacity} ${isFull ? '<span style="color:#c53030; font-weight:bold;">(Kapacita naplněna - registrace pouze jako náhradník)</span>' : ''}</p>
+            </div>
+            
+            <div id="publicInviteFormContainer">
+                <p style="margin-bottom: 1rem;">Pro přihlášení na tento turnaj zadejte své tajné ID z průkazky hráče. Pokud zadáte i e-mail, zašleme vám na něj potvrzení a platební údaje.</p>
+                <div style="display: flex; flex-direction: column; gap: 1rem; max-width: 400px;">
+                    <div>
+                        <label>Vaše Tajné ID (z průkazky) *</label>
+                        <input type="text" id="anonInviteId" placeholder="např. zadejte kód z průkazu" required style="margin:0;">
+                    </div>
+                    <div>
+                        <label>E-mailová adresa (nepovinné)</label>
+                        <input type="email" id="anonInviteEmail" placeholder="vas@email.cz" style="margin:0;">
+                    </div>
+                    <button class="btn-blue" onclick="submitPublicInvite('${t.id}', '${t.fee}', '${t.title}', '${t.event_date}')">Potvrdit registraci na turnaj</button>
+                </div>
+            </div>
+            <div id="publicInviteSuccess" style="display:none; text-align: center; background: #f0fff4; padding: 2rem; border-radius: 8px; border: 1px solid #9ae6b4;">
+                <h3 style="color: #2f855a; margin-bottom: 1rem;">✅ Úspěšně přihlášeno!</h3>
+                <p style="margin-bottom: 1rem;" id="publicInviteEmailMsg"></p>
+                <p style="margin-bottom: 0.5rem; font-size: 0.9rem;">Zápisné k úhradě: <strong>${t.fee} Kč</strong></p>
+                <p style="margin-bottom: 1.5rem; font-size: 0.9rem;">Variabilní symbol (Vaše ID): <strong id="publicInviteVsShow"></strong></p>
+                <div class="qr-container" id="publicInviteQrContainer" style="display: block; margin: 0 auto; background: transparent; border: none;">
+                    <img id="publicInviteQrImg" style="margin: 0 auto;">
+                </div>
+                <p style="margin-top: 1rem; font-size: 0.85rem; color: #718096;">Děkujeme a těšíme se na vás na turnaji!</p>
+            </div>
+        `;
+        content.innerHTML = html;
+    }
+
+    window.submitPublicInvite = async function(tId, fee, tTitle, tDate) {
+        const eid = document.getElementById('anonInviteId').value.trim();
+        const email = document.getElementById('anonInviteEmail').value.trim();
+
+        if (!eid) {
+            alert('Pro registraci musíte zadat vaše platné tajné ID hráče.');
+            return;
+        }
+
+        const { data: dbCheck } = await db.from('player_database').select('player_id_card, full_name').eq('player_id_card', eid);
+        if(!dbCheck || dbCheck.length === 0) {
+            alert('Neplatné ID, nelze se registrovat. Tato značka není evidována v oficiální databázi.');
+            return;
+        }
+
+        const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: eid });
+        
+        if (error) {
+            if (error.code === '23505') alert('Chyba: Pod touto značkou jste již na turnaj přihlášeni!');
+            else alert('Při registraci nastala chyba: ' + error.message);
+            return;
+        }
+
+        document.getElementById('publicInviteFormContainer').style.display = 'none';
+        document.getElementById('publicInviteSuccess').style.display = 'block';
+        document.getElementById('publicInviteVsShow').innerText = eid;
+
+        const spayd = `SPD*1.0*ACC:${globalBankAccount}*AM:${fee}.00*CC:CZK*X-VS:${eid}`;
+        document.getElementById('publicInviteQrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(spayd)}`;
+
+        if (email) {
+            document.getElementById('publicInviteEmailMsg').innerText = 'Na zadaný e-mail jsme vám právě odeslali potvrzení s platebními údaji.';
+            const msg = `Dobrý den,\n\núspěšně jsme zaznamenali vaši registraci na turnaj "${tTitle}" (Datum: ${tDate}).\n\nZápisné: ${fee} Kč\nČíslo účtu: ${globalBankAccount}\nVariabilní symbol (Vaše ID): ${eid}\n\nTěšíme se na vaši účast!`;
+            sendEmailNotification('Potvrzení registrace na turnaj a platební údaje', msg, email);
+        } else {
+            document.getElementById('publicInviteEmailMsg').innerText = 'Pro úhradu zápisného prosím naskenujte tento QR kód ve vaší bankovní aplikaci.';
+        }
+    };
+
+    /* BĚŽNÉ TURNAJE (PRO PŘIHLÁŠENÉ) */
     document.getElementById('createTournamentForm').addEventListener('submit', async (e) => {
         e.preventDefault(); const t = document.getElementById('tName').value;
         const { error } = await db.from('tournaments').insert({ title: t, event_date: document.getElementById('tDate').value, capacity: document.getElementById('tCap').value, fee: document.getElementById('tFee').value });
@@ -908,11 +1063,18 @@
                 let famOpts = myFamily.map(f => `<option value="${f.player_id_card}">${f.full_name}</option>`).join('');
                 btnHtml = `<button class="btn-small" style="background:${isFull?'#ed8936':'var(--primary)'}" onclick="joinTournament('${t.id}')">${btnText}</button>
                 ${myFamily.length ? `<select id="famSel_${t.id}" style="margin:0;width:auto;">${famOpts}</select><button class="btn-small" onclick="joinFamilyTournament('${t.id}')">Přihlásit rodinu</button>` : ''}`;
-            } else { btnHtml = `<p style="color:#718096; font-size:0.9rem;">Pro přihlášení se musíte registrovat.</p>`; }
+                
+                const isZc = ['zc', 'zcp', 'superadmin'].includes(simulatedRole);
+                if(isZc) {
+                    const inviteLink = window.location.origin + window.location.pathname + '?invite=' + t.id;
+                    btnHtml += `<button class="btn-small" style="background:#4a5568; margin-left:auto;" onclick="prompt('Odkaz pro sdílení veřejné pozvánky:', '${inviteLink}')">🔗 Zkopírovat odkaz pozvánky</button>`;
+                }
+
+            } else { btnHtml = `<p style="color:#718096; font-size:0.9rem;">Pro přihlášení se musíte registrovat na webu, nebo využijte odkaz v pozvánce.</p>`; }
 
             list.innerHTML += `<div class="list-item" style="flex-direction:column;align-items:start;background:#fff;border:1px solid #e2e8f0;">
                 <h4 style="color:#2b6cb0;">${t.title} (Datum: ${t.event_date})</h4><p>Obsazeno: ${count||0} / ${t.capacity} | Zápisné: <strong>${t.fee} Kč</strong></p>
-                <div style="display:flex;gap:10px;width:100%;margin-top:10px;flex-wrap:wrap;">${btnHtml}</div></div>`;
+                <div style="display:flex;gap:10px;width:100%;margin-top:10px;flex-wrap:wrap;align-items:center;">${btnHtml}</div></div>`;
         }
     }
 
@@ -1076,7 +1238,7 @@
             const isProposal = v.title.startsWith('[NÁVRH PČ] ');
             const displayTitle = v.title.replace('[NÁVRH PČ] ', '').replace('[MODRÉ] ', '');
             
-            // MODRÉ (Veřejné s časy a kontrolou ID proti Player_database)
+            // MODRÉ (Veřejné s časy a kontrolou ID)
             if (isBlue) {
                 hasB = true;
                 const { data: recs } = await db.from('voting_records').select('*').eq('vote_id', v.id);
@@ -1113,7 +1275,7 @@
                         html += `<div style="margin-top:15px; width:100%; background:white; padding:10px; border-radius:6px; border:1px solid #cbd5e0;">
                             <label style="font-size:0.85rem;">Vaše Tajné ID (z průkazky):</label>
                             <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-                                <input type="text" id="anonId_${v.id}" placeholder="např. 123456" style="margin:0; flex:1; min-width:150px;">
+                                <input type="text" id="anonId_${v.id}" placeholder="např. zadejte kód" style="margin:0; flex:1; min-width:150px;">
                                 <button class="btn-small btn-blue" onclick="castAnonBlueVote('${v.id}')">Odeslat hlas (PRO)</button>
                             </div>
                         </div>`;
@@ -1125,7 +1287,6 @@
                     <input type="text" value="${shareLink}" readonly style="margin:0; padding:5px; font-size:0.8rem; background:white; color:#2b6cb0;" onclick="this.select();">
                 </div>`;
                 
-                // Export tlačítko pro ZČ u uzavřeného modrého
                 if (!isVoteActive && currentUser && ['zc', 'zcp', 'superadmin'].includes(simulatedRole)) {
                     html += `<button class="btn-small btn-blue" style="margin-top:10px; width:100%;" onclick="exportVote('${v.id}', '${displayTitle}')">📥 Stáhnout výsledky (CSV)</button>`;
                 }
@@ -1134,7 +1295,7 @@
                 continue;
             }
 
-            // OSTATNÍ (Pouze pro přihlášené)
+            // OSTATNÍ (Pouze pro přihlášené a dle práv)
             if (!currentUser) continue;
             if (simulatedRole === 'pc' && !isProposal) continue;
             if (simulatedRole === 'pc' && isProposal && v.created_by !== currentUser.id) continue;
@@ -1219,7 +1380,6 @@
     window.castAnonBlueVote = async function(vid) {
         const eid = document.getElementById('anonId_'+vid).value.trim(); if(!eid) return alert('Zadejte ID!');
         
-        // Zkontrolujeme, zda ID reálně existuje v centrální databázi z Excelu
         const { data: dbCheck } = await db.from('player_database').select('player_id_card').eq('player_id_card', eid);
         if(!dbCheck || dbCheck.length === 0) {
             alert('Neplatné ID, nelze hlasovat. Tato značka není evidována v oficiální databázi.');
@@ -1249,6 +1409,9 @@
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('vote')) {
             sessionStorage.setItem('activeTab', 'voting');
+        }
+        if (urlParams.has('invite')) {
+            sessionStorage.setItem('activeTab', 'public-invite');
         }
     });
 
