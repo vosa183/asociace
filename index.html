@@ -1780,8 +1780,13 @@
     
     window.castBlueVote = async function(vid, c) { 
         const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
-        await db.from('voting_records').insert({ vote_id: vid, voter_id: currentUser.id, choice: c, vote_hash: hash }); 
-        alert('Hlasováno!'); 
+        const { error } = await db.from('voting_records').insert({ vote_id: vid, voter_id: currentUser.id, choice: c, vote_hash: hash }); 
+        
+        if(!error) {
+            alert('Hlasováno!'); 
+        } else {
+            alert('Chyba databáze: ' + error.message);
+        }
         loadVotes(); 
     };
     
@@ -1824,10 +1829,15 @@
     
     window.castVote = async function(vid, c, req) {
         const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
-        await db.from('voting_records').insert({ vote_id: vid, voter_id: currentUser.id, choice: c, vote_hash: hash });
-        const { data } = await db.from('voting_records').select('id').eq('vote_id', vid);
-        if(data.length >= req) {
-            await db.from('votes').update({ is_closed: true }).eq('id', vid);
+        const { error } = await db.from('voting_records').insert({ vote_id: vid, voter_id: currentUser.id, choice: c, vote_hash: hash });
+        
+        if(!error) {
+            const { data } = await db.from('voting_records').select('id').eq('vote_id', vid);
+            if(data.length >= req) {
+                await db.from('votes').update({ is_closed: true }).eq('id', vid);
+            }
+        } else {
+            alert('Chyba při hlasování: ' + error.message);
         }
         loadVotes();
     };
