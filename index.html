@@ -16,13 +16,13 @@
     <style>
         :root { 
             --primary: #1a365d; 
-            --secondary: #c53030; /* ČERVENÁ - Ostré hlasování */
+            --secondary: #c53030; 
             --bg: #f4f7f6; 
             --text: #2d3748; 
             --white: #ffffff; 
             --gray: #e2e8f0; 
-            --orange: #dd6b20; /* ORANŽOVÁ - Debata */
-            --blue: #3182ce;   /* MODRÁ - Veřejné hlasování */
+            --orange: #dd6b20; 
+            --blue: #3182ce;   
             --green: #2f855a;
             --gold: #d69e2e;
         }
@@ -91,21 +91,24 @@
         .poster-wrapper .date { font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem; }
         .poster-wrapper .fee { background: rgba(214, 158, 46, 0.2); display: inline-block; padding: 0.5rem 1.5rem; border: 1px solid var(--gold); border-radius: 8px; font-size: 1.2rem; }
         
-        /* Okno v okně pro tisk */
-        .print-modal { background: white; border: 1px solid #cbd5e0; border-radius: 8px; overflow: hidden; margin-bottom: 1.5rem; }
-        .print-header { background: #f7fafc; padding: 1rem; border-bottom: 1px solid #cbd5e0; display: flex; gap: 10px; align-items: center; }
-        .print-list { max-height: 400px; overflow-y: auto; padding: 0; }
-        .print-item { display: flex; align-items: center; padding: 10px 15px; border-bottom: 1px solid #edf2f7; cursor: pointer; }
+        /* Okno v okně pro tisk (Opraveno) */
+        .print-modal { background: white; border: 1px solid #cbd5e0; border-radius: 8px; overflow: hidden; margin-bottom: 1.5rem; display: flex; flex-direction: column; }
+        .print-header { background: #f7fafc; padding: 1rem; border-bottom: 1px solid #cbd5e0; }
+        .print-header input { margin-bottom: 0; }
+        .print-list { max-height: 250px; overflow-y: auto; padding: 0; margin: 0; background: #fdfdfd; }
+        .print-item { display: flex; align-items: center; padding: 10px 15px; border-bottom: 1px solid #edf2f7; cursor: pointer; transition: 0.2s; font-weight: normal; margin-bottom: 0; }
         .print-item:hover { background: #ebf8ff; }
-        .print-item input { width: auto; margin-right: 15px; margin-bottom: 0; transform: scale(1.3); }
-        .print-footer { background: #f7fafc; padding: 1rem; border-top: 1px solid #cbd5e0; display: flex; justify-content: space-between; align-items: center; }
+        .print-item input[type="checkbox"] { width: 20px; height: 20px; margin: 0 15px 0 0; cursor: pointer; flex-shrink: 0; }
+        .print-footer { background: #f7fafc; padding: 1rem; border-top: 1px solid #cbd5e0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
 
         footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 2rem; }
 
+        /* Tiskové styly (Vynucení barev u plakátu) */
         @media print {
             header, nav, .card:not(.printable), footer, button, .no-print { display: none !important; }
+            body { background: white !important; margin: 0; padding: 0; }
             .printable { display: block !important; box-shadow: none !important; margin: 0 !important; padding: 0 !important; width: 100% !important; border: none !important; }
-            body { background: white; }
+            .poster-wrapper { border: 4px solid var(--gold) !important; background: #1a365d !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
     </style>
 </head>
@@ -437,15 +440,17 @@
                     <h3>Hromadný Tisk Průkazů</h3>
                     <p style="font-size: 0.85rem; margin-bottom: 1rem;">Vyberte hráče z centrální databáze k vytištění průkazů s QR kódem.</p>
                     
-                    <div class="print-window-container">
-                        <div class="print-search-header">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <div class="print-modal">
+                        <div class="print-header">
+                            <div style="display:flex; justify-content:space-between; align-items:center; width:100%; margin-bottom:10px;">
                                 <strong>Celkový počet evidovaných hráčů v DB: <span id="totalDbPlayersCount" style="color:var(--primary);">0</span></strong>
                             </div>
-                            <input type="text" id="printSearchInput" placeholder="🔍 Hledat podle jména, města nebo ID..." onkeyup="filterPrintList()">
                         </div>
-                        <div class="print-checkbox-list" id="adminPrintList">
-                            Načítám hráče z centrální databáze...
+                        <div class="print-header" style="border-top:none; padding-top:0;">
+                            <input type="text" id="printSearchInput" placeholder="🔍 Hledat podle jména, města nebo ID..." onkeyup="filterPrintList()" style="width:100%;">
+                        </div>
+                        <div class="print-list" id="adminPrintList">
+                            <div style="padding:15px; color:#718096;">Načítám hráče z centrální databáze...</div>
                         </div>
                         <div class="print-footer">
                             <span style="font-weight: bold; color: #2b6cb0;">Vybráno k tisku: <span id="printSelectionCount">0</span> hráčů</span>
@@ -522,10 +527,6 @@
         </div>
     </section>
 </main>
-
-<footer>
-    <p>&copy; Česká asociace prší z. s.</p>
-</footer>
 <footer>
     <p>&copy; Česká asociace prší z. s.</p>
 </footer>
@@ -555,7 +556,7 @@
         'pc': 'Přidružený člen', 
         'zc': 'Zakládající člen', 
         'zcp': 'Předseda', 
-        'superadmin': 'Super Admin (Ukončit simulaci)' 
+        'superadmin': 'Super Admin' 
     };
 
     // --- 2. POMOCNÉ FUNKCE ---
@@ -779,7 +780,7 @@
         const { error } = await db.auth.updateUser({ password: document.getElementById('newPasswordInput').value });
         if(error) { alert('Chyba: ' + error.message); } 
         else { 
-            alert('Heslo změněno'); 
+            alert('Heslo bezpečně změněno'); 
             await logAction('Změna hesla', 'Uživatel si změnil heslo'); 
             document.getElementById('changePasswordForm').reset();
         }
@@ -822,24 +823,16 @@
         document.getElementById('zcZone').style.display = isZcPlus ? 'block' : 'none';
         document.getElementById('zcpZone').style.display = ['zcp','superadmin'].includes(simulatedRole) ? 'block' : 'none';
         
+        // Záchrana pro Super Admina - vidí menu Administrace vždy
         if (actualUserRole === 'superadmin') { 
+            document.getElementById('menu-admin').style.display = 'block';
             document.getElementById('superAdminZone').style.display = 'block'; 
             document.getElementById('roleSwitcher').value = simulatedRole;
         }
         
-        // Dynamické přidání tlačítka pro půlnoční kontrolu pro ZCP
-        if (['zcp', 'superadmin'].includes(simulatedRole) && !document.getElementById('triggerBtnMidnight')) {
-            const zcpZ = document.getElementById('zcpZone');
-            if(zcpZ) {
-                const btn = document.createElement('button');
-                btn.id = 'triggerBtnMidnight';
-                btn.className = 'btn-small btn-orange';
-                btn.style.marginTop = '1.5rem';
-                btn.style.width = '100%';
-                btn.innerText = '🔄 Ručně spustit půlnoční kontrolu plateb z banky (Vyhledat a odeslat emaily)';
-                btn.onclick = triggerMidnightPaymentCheck;
-                zcpZ.appendChild(btn);
-            }
+        const propTitle = document.getElementById('proposalHeaderTitle');
+        if (propTitle) {
+            propTitle.innerText = (simulatedRole === 'pc') ? 'Zadat nový podnět k diskuzi (Oranžová debata)' : 'Založit novou diskuzi';
         }
     }
 
@@ -849,13 +842,6 @@
         const activeTab = document.querySelector('.page-section.active');
         if (activeTab) switchTab(activeTab.id); 
     });
-
-    window.triggerMidnightPaymentCheck = async function() {
-        alert('Spouštím kontrolu plateb přes Fio API... \n\n(Tento proces by v praxi běžel automaticky na pozadí každý den o půlnoci.)');
-        // Zde by byl fetch na server-side endpoint pro kontrolu Fio banky podle VS.
-        alert('Půlnoční kontrola dokončena. Nalezené platby byly spárovány a potvrzovací e-maily odeslány hráčům.');
-        logAction('Kontrola plateb', 'Ručně spuštěn trigger pro kontrolu Fio banky.');
-    };
 
     // --- 4. DASHBOARD A PROFIL ---
     function renderDashboard() {
@@ -879,7 +865,7 @@
                 myFamily.forEach(p => {
                     list.innerHTML += `<li class="list-item">
                         <span><strong>${p.full_name}</strong> (Průkaz: ${p.player_id_card})</span>
-                        <button class="btn-small btn-danger" onclick="removeFamily('${p.id}')">Odebrat</button>
+                        <button class="btn-small btn-danger" onclick="removeFamily('${p.id}')">Odebrat z rodiny</button>
                     </li>`;
                 });
             } else { 
@@ -930,7 +916,7 @@
         if (confirm('Jste si jistí, že chcete tohoto člena trvale odebrat ze své rodiny?')) { 
             await db.from('players').delete().eq('id', id); 
             const { data: famData } = await db.from('players').select('*').eq('owner_id', currentUser.id);
-            myFamily = famData || []; logAction('Odebrání rodiny', 'Uživatel odebral člena'); renderDashboard();
+            myFamily = famData || []; logAction('Odebrání rodiny', 'Uživatel odebral člena ze svého seznamu'); renderDashboard();
         }
     };
 
@@ -946,15 +932,15 @@
             </div>
         `).join('');
 
-        return `<html><head><title>Tisk</title><style>
-            body { font-family: sans-serif; margin: 0; padding: 20px; background: #fff; }
+        return `<html><head><title>Hromadný Tisk Průkazů</title><style>
+            body { font-family: 'Arial', sans-serif; margin: 0; padding: 20px; background: #fff; }
             .print-grid { display: grid; grid-template-columns: repeat(auto-fill, 85.6mm); gap: 10mm; justify-content: center; }
             .card { width: 85.6mm; height: 53.98mm; border: 2px dashed #a0aec0; border-radius: 12px; overflow: hidden; position: relative; background: #fff; box-sizing: border-box; page-break-inside: avoid; }
-            .header { background: #1a365d; color: white; text-align: center; padding: 6px 0; font-size: 16px; font-weight: bold; }
+            .header { background: #1a365d; color: white; text-align: center; padding: 6px 0; font-size: 16px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
             .content { display: flex; padding: 12px; align-items: center; }
             .qr { width: 80px; height: 80px; margin-right: 15px; }
             .info { flex: 1; }
-            .info label { display: block; font-size: 10px; color: #718096; margin-top: 6px; text-transform: uppercase; }
+            .info label { display: block; font-size: 10px; color: #718096; margin-top: 6px; text-transform: uppercase; letter-spacing: 1px; }
             .info div { font-size: 15px; font-weight: bold; color: #2d3748; line-height: 1.2; }
             .info .id-box { color: #c53030; font-family: monospace; font-size: 16px; }
             @media print { .card { border: 1px solid #e2e8f0; } }
@@ -980,11 +966,14 @@
     window.adminPrintSelectedCards = function() {
         const checkboxes = document.querySelectorAll('.print-check:checked');
         if(checkboxes.length === 0) { alert('Nevybrali jste žádného hráče pro tisk.'); return; }
+        
         let playersToPrint = [];
         checkboxes.forEach(cb => { playersToPrint.push({ id: cb.value, name: cb.dataset.name, city: cb.dataset.city }); });
+
         const w = window.open('', '_blank', 'width=800,height=600');
         w.document.write(generateMultipleCardsHTML(playersToPrint));
         w.document.close();
+        
         checkboxes.forEach(cb => cb.checked = false);
         const counterEl = document.getElementById('printSelectionCount');
         if (counterEl) counterEl.innerText = 0;
@@ -1007,8 +996,8 @@
         preview.style.display = 'block';
         window.print();
         
-        // Zpět do původního stavu
-        if (document.getElementById('createTournamentForm').tName.value === '') {
+        // Pokud není vyplněný formulář tvorby (např. při tisku z výpisu turnajů), zase ho skryjeme
+        if (document.getElementById('tName') && document.getElementById('tName').value === '') {
             preview.style.display = 'none';
         }
     };
@@ -1118,7 +1107,6 @@
         if (error) { if (error.code === '23505') alert('Již jste přihlášeni!'); else alert('Chyba: ' + error.message); } 
         else { 
             alert('Registrace proběhla úspěšně!'); logAction('Registrace do hry', `Hlavní profil přihlášen na turnaj ID: ${tId}`); 
-            // Posíláme notifikaci s QR kódem
             sendEmailNotification('Potvrzení registrace', 'Byli jste úspěšně přihlášeni. Zápisné uhraďte převodem s vaším ID jako variabilním symbolem.', myProfileData.email); 
             loadTournaments(); loadMyRegistrations(); 
         }
@@ -1212,7 +1200,6 @@
         const titleToSave = '[OSTRÉ]' + document.getElementById('rvTitle').value;
         await db.from('votes').insert({ title: titleToSave, answers: JSON.stringify(questions), created_by: currentUser.id });
         
-        // Odeslání mailu ZČ o novém ostrém hlasování
         sendEmailNotification('Nové Ostré Hlasování', 'Bylo vypsáno nové Ostré červené hlasování. Máte 15 dnů na vyjádření.', await getAllZcEmails());
         
         alert('Červené ostré hlasování zahájeno a ZČ byli upozorněni e-mailem.'); 
@@ -1270,7 +1257,6 @@
             let isZcOrHigher = ['zc', 'zcp', 'superadmin'].includes(simulatedRole);
 
             if (isRed && isZcOrHigher) {
-                // Kontrola stáří pro OSTRÉ hlasování (15 dnů limit)
                 let ageMs = Date.now() - new Date(v.created_at).getTime();
                 if (ageMs > FIFTEEN_DAYS_MS && !v.is_closed) {
                     await db.from('votes').update({ is_closed: true }).eq('id', v.id);
@@ -1282,6 +1268,8 @@
                 let uniqueVotersCount = recs ? new Set(recs.map(r => r.voter_id)).size : 0;
                 let missingVotes = Math.max(0, reqV - uniqueVotersCount);
 
+                let votersText = `<p style="color:#2b6cb0; font-weight:bold; margin-bottom:15px;">Odevzdáno: ${uniqueVotersCount} z ${reqV} oprávněných ZČ</p>`;
+
                 let qHtml = questions.map((q, idx) => {
                     const qVote = recs ? recs.find(r => r.voter_id === currentUser.id && r.choice.startsWith('q'+idx)) : null;
                     let statsHtml = '';
@@ -1291,14 +1279,12 @@
                         let neC = recs ? recs.filter(r => r.choice === `q${idx}:ne`).length : 0;
                         let zdrzC = recs ? recs.filter(r => r.choice === `q${idx}:zdržuji se`).length : 0;
                         
-                        // Pravidlo: Mlčící hlasy se po uzavření přičítají k většině
                         if (missingVotes > 0) {
                             let maxC = Math.max(proC, neC, zdrzC);
                             if (maxC === proC) proC += missingVotes;
                             else if (maxC === neC) neC += missingVotes;
                             else zdrzC += missingVotes;
                         }
-
                         statsHtml = `<div style="margin-top:10px; font-weight:bold;">Konečné výsledky (vč. přerozdělení mlčící většiny): <br><span style="color:#2f855a">ANO: ${proC}</span> | <span style="color:#c53030">NE: ${neC}</span> | <span style="color:#718096">ZDRŽEL SE: ${zdrzC}</span></div>`;
                     }
 
@@ -1324,6 +1310,7 @@
                 redZone.innerHTML += `<div class="card vote-card-red" style="padding: 1.5rem;">
                     <span class="badge" style="background:${v.is_closed?'#c53030':'var(--secondary)'}; margin-bottom:10px; display:inline-block;">${v.is_closed?'UZAVŘENO':'OSTRÉ ČERVENÉ HLASOVÁNÍ'}</span>${timeBadge}
                     <h3 style="color: var(--secondary);">${displayTitle}</h3>
+                    ${votersText}
                     ${qHtml}
                     ${csvBtn}
                 </div>`;
@@ -1380,10 +1367,8 @@
                 const { data: allVotesForThisPoll } = await db.from('voting_records').select('id, voter_id').eq('vote_id', vid);
                 const uniqueVoters = new Set(allVotesForThisPoll.map(r => r.voter_id)).size;
                 
-                // Kontrola, zda už odhlasovali všichni oprávnění členové na všechny otázky
                 if (uniqueVoters >= reqV && allVotesForThisPoll.length >= (reqV * totalQuestions)) {
                     await db.from('votes').update({ is_closed: true }).eq('id', vid);
-                    // Oznámit uzavření
                     sendEmailNotification('Hlasování UZAVŘENO', 'Ostré hlasování dosáhlo maximální účasti a bylo automaticky uzavřeno.', await getAllZcEmails());
                 }
                 loadVotes();
@@ -1480,7 +1465,7 @@
                 await db.from('profiles').update({ role: 'zcp' }).eq('id', uid); 
                 await db.from('profiles').update({ role: 'zc' }).eq('id', currentUser.id);
                 logAction('Předání funkce', `Předseda předal funkci: ${uName}`); 
-                alert('Funkce předána. Nyní dojde k odhlášení.'); 
+                alert('Funkce předána. Nyní dojde k odhlášení ze zóny Předsedy.'); 
                 window.location.reload(); 
                 return;
             } else { loadAdminData(); return; }
