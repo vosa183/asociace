@@ -142,7 +142,7 @@
         <div class="card">
             <h2>Oficiální pravidla a turnajový řád</h2>
             <h3 style="color: var(--secondary); margin-top: 1.5rem;">Herní balíček a rozdávání karet</h3>
-            <p>Hraje se výhradně s balíčkem třiceti dvou karet německého typu. Na začátku hry rozdá rozdávající hráč každému hráči přesně čtyři karty. Zbytek balíčku tvoří talón. První otočená karta je aktivní (např. u sedmičky hráč rovnou líže).</p>
+            <p>Hraje se výhradně s balíčkem 32 karet německého typu. Na začátku hry rozdá rozdávající hráč každému hráči přesně čtyři karty. Zbytek balíčku tvoří talón. První otočená karta je aktivní (např. u sedmičky hráč rovnou líže).</p>
             <h3 style="color: var(--secondary); margin-top: 1.5rem;">Speciální karty</h3>
             <ul>
                 <li><strong>Sedmička:</strong> Další hráč líže dvě karty a stojí. Lze přebít další sedmičkou.</li>
@@ -464,11 +464,72 @@
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null, actualUserRole = 'player', simulatedRole = 'player', myProfileData = null, myFamily = [], authInitialized = false;
-    let globalBankAccount = 'CZ0000000000000000000000', globalFioToken = '';
-    let historicalData = [], uniqueTournaments = [];
+    let globalBankAccount = 'CZ0000000000000000000000', globalFioToken = '', historicalData = [], uniqueTournaments = [];
     let presenceChannel = null;
 
     const roleNames = { 'player': 'Hráč', 'pc': 'Přidružený člen', 'zc': 'Zakládající člen', 'zcp': 'Předseda', 'superadmin': 'Super Admin' };
+
+    // Pomocná funkce pro zjištění, zda je číslo prvočíslo
+    function isPrime(num) {
+        if (num <= 1) return false;
+        if (num <= 3) return true;
+        if (num % 2 === 0 || num % 3 === 0) return false;
+        for (let i = 5; i * i <= num; i += 6) {
+            if (num % i === 0 || num % (i + 2) === 0) return false;
+        }
+        return true;
+    }
+
+    // Logika generování nového ID hráče s prvočíselnou ochranou
+    async function generateNewPlayerId(creatorIdCard) {
+        // 1. Zjistíme základ (Base ID) podle ID pořadatele
+        let baseId = 10000; // Výchozí pro MB (když nepoznáme okres, spadne to sem)
+        let maxLimit = 99999;
+        
+        if (creatorIdCard && !isNaN(creatorIdCard)) {
+            const idNum = parseInt(creatorIdCard);
+            if (idNum >= 1000000) {
+                const okresId = Math.floor(idNum / 1000000);
+                baseId = okresId * 1000000;
+                maxLimit = baseId + 999999;
+            }
+        }
+
+        // 2. Najdeme maximum v naší aktivní centrální databázi
+        let maxFound = baseId;
+        const { data: activePlayers } = await db.from('player_database')
+            .select('player_id_card')
+            .gte('player_id_card', baseId)
+            .lte('player_id_card', maxLimit);
+
+        if (activePlayers && activePlayers.length > 0) {
+            const activeMax = Math.max(...activePlayers.map(p => parseInt(p.player_id_card) || 0));
+            if (activeMax > maxFound) maxFound = activeMax;
+        }
+
+        // 3. Prohledáme i hřbitov smazaných ID (aby se neopakovalo)
+        const { data: deletedPlayers } = await db.from('deleted_player_ids')
+            .select('player_id_card')
+            .gte('player_id_card', baseId)
+            .lte('player_id_card', maxLimit);
+
+        if (deletedPlayers && deletedPlayers.length > 0) {
+            const deletedMax = Math.max(...deletedPlayers.map(p => parseInt(p.player_id_card) || 0));
+            if (deletedMax > maxFound) maxFound = deletedMax;
+        }
+
+        // 4. Najdeme další volné prvočíslo větší než naše maximum
+        let candidate = maxFound + 1;
+        while (!isPrime(candidate)) {
+            candidate++;
+            if (candidate > maxLimit) {
+                throw new Error("Kapacita číselné řady pro tento okres byla vyčerpána.");
+            }
+        }
+
+        return candidate.toString();
+    }
+
 
     function toggleMobileMenu() { document.getElementById('mainNav').classList.toggle('mobile-active'); }
 
@@ -704,18 +765,20 @@
         }
 
         if (['zc', 'zcp', 'superadmin'].includes(simulatedRole)) {
-            const { data: allP } = await db.from('profiles').select('player_id_card, full_name, city');
-            const { data: allF } = await db.from('players').select('player_id_card, full_name, city');
-            const combo = [...(allP||[]), ...(allF||[])].sort((a,b)=>a.full_name.localeCompare(b.full_name));
-            
-            // Plnění checkboxů pro hromadný tisk
+            // Natáhnutí hráčů z centrální databáze pro hromadný tisk (místo jen z webových profilů)
+            const { data: dbPlayers } = await db.from('player_database').select('*').order('full_name');
             const printList = document.getElementById('adminPrintList');
-            printList.innerHTML = combo.map(c => `
-                <label>
-                    <input type="checkbox" class="print-check" value="${c.player_id_card}" data-name="${c.full_name}" data-city="${c.city||''}">
-                    ${c.full_name} <span style="color:#718096; font-size:0.8rem;">(${c.player_id_card})</span>
-                </label>
-            `).join('');
+            
+            if (dbPlayers && dbPlayers.length > 0) {
+                printList.innerHTML = dbPlayers.map(c => `
+                    <label>
+                        <input type="checkbox" class="print-check" value="${c.player_id_card}" data-name="${c.full_name}" data-city="${c.city||''}">
+                        ${c.full_name} <span style="color:#718096; font-size:0.8rem;">(${c.player_id_card})</span>
+                    </label>
+                `).join('');
+            } else {
+                printList.innerHTML = '<p style="color:#718096; font-style:italic;">Centrální databáze je prázdná, nahrajte Excel.</p>';
+            }
 
             loadAssets();
         }
@@ -904,7 +967,7 @@
         document.getElementById('assetsList').innerHTML = data?.map(a => `
             <div class="list-item" style="align-items:start; flex-direction:column; background: #fff; border: 1px solid #e2e8f0; margin-bottom: 10px;">
                 <strong>${a.name} (Ev. č.: ${a.asset_number})</strong>
-                ${a.is_electric ? `<span style="color:#c53030; font-size:0.85rem;">⚡ Elektrozařízení | Platnost revize: ${a.revision_date ? new Date(a.revision_date).toLocaleDateString('cs-CZ') : 'Nezadáno'}</span>` : '<span style="color:#48bb78; font-size:0.85rem;">✔️ Běžný majetek</span>'}
+                ${a.is_electric ? `<span style="color:#c53030; font-size:0.85rem;">⚡ Elektrozařízení | Konec platnosti revize: ${a.revision_date ? new Date(a.revision_date).toLocaleDateString('cs-CZ') : 'Nezadáno datum'}</span>` : '<span style="color:#48bb78; font-size:0.85rem;">✔️ Běžný majetek</span>'}
                 ${a.file_name ? `<a href="https://gqciprgrzdpckhhqcsjx.supabase.co/storage/v1/object/public/revisions/${a.file_name}" target="_blank" style="font-size:0.85rem;">📄 Zobrazit dokument revize</a>` : ''}
             </div>
         `).join('') || '<p>Žádný majetek.</p>';
@@ -976,24 +1039,40 @@
             </div>
             
             <div id="publicInviteFormContainer">
-                <p style="margin-bottom: 1rem;">Pro přihlášení na tento turnaj zadejte své tajné ID z průkazky hráče. Pokud zadáte i e-mail, zašleme vám na něj potvrzení a platební údaje.</p>
-                <div style="display: flex; flex-direction: column; gap: 1rem; max-width: 400px;">
-                    <div>
-                        <label>Vaše Tajné ID (z průkazky) *</label>
-                        <input type="text" id="anonInviteId" placeholder="např. zadejte kód z průkazu" required style="margin:0;">
+                <p style="margin-bottom: 1.5rem; font-weight: bold;">Zvolte způsob přihlášení na turnaj:</p>
+                
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 300px; background: white; padding: 1.5rem; border-radius: 8px; border: 1px solid #cbd5e0;">
+                        <h4 style="margin-bottom: 1rem; color: #2b6cb0;">Již mám průkaz (tajné ID)</h4>
+                        <label>Vaše Tajné ID *</label>
+                        <input type="text" id="anonInviteId" placeholder="např. zadejte kód z průkazu" style="margin-bottom: 1rem;">
+                        <label>E-mail pro potvrzení (nepovinné)</label>
+                        <input type="email" id="anonInviteEmail1" placeholder="vas@email.cz" style="margin-bottom: 1rem;">
+                        <button class="btn-blue" onclick="submitPublicInvite('${t.id}', '${t.fee}', '${t.title}', '${t.event_date}', '${t.created_by}')">Přihlásit se pomocí ID</button>
                     </div>
-                    <div>
-                        <label>E-mailová adresa (nepovinné)</label>
-                        <input type="email" id="anonInviteEmail" placeholder="vas@email.cz" style="margin:0;">
+
+                    <div style="flex: 1; min-width: 300px; background: #fff5f5; padding: 1.5rem; border-radius: 8px; border: 1px solid #feb2b2;">
+                        <h4 style="margin-bottom: 1rem; color: #c53030;">Jsem tu poprvé (Nemám ID)</h4>
+                        <label>Celé jméno a příjmení *</label>
+                        <input type="text" id="newInviteName" placeholder="Zadejte jméno" style="margin-bottom: 1rem;">
+                        <label>Město / Obec (Bydliště) *</label>
+                        <input type="text" id="newInviteCity" placeholder="Zadejte město" style="margin-bottom: 1rem;">
+                        <label>E-mail pro potvrzení (nepovinné)</label>
+                        <input type="email" id="newInviteEmail2" placeholder="vas@email.cz" style="margin-bottom: 1rem;">
+                        <button class="btn-danger" onclick="submitNewPlayerInvite('${t.id}', '${t.fee}', '${t.title}', '${t.event_date}', '${t.created_by}')">Vygenerovat ID a Přihlásit se</button>
                     </div>
-                    <button class="btn-blue" onclick="submitPublicInvite('${t.id}', '${t.fee}', '${t.title}', '${t.event_date}')">Potvrdit registraci na turnaj</button>
                 </div>
             </div>
+
             <div id="publicInviteSuccess" style="display:none; text-align: center; background: #f0fff4; padding: 2rem; border-radius: 8px; border: 1px solid #9ae6b4;">
                 <h3 style="color: #2f855a; margin-bottom: 1rem;">✅ Úspěšně přihlášeno!</h3>
                 <p style="margin-bottom: 1rem;" id="publicInviteEmailMsg"></p>
+                <div id="newPlayerIdReveal" style="display: none; background: white; padding: 15px; border: 2px dashed #38a169; border-radius: 8px; margin-bottom: 1.5rem; display: inline-block;">
+                    <p style="margin-bottom: 5px; color: #2d3748;">Bylo vám přiděleno vaše osobní doživotní ID hráče. <strong style="color: #c53030;">Zapište si ho!</strong></p>
+                    <h2 style="color: #38a169; margin: 0; font-family: monospace; letter-spacing: 2px;" id="publicInviteNewIdShow"></h2>
+                </div>
                 <p style="margin-bottom: 0.5rem; font-size: 0.9rem;">Zápisné k úhradě: <strong>${t.fee} Kč</strong></p>
-                <p style="margin-bottom: 1.5rem; font-size: 0.9rem;">Variabilní symbol (Vaše ID): <strong id="publicInviteVsShow"></strong></p>
+                <p style="margin-bottom: 1.5rem; font-size: 0.9rem;">Variabilní symbol: <strong id="publicInviteVsShow"></strong></p>
                 <div class="qr-container" id="publicInviteQrContainer" style="display: block; margin: 0 auto; background: transparent; border: none;">
                     <img id="publicInviteQrImg" style="margin: 0 auto;">
                 </div>
@@ -1003,49 +1082,100 @@
         content.innerHTML = html;
     }
 
-    window.submitPublicInvite = async function(tId, fee, tTitle, tDate) {
+    window.submitPublicInvite = async function(tId, fee, tTitle, tDate, creatorId) {
         const eid = document.getElementById('anonInviteId').value.trim();
-        const email = document.getElementById('anonInviteEmail').value.trim();
+        const email = document.getElementById('anonInviteEmail1').value.trim();
 
-        if (!eid) {
-            alert('Pro registraci musíte zadat vaše platné tajné ID hráče.');
-            return;
-        }
+        if (!eid) { alert('Musíte zadat vaše tajné ID hráče.'); return; }
 
         const { data: dbCheck } = await db.from('player_database').select('player_id_card, full_name').eq('player_id_card', eid);
         if(!dbCheck || dbCheck.length === 0) {
-            alert('Neplatné ID, nelze se registrovat. Tato značka není evidována v oficiální databázi.');
-            return;
+            alert('Neplatné ID. Tato značka není evidována v oficiální databázi. Zkontrolujte překlepy.'); return;
         }
 
         const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: eid });
         
         if (error) {
             if (error.code === '23505') alert('Chyba: Pod touto značkou jste již na turnaj přihlášeni!');
-            else alert('Při registraci nastala chyba: ' + error.message);
+            else alert('Chyba: ' + error.message);
             return;
         }
 
+        showSuccessScreen(eid, fee, tTitle, tDate, email, false);
+    };
+
+    window.submitNewPlayerInvite = async function(tId, fee, tTitle, tDate, creatorId) {
+        const name = document.getElementById('newInviteName').value.trim();
+        const city = document.getElementById('newInviteCity').value.trim();
+        const email = document.getElementById('newInviteEmail2').value.trim();
+
+        if (!name || !city) { alert('Musíte vyplnit své jméno a město.'); return; }
+
+        try {
+            // Získání ID pořadatele z jeho uživatelského účtu
+            let creatorIdCard = null;
+            if (creatorId) {
+                const { data: cProf } = await db.from('profiles').select('player_id_card').eq('id', creatorId).single();
+                if (cProf) creatorIdCard = cProf.player_id_card;
+            }
+
+            // Aplikace chytré logiky pro výpočet prvočíselného ID
+            const newId = await generateNewPlayerId(creatorIdCard);
+
+            // Zápis nového hráče do centrální DB
+            await db.from('player_database').insert({ player_id_card: newId, full_name: name, city: city });
+
+            // Přihlášení na turnaj
+            const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: newId });
+            
+            if (error) { throw error; }
+
+            showSuccessScreen(newId, fee, tTitle, tDate, email, true);
+
+        } catch (e) {
+            alert('Nastala chyba při generování nového ID: ' + e.message);
+        }
+    };
+
+    function showSuccessScreen(id, fee, tTitle, tDate, email, isNewPlayer) {
         document.getElementById('publicInviteFormContainer').style.display = 'none';
         document.getElementById('publicInviteSuccess').style.display = 'block';
-        document.getElementById('publicInviteVsShow').innerText = eid;
+        document.getElementById('publicInviteVsShow').innerText = id;
 
-        const spayd = `SPD*1.0*ACC:${globalBankAccount}*AM:${fee}.00*CC:CZK*X-VS:${eid}`;
+        if (isNewPlayer) {
+            document.getElementById('newPlayerIdReveal').style.display = 'inline-block';
+            document.getElementById('publicInviteNewIdShow').innerText = id;
+        }
+
+        const spayd = `SPD*1.0*ACC:${globalBankAccount}*AM:${fee}.00*CC:CZK*X-VS:${id}`;
         document.getElementById('publicInviteQrImg').src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(spayd)}`;
 
         if (email) {
             document.getElementById('publicInviteEmailMsg').innerText = 'Na zadaný e-mail jsme vám právě odeslali potvrzení s platebními údaji.';
-            const msg = `Dobrý den,\n\núspěšně jsme zaznamenali vaši registraci na turnaj "${tTitle}" (Datum: ${tDate}).\n\nZápisné: ${fee} Kč\nČíslo účtu: ${globalBankAccount}\nVariabilní symbol (Vaše ID): ${eid}\n\nTěšíme se na vaši účast!`;
-            sendEmailNotification('Potvrzení registrace na turnaj a platební údaje', msg, email);
+            let msg = `Dobrý den,\n\núspěšně jsme zaznamenali vaši registraci na turnaj "${tTitle}" (Datum: ${tDate}).\n`;
+            if (isNewPlayer) msg += `\n!!! BYLO VÁM PŘIDĚLENO VAŠE DOŽIVOTNÍ ID HRÁČE: ${id} !!!\nPečlivě si ho uschovejte pro budoucí turnaje a komunikaci.\n`;
+            msg += `\nZápisné: ${fee} Kč\nČíslo účtu: ${globalBankAccount}\nVariabilní symbol: ${id}\n\nTěšíme se na vaši účast!`;
+            
+            sendEmailNotification('Potvrzení registrace na turnaj', msg, email);
         } else {
             document.getElementById('publicInviteEmailMsg').innerText = 'Pro úhradu zápisného prosím naskenujte tento QR kód ve vaší bankovní aplikaci.';
         }
-    };
+    }
+
 
     /* BĚŽNÉ TURNAJE (PRO PŘIHLÁŠENÉ) */
     document.getElementById('createTournamentForm').addEventListener('submit', async (e) => {
         e.preventDefault(); const t = document.getElementById('tName').value;
-        const { error } = await db.from('tournaments').insert({ title: t, event_date: document.getElementById('tDate').value, capacity: document.getElementById('tCap').value, fee: document.getElementById('tFee').value });
+        
+        // Záznam turnaje s ID tvůrce (potřebné pro dědičnost okresu u nových registrací)
+        const { error } = await db.from('tournaments').insert({ 
+            title: t, 
+            event_date: document.getElementById('tDate').value, 
+            capacity: document.getElementById('tCap').value, 
+            fee: document.getElementById('tFee').value,
+            created_by: currentUser.id
+        });
+        
         if (!error) { alert('Turnaj přidán!'); logAction('Turnaj', `Vypsán: ${t}`); document.getElementById('createTournamentForm').reset(); loadTournaments(); } else alert(error.message);
     });
 
@@ -1238,7 +1368,7 @@
             const isProposal = v.title.startsWith('[NÁVRH PČ] ');
             const displayTitle = v.title.replace('[NÁVRH PČ] ', '').replace('[MODRÉ] ', '');
             
-            // MODRÉ (Veřejné s časy a kontrolou ID)
+            // MODRÉ (Veřejné s časy a kontrolou ID proti Player_database)
             if (isBlue) {
                 hasB = true;
                 const { data: recs } = await db.from('voting_records').select('*').eq('vote_id', v.id);
