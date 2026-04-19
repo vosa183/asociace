@@ -166,7 +166,7 @@
                 </form>
             </div>
             <div>
-                <h3>Registrace</h3>
+                <h3>Registrace na webu</h3>
                 <form id="regForm">
                     <label>E-mail</label>
                     <input type="email" id="regEmail" required>
@@ -831,7 +831,6 @@
         
         const enteredId = document.getElementById('profIdCard').value.trim();
         
-        // Zkontrolovat, zda ID nepatří už jinému webovému účtu
         const { data: profCheck } = await db.from('profiles').select('id').eq('player_id_card', enteredId).neq('id', currentUser.id);
         if (profCheck && profCheck.length > 0) { 
             msg.className = 'msg error'; 
@@ -839,7 +838,6 @@
             return; 
         }
 
-        // Najít hráče v centrální excelovské databázi
         const { data: dbPlayer } = await db.from('player_database').select('full_name, city').eq('player_id_card', enteredId).single();
         if (!dbPlayer) {
              msg.className = 'msg error'; 
@@ -1673,16 +1671,24 @@
                     }
                 }
                 
-                html += `<div style="margin-top:15px; width:100%; padding-top:10px; border-top:1px dashed #90cdf4;">
-                    <label style="font-size:0.8rem; color:#4a5568;">Odkaz pro sdílení:</label>
-                    <input type="text" value="${shareLink}" readonly style="margin:0; padding:5px; font-size:0.8rem; background:white; color:#2b6cb0;" onclick="this.select();">
-                </div>`;
-                
-                if (!isVoteActive && currentUser && ['zc', 'zcp', 'superadmin'].includes(simulatedRole)) {
-                    html += `<button class="btn-small btn-blue" style="margin-top:10px; width:100%;" onclick="exportVote('${v.id}', '${displayTitle}')">📥 Stáhnout výsledky (CSV)</button>`;
+                let isZcOrHigher = false;
+                if (currentUser && ['zc', 'zcp', 'superadmin'].includes(simulatedRole)) {
+                    isZcOrHigher = true;
+                }
+
+                if (isZcOrHigher) {
+                    html += `<div style="margin-top:15px; width:100%; padding-top:10px; border-top:1px dashed #90cdf4;">
+                        <label style="font-size:0.8rem; color:#4a5568;">Odkaz pro sdílení (VIDÍ POUZE ZČ):</label>
+                        <input type="text" value="${shareLink}" readonly style="margin:0; padding:5px; font-size:0.8rem; background:white; color:#2b6cb0;" onclick="this.select();">
+                    </div>`;
+                    
+                    if (!isVoteActive) {
+                        html += `<button class="btn-small btn-blue" style="margin-top:10px; width:100%;" onclick="exportVote('${v.id}', '${displayTitle}')">📥 Stáhnout výsledky (CSV)</button>`;
+                    }
                 }
                 
-                pubZone.innerHTML += html + '</div>';
+                html += `</div>`;
+                pubZone.innerHTML += html;
                 continue;
             }
 
@@ -1786,18 +1792,32 @@
             return;
         }
         
-        const { data: dbCheck } = await db.from('player_database').select('player_id_card').eq('player_id_card', eid);
+        // STŘEDOBOD CHECK
+        const { data: dbCheck, error: chkErr } = await db.from('player_database').select('player_id_card').eq('player_id_card', eid);
+        if(chkErr) {
+            alert('Chyba spojení s databází: ' + chkErr.message); 
+            return;
+        }
+        
         if(!dbCheck || dbCheck.length === 0) {
-            alert('Neplatné ID, nelze hlasovat. Tato značka není evidována v oficiální databázi.');
+            alert('Neplatné ID, nelze hlasovat. Tato značka není evidována v centrální databázi (středobodu).');
+            return;
+        }
+
+        // KONTROLA DUPLICITY
+        const { data: alreadyVoted } = await db.from('voting_records').select('id').eq('vote_id', vid).eq('voter_id_card', eid);
+        if (alreadyVoted && alreadyVoted.length > 0) {
+            alert('Chyba: Značka ' + eid + ' již v tomto hlasování byla použita!');
             return;
         }
         
         const hash = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
         const { error } = await db.from('voting_records').insert({ vote_id: vid, voter_id_card: eid, choice: choice, vote_hash: hash });
+        
         if(!error) {
             alert('Váš hlas byl zaznamenán a zabezpečen.'); 
         } else {
-            alert('Chyba: ' + error.message); 
+            alert('Chyba při zápisu hlasu: ' + error.message + ' (Pravděpodobně chybí oprávnění v databázi pro nepřihlášené, zkontrolujte SQL politiky).'); 
         }
         loadVotes();
     };
