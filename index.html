@@ -110,9 +110,9 @@
         <ul>
             <li><a onclick="switchTab('home')" id="nav-home" class="active">Úvod</a></li>
             <li><a onclick="switchTab('rules')" id="nav-rules">Pravidla</a></li>
-            <li><a onclick="switchTab('tournaments')" id="nav-tournaments">Turnaje</a></li>
-            <li><a onclick="switchTab('stats')" id="nav-stats">Statistiky</a></li>
-            <li><a onclick="switchTab('voting')" id="nav-voting">Hlasování</a></li>
+            <li id="menu-tournaments" style="display:block;"><a onclick="switchTab('tournaments')" id="nav-tournaments">Turnaje</a></li>
+            <li id="menu-stats" style="display:block;"><a onclick="switchTab('stats')" id="nav-stats">Statistiky</a></li>
+            <li id="menu-voting" style="display:block;"><a onclick="switchTab('voting')" id="nav-voting">Hlasování</a></li>
             <li id="menu-auth"><a onclick="switchTab('auth')" id="nav-auth">Pro členy</a></li>
             <li id="menu-profile" style="display:none;"><a onclick="switchTab('dashboard')" id="nav-dashboard">Můj profil</a></li>
             <li id="menu-admin" style="display:none; color:#d69e2e;"><a onclick="switchTab('admin')" id="nav-admin">Administrace</a></li>
@@ -313,7 +313,15 @@
                     <option value="pc">Přidružený člen</option>
                     <option value="player">Běžný hráč</option>
                 </select>
-                <h4 style="margin-top: 1rem; border-top: 1px solid #d69e2e; padding-top: 1rem; color: #b7791f;">Deník aktivity v systému</h4>
+
+                <h4 style="margin-top: 1.5rem; color: #b7791f; border-top: 1px solid #d69e2e; padding-top: 1rem;">Přístupové klíče pro PC aplikaci</h4>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                    <input type="text" id="newApiKeyName" placeholder="Název klíče (např. Notebook Pokladna)" style="margin:0; flex:1; min-width: 200px;">
+                    <button class="btn-small btn-blue" onclick="generateApiKey()" style="width: auto;">Vygenerovat klíč</button>
+                </div>
+                <div id="apiKeysList" style="background: white; border: 1px solid #cbd5e0; padding: 1rem; border-radius: 6px; max-height: 200px; overflow-y: auto; font-size: 0.85rem;">Načítám klíče...</div>
+
+                <h4 style="margin-top: 1.5rem; border-top: 1px solid #d69e2e; padding-top: 1rem; color: #b7791f;">Deník aktivity v systému</h4>
                 <div id="auditLogBox" class="audit-log-box">Načítám záznamy...</div>
             </div>
 
@@ -422,7 +430,7 @@
     </section>
 </main>
 
-<footer><p>&copy; Asociace prší z. s.</p></footer>
+<footer><p>&copy; Česká asociace prší z. s.</p></footer>
 
 <script>
     const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
@@ -430,8 +438,10 @@
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null, actualUserRole = 'player', simulatedRole = 'player', myProfileData = null, myFamily = [], authInitialized = false;
-    let globalBankAccount = 'CZ0000000000000000000000', globalFioToken = '', historicalData = [], presenceChannel = null;
-    const roleNames = {'player': 'Hráč', 'pc': 'Přidružený člen', 'zc': 'Zakládající člen', 'zcp': 'Předseda', 'superadmin': 'Super Admin'};
+    let globalBankAccount = 'CZ0000000000000000000000', globalFioToken = '', historicalData = [], uniqueTournaments = [];
+    let presenceChannel = null;
+
+    const roleNames = { 'player': 'Hráč', 'pc': 'Přidružený člen', 'zc': 'Zakládající člen', 'zcp': 'Předseda', 'superadmin': 'Super Admin' };
 
     function toggleMobileMenu() { document.getElementById('mainNav').classList.toggle('mobile-active'); }
 
@@ -594,7 +604,7 @@
         w.document.close();
     };
 
-    /* ADMINISTRACE */
+    /* ADMINISTRACE - VČETNĚ API KLÍČŮ */
     async function loadAdminData() {
         const { count } = await db.from('profiles').select('*', { count: 'exact', head: true });
         document.getElementById('totalUsersCount').innerText = count || 0;
@@ -626,9 +636,51 @@
 
         if (simulatedRole === 'superadmin') {
             const { data: logs } = await db.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(30);
-            document.getElementById('auditLogBox').innerHTML = logs?.map(l => `<div class="audit-log-item"><strong>${l.action}</strong> | ${l.user_name} (${new Date(l.created_at).toLocaleString()})<br>${l.details}</div>`).join('') || 'Prázdno';
+            document.getElementById('auditLogBox').innerHTML = logs?.map(l => `<div class="audit-log-item"><strong>${l.action}</strong> | ${l.user_name} (${new Date(l.created_at).toLocaleString('cs-CZ')})<br>${l.details}</div>`).join('') || 'Prázdno';
+            loadApiKeys();
         }
     }
+
+    async function loadApiKeys() {
+        if (simulatedRole !== 'superadmin') return;
+        const { data } = await db.from('api_keys').select('*').order('created_at', { ascending: false });
+        const list = document.getElementById('apiKeysList');
+        if (!data || data.length === 0) {
+            list.innerHTML = '<p style="color:#718096; font-style:italic;">Zatím nejsou vydány žádné přístupové klíče.</p>';
+            return;
+        }
+        list.innerHTML = data.map(k => `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding: 8px 0; border-bottom: 1px dashed #e2e8f0;">
+                <div>
+                    <strong>${k.key_name}</strong><br>
+                    <span style="font-family:monospace; color:${k.is_active ? '#38a169' : '#c53030'};">${k.key_value}</span>
+                    ${k.is_active ? '<span class="badge" style="background:#38a169; margin-left:5px;">AKTIVNÍ</span>' : '<span class="badge" style="background:#c53030; margin-left:5px;">ZRUŠENO</span>'}
+                </div>
+                ${k.is_active ? `<button class="btn-small btn-danger" onclick="revokeApiKey('${k.id}')">Zrušit přístup</button>` : ''}
+            </div>
+        `).join('');
+    }
+
+    window.generateApiKey = async function() {
+        const name = document.getElementById('newApiKeyName').value.trim();
+        if (!name) return alert('Zadejte název pro tento klíč (např. PC Pokladna).');
+        const keyValue = 'prsi_' + Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
+        const { error } = await db.from('api_keys').insert({ key_name: name, key_value: keyValue });
+        if (error) alert('Chyba: ' + error.message);
+        else {
+            document.getElementById('newApiKeyName').value = '';
+            logAction('API Klíč', `Vygenerován nový přístupový klíč pro PC: ${name}`);
+            loadApiKeys();
+        }
+    };
+
+    window.revokeApiKey = async function(id) {
+        if(confirm('Opravdu chcete tomuto klíči trvale zamezit přístup do databáze?')) {
+            await db.from('api_keys').update({ is_active: false }).eq('id', id);
+            logAction('API Klíč', 'Přístupový klíč byl zrušen.');
+            loadApiKeys();
+        }
+    };
 
     window.changeUserRole = async function(uid, uName) {
         const nr = document.getElementById('role_sel_'+uid).value;
@@ -704,7 +756,7 @@
         document.getElementById('assetsList').innerHTML = data?.map(a => `
             <div class="list-item" style="align-items:start; flex-direction:column; background: #fff; border: 1px solid #e2e8f0; margin-bottom: 10px;">
                 <strong>${a.name} (Ev. č.: ${a.asset_number})</strong>
-                ${a.is_electric ? `<span style="color:#c53030; font-size:0.85rem;">⚡ Elektrozařízení | Revize do: ${a.revision_date ? new Date(a.revision_date).toLocaleDateString('cs-CZ') : 'Nezadáno'}</span>` : '<span style="color:#48bb78; font-size:0.85rem;">✔️ Běžný majetek</span>'}
+                ${a.is_electric ? `<span style="color:#c53030; font-size:0.85rem;">⚡ Elektrozařízení | Platnost revize: ${a.revision_date ? new Date(a.revision_date).toLocaleDateString('cs-CZ') : 'Nezadáno'}</span>` : '<span style="color:#48bb78; font-size:0.85rem;">✔️ Běžný majetek</span>'}
                 ${a.file_name ? `<a href="https://gqciprgrzdpckhhqcsjx.supabase.co/storage/v1/object/public/revisions/${a.file_name}" target="_blank" style="font-size:0.85rem;">📄 Zobrazit dokument revize</a>` : ''}
             </div>
         `).join('') || '<p>Žádný majetek.</p>';
@@ -775,7 +827,7 @@
                 let famOpts = myFamily.map(f => `<option value="${f.player_id_card}">${f.full_name}</option>`).join('');
                 btnHtml = `<button class="btn-small" style="background:${isFull?'#ed8936':'var(--primary)'}" onclick="joinTournament('${t.id}')">${btnText}</button>
                 ${myFamily.length ? `<select id="famSel_${t.id}" style="margin:0;width:auto;">${famOpts}</select><button class="btn-small" onclick="joinFamilyTournament('${t.id}')">Přihlásit rodinu</button>` : ''}`;
-            } else { btnHtml = `<p style="color:#718096; font-size:0.9rem;">Pro přihlášení se musíte registrovat.</p>`; }
+            } else { btnHtml = `<p style="color:#718096; font-size:0.9rem;">Pro přihlášení se musíte registrovat na webu.</p>`; }
 
             list.innerHTML += `<div class="list-item" style="flex-direction:column;align-items:start;background:#fff;border:1px solid #e2e8f0;">
                 <h4 style="color:#2b6cb0;">${t.title} (Datum: ${t.event_date})</h4><p>Obsazeno: ${count||0} / ${t.capacity} | Zápisné: <strong>${t.fee} Kč</strong></p>
@@ -867,13 +919,11 @@
             let displayName = ''; let rowClass = '';
             
             if (currentUser) {
-                // Přihlášený vidí plná jména bez cizích ID
                 displayName = isUnknown ? `Hráč bez záznamu` : `${row.first_name || ''} ${row.last_name || ''}`;
                 if (!displayName.trim()) displayName = `Neznámý Hráč`;
                 if(row.city && row.city !== '-' && row.city !== '0') displayName += ` <span style="color:#718096;font-size:0.85rem;">(${row.city})</span>`;
                 if (allowedIds.includes(pid)) rowClass = 'class="highlight-row"';
             } else {
-                // Anonymní vidí jen ID bez jmen
                 displayName = isUnknown ? `Anonymní hráč` : `Hráč (Značka: ${pid})`;
             }
 
@@ -924,7 +974,7 @@
             const isProposal = v.title.startsWith('[NÁVRH PČ] ');
             const displayTitle = v.title.replace('[NÁVRH PČ] ', '').replace('[MODRÉ] ', '');
             
-            // MODRÉ
+            // MODRÉ (Veřejné s časy)
             if (isBlue) {
                 hasB = true;
                 const { data: recs } = await db.from('voting_records').select('*').eq('vote_id', v.id);
@@ -979,7 +1029,7 @@
                 continue;
             }
 
-            // OSTATNÍ (Pouze pro přihlášené a dle práv)
+            // OSTATNÍ (Pouze pro přihlášené)
             if (!currentUser) continue;
             if (simulatedRole === 'pc' && !isProposal) continue;
             if (simulatedRole === 'pc' && isProposal && v.created_by !== currentUser.id) continue;
@@ -1026,7 +1076,7 @@
         if (!hasV && vList) vList.innerHTML = '<p style="color:#718096;font-style:italic;">Žádná ostrá hlasování ZČ.</p>';
         if (!hasD && dList) dList.innerHTML = '<p style="color:#718096;font-style:italic;">Žádné podněty.</p>';
 
-        // Přesměrování po kliknutí na odkaz z mailu/sdílení (pokud je to nutné pro skroling)
+        // Skrolování na hlasování
         const urlParams = new URLSearchParams(window.location.search);
         const voteIdToScroll = urlParams.get('vote');
         if (voteIdToScroll) {
@@ -1072,7 +1122,6 @@
         if(!error) alert('Nahráno!'); else alert(error.message);
     });
 
-    // Logika zachytávající odkaz z url a přesměrující rovnou na tab Hlasování
     window.addEventListener('DOMContentLoaded', (event) => {
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('vote')) {
