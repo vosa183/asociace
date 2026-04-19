@@ -75,7 +75,7 @@
             box-shadow: 0 15px 30px rgba(0,0,0,0.2);
             position: relative;
             overflow: hidden;
-            display: block;
+            display: block; 
         }
         .invite-card .header-text { color: #a0aec0; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 1.5rem; position: relative; z-index: 1; }
         .invite-card h4 { color: #d69e2e; font-size: 2.8rem; margin-bottom: 2rem; text-transform: uppercase; position: relative; z-index: 1; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); border-bottom: 2px solid rgba(214, 158, 46, 0.3); padding-bottom: 1rem; display: inline-block; }
@@ -118,7 +118,7 @@
             <li><a onclick="switchTab('rules')" id="nav-rules">Pravidla</a></li>
             <li id="menu-tournaments" style="display:block;"><a onclick="switchTab('tournaments')" id="nav-tournaments">Turnaje</a></li>
             <li id="menu-stats" style="display:block;"><a onclick="switchTab('stats')" id="nav-stats">Statistiky</a></li>
-            <li id="menu-voting" style="display:block;"><a onclick="switchTab('voting')" id="nav-voting">Hlasování</a></li>
+            <li id="menu-voting" style="display:none;"><a onclick="switchTab('voting')" id="nav-voting">Hlasování</a></li>
             <li id="menu-auth"><a onclick="switchTab('auth')" id="nav-auth">Pro členy</a></li>
             <li id="menu-profile" style="display:none;"><a onclick="switchTab('dashboard')" id="nav-dashboard">Můj profil</a></li>
             <li id="menu-admin" style="display:none; color:#d69e2e;"><a onclick="switchTab('admin')" id="nav-admin">Administrace</a></li>
@@ -359,8 +359,11 @@
                     </form>
                     
                     <h4 style="margin-top: 1.5rem;">Nahlédnutí do aktuální databáze (Kdo je evidován)</h4>
-                    <button class="btn-small" onclick="loadPlayerDatabase()">Obnovit seznam hráčů</button>
-                    <div id="playerDbList" style="max-height: 300px; overflow-y: auto; margin-top: 10px; background: white; border: 1px solid #ccc; padding: 10px; border-radius: 6px;">Zatím nenačteno.</div>
+                    <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 10px;">
+                        <button class="btn-small" onclick="loadPlayerDatabase()" style="margin: 0; width: auto;">Obnovit seznam hráčů</button>
+                        <span style="font-weight: bold; color: #2b6cb0;">Celkem v DB: <span id="playerDbCountText">0</span></span>
+                    </div>
+                    <div id="playerDbList" style="max-height: 300px; overflow-y: auto; background: white; border: 1px solid #ccc; padding: 10px; border-radius: 6px;">Zatím nenačteno.</div>
                 </div>
 
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
@@ -378,6 +381,9 @@
 
                     <h4 style="margin-bottom: 10px;">Hromadný tisk (Výběr z databáze)</h4>
                     <p style="font-size: 0.85rem; margin-bottom: 1rem;">Vyberte libovolné hráče z centrální databáze.</p>
+                    
+                    <input type="text" id="printSearchInput" placeholder="🔍 Hledat podle jména, města nebo ID..." style="margin-bottom: 10px;" onkeyup="filterPrintList()">
+                    
                     <div class="print-checkbox-list" id="adminPrintList">Načítám hráče z centrální databáze...</div>
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
                         <span style="font-weight: bold; color: #2b6cb0;">Vybráno: <span id="printSelectionCount">0</span> hráčů</span>
@@ -633,16 +639,14 @@
             if (tabId === 'admin') loadAdminData();
             if (tabId === 'dashboard') renderDashboard();
         }
-
-        if (tabId === 'public-invite') {
-            const urlParams = new URLSearchParams(window.location.search);
-            const invId = urlParams.get('invite');
-            if (invId) loadPublicInvite(invId);
-        }
     }
 
     async function checkAuthState(user) {
         currentUser = user;
+        const urlParams = new URLSearchParams(window.location.search);
+        const isInvite = urlParams.has('invite');
+        const isVote = urlParams.has('vote');
+
         if (user) {
             document.getElementById('menu-auth').style.display = 'none';
             document.getElementById('menu-tournaments').style.display = 'block';
@@ -691,13 +695,20 @@
                         authInitialized = true; 
                         logAction('Přihlášení', 'Uživatel vstoupil do systému');
                         
-                        const savedTab = sessionStorage.getItem('activeTab') || 'dashboard';
-                        if (savedTab === 'public-invite') { 
+                        if (isInvite) { 
                             switchTab('public-invite'); 
-                        } else if (savedTab === 'auth' || savedTab === 'profile-setup') {
-                            switchTab('dashboard');
-                        } else { 
-                            switchTab(savedTab); 
+                            loadPublicInvite(urlParams.get('invite'));
+                        }
+                        else if (isVote) { 
+                            switchTab('voting'); 
+                        }
+                        else {
+                            const savedTab = sessionStorage.getItem('activeTab') || 'dashboard';
+                            if (savedTab === 'public-invite' || savedTab === 'auth' || savedTab === 'profile-setup') { 
+                                switchTab('dashboard'); 
+                            } else { 
+                                switchTab(savedTab); 
+                            }
                         }
                     } else {
                         const currentTab = document.querySelector('.page-section.active')?.id;
@@ -730,13 +741,20 @@
             document.getElementById('personalStatsSection').style.display = 'none';
             document.getElementById('statsAuthWarning').style.display = 'block';
 
-            const currentTab = sessionStorage.getItem('activeTab') || 'home';
-            if (currentTab === 'public-invite') { 
+            if (isInvite) { 
                 switchTab('public-invite'); 
-            } else if (['dashboard', 'profile-setup', 'admin'].includes(currentTab)) {
-                switchTab('home');
-            } else {
-                switchTab(currentTab);
+                loadPublicInvite(urlParams.get('invite'));
+            }
+            else if (isVote) { 
+                switchTab('voting'); 
+            }
+            else {
+                const currentTab = sessionStorage.getItem('activeTab') || 'home';
+                if (['dashboard', 'profile-setup', 'admin'].includes(currentTab)) {
+                    switchTab('home');
+                } else {
+                    switchTab(currentTab);
+                }
             }
         }
     }
@@ -912,6 +930,16 @@
         const w = window.open('', '_blank', 'width=800,height=600');
         w.document.write(generateIdCardHTML(jm, mt, id));
         w.document.close();
+    };
+
+    // Logika pro vyhledávač u hromadného tisku
+    window.filterPrintList = function() {
+        const term = document.getElementById('printSearchInput').value.toLowerCase();
+        const labels = document.querySelectorAll('#adminPrintList label');
+        labels.forEach(lbl => {
+            const text = lbl.innerText.toLowerCase();
+            lbl.style.display = text.includes(term) ? 'block' : 'none';
+        });
     };
 
     window.adminPrintSelectedCards = function() {
@@ -1138,19 +1166,25 @@
 
     window.loadPlayerDatabase = async function() {
         const list = document.getElementById('playerDbList');
+        const countText = document.getElementById('playerDbCountText');
         list.innerHTML = 'Stahuji aktuální seznam...';
+        
         const { data, error } = await db.from('player_database').select('*').order('full_name');
         
         if(error) { 
             list.innerHTML = '<span class="error">Chyba stahování: ' + error.message + '</span>'; 
+            if (countText) countText.innerText = '0';
             return; 
         }
         
         if(!data || data.length === 0) { 
             list.innerHTML = '<p style="color:#718096; font-style:italic;">Centrální databáze je zatím zcela prázdná.</p>'; 
+            if (countText) countText.innerText = '0';
             return; 
         }
         
+        if (countText) countText.innerText = data.length;
+
         let h = '<table class="stats-table" style="font-size:0.85rem;"><tr><th>ID Značka</th><th>Jméno a Příjmení</th><th>Město</th></tr>';
         data.forEach(p => { 
             h += `<tr>
@@ -1581,15 +1615,6 @@
         if (!hasB && pubZone) pubZone.innerHTML = '<p style="color:#718096;font-style:italic;">Žádné veřejné hlasování.</p>';
         if (!hasV && vList) vList.innerHTML = '<p style="color:#718096;font-style:italic;">Žádná ostrá hlasování ZČ.</p>';
         if (!hasD && dList) dList.innerHTML = '<p style="color:#718096;font-style:italic;">Žádné podněty.</p>';
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const voteIdToScroll = urlParams.get('vote');
-        if (voteIdToScroll) {
-            setTimeout(() => {
-                const el = document.getElementById('vote_' + voteIdToScroll);
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 500);
-        }
     }
 
     window.replyTo = function(n, vid) { 
@@ -1672,16 +1697,6 @@
             alert('Nahráno!'); 
         } else {
             alert(error.message);
-        }
-    });
-
-    window.addEventListener('DOMContentLoaded', (event) => {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('vote')) {
-            sessionStorage.setItem('activeTab', 'voting');
-        }
-        if (urlParams.has('invite')) {
-            sessionStorage.setItem('activeTab', 'public-invite');
         }
     });
 
