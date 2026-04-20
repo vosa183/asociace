@@ -1213,9 +1213,67 @@
         reader.readAsArrayBuffer(file);
     });
 
-    // ==========================================
+ // ==========================================
     // --- 9. HLASOVÁNÍ, DEBATY A AUTO-UZAVŘENÍ ---
     // ==========================================
+    
+    // Vytváření hlasování
+    window.addRedQuestion = function() {
+        const container = document.getElementById('redQuestionsContainer');
+        const count = container.getElementsByClassName('rv-question').length + 1;
+        const div = document.createElement('div'); div.className = 'question-box';
+        div.innerHTML = `<label>Otázka č. ${count}</label><input type="text" class="rv-question" placeholder="Zadejte přesné znění otázky" required>`;
+        container.appendChild(div);
+    };
+
+    document.getElementById('createRedVoteForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const questions = Array.from(document.getElementsByClassName('rv-question')).map(i => i.value);
+        const titleToSave = '[OSTRÉ]' + document.getElementById('rvTitle').value;
+        const { error } = await db.from('votes').insert({ title: titleToSave, answers: JSON.stringify(questions), created_by: currentUser.id });
+        
+        if (error) { 
+            alert('Chyba uložení do databáze (Zkontroluj RLS v tabulce votes): ' + error.message); 
+            return; 
+        }
+        
+        sendEmailNotification('Nové Ostré Hlasování', 'V systému asociace bylo vypsáno nové Ostré červené hlasování. Máte 15 dnů na vyjádření.', await getAllZcEmails());
+        alert('Červené ostré hlasování bylo úspěšně vypsáno a e-mail odeslán ZČ!'); 
+        document.getElementById('createRedVoteForm').reset();
+        loadVotes();
+    });
+
+    document.getElementById('createBlueVoteForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault(); 
+        const t = "[MODRÉ] " + document.getElementById('bvTitle').value;
+        const ans = document.getElementById('bvAnswers').value.trim();
+        const { error } = await db.from('votes').insert({ title: t, created_by: currentUser.id, answers: ans }); 
+        
+        if (error) { 
+            alert('Chyba uložení do databáze (RLS?): ' + error.message); 
+            return; 
+        }
+        
+        alert('Veřejné MODRÉ hlasování bylo úspěšně vypsáno.'); 
+        document.getElementById('createBlueVoteForm').reset(); 
+        loadVotes();
+    });
+
+    document.getElementById('createVoteForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault(); 
+        const t = "[NÁVRH PČ] " + document.getElementById('vTitle').value;
+        const { error } = await db.from('votes').insert({ title: t, created_by: currentUser.id }); 
+        
+        if (error) { 
+            alert('Chyba uložení do databáze: ' + error.message); 
+            return; 
+        }
+        
+        sendEmailNotification('Nový podnět k diskuzi', 'Byl vložen nový podnět do oranžové debaty: ' + t, await getAllZcEmails()); 
+        document.getElementById('createVoteForm').reset();
+        loadVotes(); 
+    });
+
     window.exportVote = async function(vid, title) {
         const { data } = await db.from('voting_records').select('*').eq('vote_id', vid);
         const { data: profs } = await db.from('profiles').select('id, full_name, player_id_card'); 
@@ -1564,17 +1622,13 @@
     };
 
     // ==========================================
-    // --- 12. KONTROLA BANKY (Fio API Simulace) ---
+    // --- 12. KONTROLA BANKY ---
     // ==========================================
     async function checkBankPayments() { 
         if (!globalFioToken) return; 
         console.log("Kontrola Fio banky je aktivní (Simulační režim pro napojení)."); 
     }
-    
-    // Spouštění kontroly každých 12 hodin pro Předsedu a Super Admina
-    setInterval(() => { 
-        if (actualUserRole === 'zcp' || actualUserRole === 'superadmin') checkBankPayments(); 
-    }, 43200000);
+    setInterval(() => { if (actualUserRole === 'zcp' || actualUserRole === 'superadmin') checkBankPayments(); }, 43200000);
 
 </script>
 </body>
