@@ -996,7 +996,7 @@
     window.joinTournament = async function(tId) { if (!myProfileData) return; const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: myProfileData.player_id_card, registered_by: currentUser.id }); if (!error) { alert('Přihlášeno!'); loadTournaments(); loadMyRegistrations(); } else alert('Chyba (nebo už jste přihlášeni).'); };
     window.joinFamilyTournament = async function(tId) { const fId = document.getElementById('famSel_' + tId).value; const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: fId, registered_by: currentUser.id }); if (!error) { alert('Člen přihlášen.'); loadTournaments(); loadMyRegistrations(); } else alert('Chyba.'); };
     window.cancelRegistration = async function(regId) { if(confirm("Zrušit přihlášku?")) { await db.from('registrations').delete().eq('id', regId); loadTournaments(); loadMyRegistrations(); } };
-    // ==========================================
+// ==========================================
     // --- 7. STATISTIKY A KOMENTÁŘE ---
     // ==========================================
     async function loadHistoricalData() {
@@ -1216,6 +1216,27 @@
     // ==========================================
     // --- 9. HLASOVÁNÍ, DEBATY A AUTO-UZAVŘENÍ ---
     // ==========================================
+    window.exportVote = async function(vid, title) {
+        const { data } = await db.from('voting_records').select('*').eq('vote_id', vid);
+        const { data: profs } = await db.from('profiles').select('id, full_name, player_id_card'); 
+        const pMap = {}; 
+        profs?.forEach(p => pMap[p.id] = { name: p.full_name, id: p.player_id_card });
+        
+        let csv = "Jmeno;Znacka_ID;Hlas;Hash_Klic;Cas_Odevzdani\n";
+        data.forEach(r => {
+            let name = r.voter_id ? (pMap[r.voter_id]?.name || 'Neznámý Člen') : 'Anonymní';
+            let znacka = r.voter_id ? (pMap[r.voter_id]?.id || '-') : '-';
+            let cas = new Date(r.created_at).toLocaleString('cs-CZ'); 
+            csv += `${name};${znacka};${r.choice.toUpperCase()};${r.vote_hash || '-'};${cas}\n`;
+        });
+        
+        const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' }); 
+        const a = document.createElement('a'); 
+        a.href = URL.createObjectURL(blob); 
+        a.download = `Vysledky_${title.replace(/[^a-z0-9]/gi, '_')}.csv`; 
+        a.click();
+    };
+
     window.castRedVote = async function(vid, qIdx, val, totalQ, reqV) {
         try {
             const hash = Array.from(crypto.getRandomValues(new Uint8Array(8))).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -1227,14 +1248,36 @@
             });
             
             if(error) { 
-                alert('Chyba při zápisu hlasu (RLS?): ' + error.message); 
+                alert('Chyba při zápisu hlasu: ' + error.message); 
                 return; 
             }
+
+            // Odeslání potvrzovacího e-mailu hlasujícímu
+            const { data: vInfo } = await db.from('votes').select('title').eq('id', vid).single();
+            const personalMsg = `Dobrý den,\n\npotvrzujeme přijetí Vašeho hlasu v hlasování: "${vInfo.title.replace('[OSTRÉ]', '')}"\n\nOtázka č. ${qIdx + 1}\nVaše volba: ${val.toUpperCase()}\nKontrolní Hash: ${hash}\n\nDěkujeme za účast.`;
+            await sendEmailNotification('Potvrzení odevzdání hlasu', personalMsg, myProfileData.email);
             
-            const { data: allVotes } = await db.from('voting_records').select('voter_id').eq('vote_id', vid);
-            if (new Set(allVotes.map(r => r.voter_id)).size >= reqV) { 
-                await db.from('votes').update({ is_closed: true }).eq('id', vid); 
-                sendEmailNotification('Hlasování UZAVŘENO', 'Ostré hlasování dosáhlo 100% účasti všech oprávněných ZČ.', await getAllZcEmails()); 
+            // Kontrola účasti pro automatické uzavření
+            const { data: allVotes } = await db.from('voting_records').select('voter_id, choice').eq('vote_id', vid);
+            const uniqueVoters = new Set(allVotes.map(r => r.voter_id)).size;
+            
+            if (uniqueVoters >= reqV && allVotes.length >= (reqV * totalQ)) { 
+                await db.from('votes').update({ is_closed: true }).eq('id', vid);
+                
+                // Odeslání konečných výsledků všem ZČ
+                let resultsSummary = `KONEČNÉ VÝSLEDKY HLASOVÁNÍ: ${vInfo.title.replace('[OSTRÉ]', '')}\n\n`;
+                const { data: voteData } = await db.from('votes').select('answers').eq('id', vid).single();
+                const questions = JSON.parse(voteData.answers || '[]');
+                
+                questions.forEach((q, idx) => {
+                    let pro = allVotes.filter(r => r.choice === `q${idx}:ano`).length;
+                    let ne = allVotes.filter(r => r.choice === `q${idx}:ne`).length;
+                    let zdrz = allVotes.filter(r => r.choice === `q${idx}:zdržuji se`).length;
+                    resultsSummary += `Otázka: ${q}\nANO: ${pro} | NE: ${ne} | ZDRŽEL SE: ${zdrz}\n\n`;
+                });
+
+                resultsSummary += `Hlasování bylo automaticky uzavřeno z důvodu 100% účasti. Kompletní protokol v CSV naleznete v administraci.`;
+                await sendEmailNotification('VÝSLEDKY HLASOVÁNÍ - ' + vInfo.title.replace('[OSTRÉ]', ''), resultsSummary, await getAllZcEmails());
             }
             loadVotes();
         } catch (e) { 
@@ -1252,6 +1295,10 @@
         }); 
         
         if(!error) { 
+            const { data: vInfo } = await db.from('votes').select('title').eq('id', vid).single();
+            const personalMsg = `Dobrý den,\n\npotvrzujeme Váš hlas v anketě: "${vInfo.title.replace('[MODRÉ] ', '')}"\n\nHlasoval jste: ${c.toUpperCase()}\n\nDěkujeme za Váš názor.`;
+            await sendEmailNotification('Hlas v anketě zaznamenán', personalMsg, myProfileData.email);
+            
             alert('Váš hlas byl úspěšně zaznamenán!'); 
             loadVotes(); 
         } else {
@@ -1262,27 +1309,15 @@
     window.addComment = async function(vid) { 
         const inputField = document.getElementById('commentInput_' + vid);
         const text = inputField.value.trim(); 
-        
         if(!text) return; 
         
-        const { error } = await db.from('comments').insert({ 
-            vote_id: vid, 
-            user_id: currentUser.id, 
-            comment_text: text 
-        }); 
-        
-        if(!error) { 
-            inputField.value = ''; 
-            loadVotes(); 
-        } else {
-            alert('Chyba při odesílání komentáře: ' + error.message); 
-        }
+        const { error } = await db.from('comments').insert({ vote_id: vid, user_id: currentUser.id, comment_text: text }); 
+        if(!error) { inputField.value = ''; loadVotes(); } else alert('Chyba při odesílání komentáře: ' + error.message); 
     };
 
     window.closeDebate = async function(vid) { 
         if(confirm('Skutečně chcete tuto diskuzi či hlasování trvale uzavřít?')) { 
-            await db.from('votes').update({ is_closed: true }).eq('id', vid); 
-            loadVotes(); 
+            await db.from('votes').update({ is_closed: true }).eq('id', vid); loadVotes(); 
         } 
     };
 
@@ -1296,16 +1331,10 @@
         if(debateList) debateList.innerHTML = '';
         
         let pMap = {}; 
-        try { 
-            const { data } = await db.from('profiles').select('id, full_name'); 
-            data?.forEach(p => pMap[p.id] = p.full_name); 
-        } catch(e) {}
+        try { const { data } = await db.from('profiles').select('id, full_name'); data?.forEach(p => pMap[p.id] = p.full_name); } catch(e) {}
         
         let reqV = 1; 
-        try { 
-            const { count } = await db.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['zc', 'zcp', 'superadmin']); 
-            if (count) reqV = count; 
-        } catch(e) {}
+        try { const { count } = await db.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['zc', 'zcp', 'superadmin']); if (count) reqV = count; } catch(e) {}
         
         const { data: vs } = await db.from('votes').select('*').order('created_at', { ascending: false }); 
         if (!vs) return;
@@ -1322,10 +1351,10 @@
 
             if (isRed && isZcOrHigher) {
                 let ageMs = Date.now() - new Date(v.created_at).getTime();
-                
                 if (ageMs > 15 * 24 * 60 * 60 * 1000 && !v.is_closed) { 
                     await db.from('votes').update({ is_closed: true }).eq('id', v.id); 
                     v.is_closed = true; 
+                    logAction('Auto-uzavření', `Hlasování ${displayTitle} bylo automaticky uzavřeno (vypršel čas).`);
                 }
                 
                 let questions = JSON.parse(v.answers || '[]'); 
@@ -1340,66 +1369,48 @@
                         let pro = recs?.filter(r => r.choice === `q${idx}:ano`).length || 0;
                         let ne = recs?.filter(r => r.choice === `q${idx}:ne`).length || 0;
                         let zdrz = recs?.filter(r => r.choice === `q${idx}:zdržuji se`).length || 0;
-                        
                         if (missingVotes > 0) { 
                             let max = Math.max(pro, ne, zdrz); 
-                            if(max === pro) pro += missingVotes; 
-                            else if(max === ne) ne += missingVotes; 
-                            else zdrz += missingVotes; 
+                            if(max === pro) pro += missingVotes; else if(max === ne) ne += missingVotes; else zdrz += missingVotes; 
                         }
                         stats = `<div style="margin-top:10px;"><b>Konečné výsledky (včetně mlčící většiny): <br><span style="color:#2f855a">ANO: ${pro}</span> | <span style="color:#c53030">NE: ${ne}</span> | ZDRŽEL SE: ${zdrz}</b></div>`;
                     }
                     
                     let actionHtml = v.is_closed ? stats : (qVote ? `<span style="color:var(--primary); font-weight:bold;">Hlasováno: ${qVote.choice.split(':')[1].toUpperCase()}</span>` : `
-                        <div style="display:flex;gap:10px;margin-top:10px;">
+                        <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
                             <button class="btn-small btn-green" onclick="castRedVote('${v.id}', ${idx}, 'ano', ${questions.length}, ${reqV})">ANO</button>
                             <button class="btn-small btn-danger" onclick="castRedVote('${v.id}', ${idx}, 'ne', ${questions.length}, ${reqV})">NE</button>
                             <button class="btn-small" style="background:#718096;" onclick="castRedVote('${v.id}', ${idx}, 'zdržuji se', ${questions.length}, ${reqV})">ZDRŽUJI SE</button>
                         </div>`);
-                        
                     return `<div class="question-box"><p><b>${q}</b></p>${actionHtml}</div>`;
                 }).join('');
                 
                 let timeBadge = !v.is_closed ? `<span style="color:#c53030; font-size:0.85rem; font-weight:bold; margin-left:10px;">(Zbývá dnů: ${Math.ceil((15 * 24 * 60 * 60 * 1000 - ageMs) / 86400000)})</span>` : '';
-                redZone.innerHTML += `<div class="card vote-card-red"><span class="badge" style="background:${v.is_closed ? '#c53030' : 'var(--secondary)'};">${v.is_closed ? 'UZAVŘENO' : 'OSTRÉ HLASOVÁNÍ'}</span>${timeBadge}<h3>${displayTitle}</h3><p style="color:#2b6cb0;font-weight:bold;">Odevzdáno: ${uniqueVotersCount} z ${reqV} ZČ</p>${questionsHtml}</div>`;
+                let csvBtn = v.is_closed ? `<button class="btn-small btn-blue" style="margin-top:1rem; width:100%;" onclick="exportVote('${v.id}', '${displayTitle.replace(/'/g, "\\'")}')">📥 Stáhnout konečné výsledky (CSV)</button>` : '';
+
+                redZone.innerHTML += `<div class="card vote-card-red"><span class="badge" style="background:${v.is_closed ? '#c53030' : 'var(--secondary)'};">${v.is_closed ? 'UZAVŘENO' : 'OSTRÉ HLASOVÁNÍ'}</span>${timeBadge}<h3>${displayTitle}</h3><p style="color:#2b6cb0;font-weight:bold;">Odevzdáno: ${uniqueVotersCount} z ${reqV} ZČ</p>${questionsHtml}${csvBtn}</div>`;
             } 
             else if (isBlue) {
                 const opts = v.answers ? v.answers.split(',').map(s => s.trim()) : ['ANO', 'NE'];
                 let statsHtml = opts.map(o => `<span style="color:#2b6cb0; margin-right:10px;">${o} (${recs?.filter(r => r.choice.toLowerCase() === o.toLowerCase()).length || 0})</span>`).join('');
-                
                 let html = `<div class="card vote-card-blue" style="background:#ebf8ff;"><span class="badge" style="background:var(--blue);">VEŘEJNÁ ANKETA</span><h3>${displayTitle}</h3><p><b>Průběžně:</b> ${statsHtml}</p>`;
-                
                 if (!v.is_closed) { 
-                    if (myVote) {
-                        html += `<p style="color:var(--blue);font-weight:bold;">Váš hlas: ${myVote.choice}</p>`; 
-                    } else {
-                        html += `<div style="display:flex;gap:10px;margin-top:10px;">${opts.map(o => `<button class="btn-small btn-blue" onclick="castBlueVote('${v.id}','${o}')">${o}</button>`).join('')}</div>`; 
-                    }
+                    if (myVote) html += `<p style="color:var(--blue);font-weight:bold;">Váš hlas: ${myVote.choice}</p>`; 
+                    else html += `<div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">${opts.map(o => `<button class="btn-small btn-blue" onclick="castBlueVote('${v.id}','${o}')">${o}</button>`).join('')}</div>`; 
                 }
-                
-                if (isZcOrHigher && !v.is_closed) {
-                    html += `<button class="btn-small btn-danger" style="margin-top:1rem;" onclick="closeDebate('${v.id}')">Uzavřít anketu</button>`;
+                if (isZcOrHigher) {
+                    if (!v.is_closed) html += `<button class="btn-small btn-danger" style="margin-top:1rem;" onclick="closeDebate('${v.id}')">Uzavřít anketu</button>`;
+                    html += `<button class="btn-small btn-blue" style="margin-top:10px; width:100%;" onclick="exportVote('${v.id}', '${displayTitle.replace(/'/g, "\\'")}')">📥 Stáhnout výsledky (CSV)</button>`;
                 }
                 blueZone.innerHTML += html + `</div>`;
             } 
             else if (isProposal) {
                 if (simulatedRole === 'pc' && v.created_by !== currentUser.id) continue;
-                
                 const { data: comms } = await db.from('comments').select('*').eq('vote_id', v.id).order('created_at');
                 let commentsHtml = comms?.map(c => `<div><b>${pMap[c.user_id] || 'Člen'}:</b> ${c.comment_text}</div>`).join('') || 'Zatím bez komentářů.';
-                
-                let proposalHtml = `<div class="list-item vote-card-orange" style="flex-direction:column; align-items:start; background:#fff;">
-                    <span class="badge" style="background:${v.is_closed ? '#718096' : 'var(--orange)'}">${v.is_closed ? 'UZAVŘENO' : 'DISKUZE'}</span>
-                    <h4 style="color:var(--orange);">${displayTitle}</h4>
-                    <div style="width:100%; background:#f7fafc; padding:10px;">${commentsHtml}`;
-                    
-                if (!v.is_closed) {
-                    proposalHtml += `<div style="display:flex; gap:5px; margin-top:10px;"><input type="text" id="commentInput_${v.id}" style="margin:0; flex:1;"><button class="btn-small btn-orange" onclick="addComment('${v.id}')">Odeslat</button></div>`;
-                }
-                if (!v.is_closed && isZcOrHigher) {
-                    proposalHtml += `<button class="btn-small btn-danger" style="margin-top:10px;" onclick="closeDebate('${v.id}')">Uzavřít diskuzi</button>`;
-                }
-                
+                let proposalHtml = `<div class="list-item vote-card-orange" style="flex-direction:column; align-items:start; background:#fff;"><span class="badge" style="background:${v.is_closed ? '#718096' : 'var(--orange)'}">${v.is_closed ? 'UZAVŘENO' : 'DISKUZE'}</span><h4 style="color:var(--orange);">${displayTitle}</h4><div style="width:100%; background:#f7fafc; padding:10px;">${commentsHtml}`;
+                if (!v.is_closed) proposalHtml += `<div style="display:flex; gap:5px; margin-top:10px;"><input type="text" id="commentInput_${v.id}" style="margin:0; flex:1;"><button class="btn-small btn-orange" onclick="addComment('${v.id}')">Odeslat</button></div>`;
+                if (!v.is_closed && isZcOrHigher) proposalHtml += `<button class="btn-small btn-danger" style="margin-top:10px;width:100%;" onclick="closeDebate('${v.id}')">Uzavřít diskuzi</button>`;
                 proposalHtml += `</div></div>`;
                 debateList.innerHTML += proposalHtml;
             }
@@ -1407,7 +1418,7 @@
     }
 
     // ==========================================
-    // --- 10. ADMINISTRACE, NEWSLETTER & MAJETEK ---
+    // --- 10. ADMINISTRACE A NEWSLETTER ---
     // ==========================================
     async function loadAdminData() {
         const { count } = await db.from('profiles').select('*', { count: 'exact', head: true });
@@ -1416,12 +1427,11 @@
         if (['zcp', 'superadmin'].includes(simulatedRole)) {
             const { data: profiles } = await db.from('profiles').select('*').order('full_name');
             let availableRoles = Object.keys(roleNames).filter(k => k !== 'superadmin');
-            
             let usersHtml = '<table class="stats-table"><tr><th>Jméno</th><th>Role</th><th>Akce</th></tr>';
             profiles.forEach(user => {
                 let roleSelect = user.role === 'superadmin' ? 'Super Admin' : `<select id="role_sel_${user.id}" style="margin:0;">${availableRoles.map(k => `<option value="${k}" ${user.role === k ? 'selected' : ''}>${roleNames[k]}</option>`).join('')}</select>`;
                 let actionBtn = user.role !== 'superadmin' ? `<button class="btn-small btn-green" onclick="changeUserRole('${user.id}','${user.full_name}')">Uložit</button>` : '';
-                usersHtml += `<tr><td>${user.full_name || 'Nekompletní'} (${user.player_id_card || '-'})</td><td>${roleSelect}</td><td>${actionBtn}</td></tr>`;
+                usersHtml += `<tr><td>${user.full_name || 'Nekompletní'} (${user.player_id_card || '-'})</td><td>${roleSelect}</td><td style="display:flex;gap:5px;"><button class="btn-small btn-blue" onclick="viewUserDetail('${user.id}')">Náhled</button>${actionBtn}</td></tr>`;
             });
             document.getElementById('adminUsersList').innerHTML = usersHtml + '</table>';
         }
@@ -1441,7 +1451,6 @@
         if (!['zc', 'zcp', 'superadmin'].includes(simulatedRole)) return;
         const { count } = await db.from('newsletter_subscribers').select('*', { count: 'exact', head: true });
         document.getElementById('totalEmailsCount').innerText = count || 0;
-        
         const { data } = await db.from('newsletter_subscribers').select('email').order('email');
         if(document.getElementById('apiEmailList') && data) {
             document.getElementById('apiEmailList').innerHTML = data.map(e => `<div class="email-list-item" style="display:flex;justify-content:space-between;padding:5px;border-bottom:1px solid #eee;"><span>${e.email}</span><span style="color:red;cursor:pointer;" onclick="deleteEmail('${e.email}')">❌ Smazat</span></div>`).join('');
@@ -1450,287 +1459,108 @@
 
     window.addSingleEmail = async function() { 
         const val = document.getElementById('singleEmailInput').value.trim(); 
-        if(val.includes('@')) { 
-            await db.from('newsletter_subscribers').upsert({ email: val }); 
-            loadNewsletterStats(); 
-            document.getElementById('singleEmailInput').value = ''; 
-        } 
+        if(val.includes('@')) { await db.from('newsletter_subscribers').upsert({ email: val }); loadNewsletterStats(); document.getElementById('singleEmailInput').value = ''; } 
     };
     
-    window.deleteEmail = async function(e) { 
-        if(confirm('Skutečně smazat e-mail ' + e + '?')) { 
-            await db.from('newsletter_subscribers').delete().eq('email', e); 
-            loadNewsletterStats(); 
-        } 
-    };
-    
-    window.clearEmailDb = async function() { 
-        if(confirm('Vymazat kompletně celou databázi e-mailů?')) { 
-            await db.from('newsletter_subscribers').delete().neq('email', 'dummy_email'); 
-            loadNewsletterStats(); 
-        } 
-    };
-    
-    window.filterEmailList = function() { 
-        const term = document.getElementById('searchEmailInput').value.toLowerCase(); 
-        document.querySelectorAll('.email-list-item').forEach(i => i.style.display = i.innerText.toLowerCase().includes(term) ? 'flex' : 'none'); 
-    };
+    window.deleteEmail = async function(e) { if(confirm('Skutečně smazat e-mail ' + e + '?')) { await db.from('newsletter_subscribers').delete().eq('email', e); loadNewsletterStats(); } };
+    window.clearEmailDb = async function() { if(confirm('Vymazat kompletně celou databázi e-mailů?')) { await db.from('newsletter_subscribers').delete().neq('email', 'dummy_email'); loadNewsletterStats(); } };
+    window.filterEmailList = function() { const term = document.getElementById('searchEmailInput').value.toLowerCase(); document.querySelectorAll('.email-list-item').forEach(i => i.style.display = i.innerText.toLowerCase().includes(term) ? 'flex' : 'none'); };
 
     document.getElementById('sendNewsletterForm')?.addEventListener('submit', async (e) => {
-        e.preventDefault(); 
-        const subj = document.getElementById('nlSubject').value;
-        const msgText = document.getElementById('nlMessage').value;
-        const msgBox = document.getElementById('nlSendMsg');
-        const btn = document.getElementById('sendNlBtn');
-        
-        if(!confirm('Opravdu rozeslat zprávu všem kontaktům?')) return; 
-        
-        btn.disabled = true; 
-        msgBox.className = 'msg'; 
-        msgBox.innerText = 'Stahuji kontakty z DB...'; 
-        msgBox.style.display = 'block';
-        
+        e.preventDefault(); const subj = document.getElementById('nlSubject').value, msgText = document.getElementById('nlMessage').value, msgBox = document.getElementById('nlSendMsg'), btn = document.getElementById('sendNlBtn');
+        if(!confirm('Opravdu rozeslat zprávu všem kontaktům?')) return; btn.disabled = true; msgBox.className = 'msg'; msgBox.innerText = 'Stahuji kontakty z DB...'; msgBox.style.display = 'block';
         try {
             const { data: emailsData } = await db.from('newsletter_subscribers').select('email');
-            if (!emailsData || emailsData.length === 0) { 
-                msgBox.className = 'msg error'; 
-                msgBox.innerText = 'Databáze kontaktů je prázdná.'; 
-                btn.disabled = false; 
-                return; 
-            }
-            
-            const allEmails = emailsData.map(e => e.email); 
-            let sentCount = 0;
-            
+            if (!emailsData || emailsData.length === 0) { msgBox.className = 'msg error'; msgBox.innerText = 'Databáze kontaktů je prázdná.'; btn.disabled = false; return; }
+            const allEmails = emailsData.map(e => e.email); let sentCount = 0;
             for (let i = 0; i < allEmails.length; i += 50) {
-                const batch = allEmails.slice(i, i + 50); 
-                msgBox.innerText = `Odesílám... zpracováno ${sentCount} z ${allEmails.length}`;
-                
-                const promises = batch.map(email => {
-                    let fullMessage = msgText + `\n\n---\nOdhlášení z odběru: ${window.location.origin}?unsubscribe=${encodeURIComponent(email)}`;
-                    return sendEmailNotification(subj, fullMessage, [email]);
-                });
-                
-                await Promise.all(promises); 
-                sentCount += batch.length; 
-                await new Promise(r => setTimeout(r, 1000));
+                const batch = allEmails.slice(i, i + 50); msgBox.innerText = `Odesílám... zpracováno ${sentCount} z ${allEmails.length}`;
+                const promises = batch.map(email => sendEmailNotification(subj, msgText + `\n\n---\nOdhlášení z odběru: ${window.location.origin}?unsubscribe=${encodeURIComponent(email)}`, [email]));
+                await Promise.all(promises); sentCount += batch.length; await new Promise(r => setTimeout(r, 1000));
             }
-            
-            msgBox.className = 'msg success'; 
-            msgBox.innerText = `Odesláno na všechny kontakty!`; 
-            document.getElementById('sendNewsletterForm').reset(); 
-            logAction('Newsletter', `Rozeslán hromadný e-mail.`);
-        } catch (err) { 
-            msgBox.className = 'msg error'; 
-            msgBox.innerText = 'Chyba: ' + err.message; 
-        } finally { 
-            btn.disabled = false; 
-        }
+            msgBox.className = 'msg success'; msgBox.innerText = `Odesláno na všechny kontakty!`; document.getElementById('sendNewsletterForm').reset(); logAction('Newsletter', `Rozeslán hromadný e-mail.`);
+        } catch (err) { msgBox.className = 'msg error'; msgBox.innerText = 'Chyba: ' + err.message; } finally { btn.disabled = false; }
     });
 
-    window.addEventListener('load', () => { 
-        if (window.location.search.includes('unsubscribe')) {
-            document.getElementById('unsubscribeBox').style.display = 'block'; 
-        }
-    });
-    
-    window.confirmUnsubscribe = async function() { 
-        const emailToUnsubscribe = new URLSearchParams(window.location.search).get('unsubscribe'); 
-        await db.from('newsletter_subscribers').delete().eq('email', emailToUnsubscribe); 
-        alert('Váš e-mail byl odhlášen z odběru.'); 
-        window.location.href = window.location.origin; 
-    }
+    window.addEventListener('load', () => { if (window.location.search.includes('unsubscribe')) document.getElementById('unsubscribeBox').style.display = 'block'; });
+    window.confirmUnsubscribe = async function() { const emailToUnsubscribe = new URLSearchParams(window.location.search).get('unsubscribe'); await db.from('newsletter_subscribers').delete().eq('email', emailToUnsubscribe); alert('Váš e-mail byl odhlášen z odběru.'); window.location.href = window.location.origin; }
 
     window.changeUserRole = async function(uid, uName) {
         const newRole = document.getElementById('role_sel_'+uid).value;
         if (newRole === 'zcp' && actualUserRole === 'zcp' && uid !== currentUser.id) {
-            if(confirm('Předat funkci Předsedy? Vy se stanete běžným ZČ.')) { 
-                await db.from('profiles').update({ role: 'zcp' }).eq('id', uid); 
-                await db.from('profiles').update({ role: 'zc' }).eq('id', currentUser.id); 
-                alert('Funkce byla předána.'); 
-                window.location.reload(); 
-                return; 
-            } else return;
+            if(confirm('Předat funkci Předsedy? Vy se stanete běžným ZČ.')) { await db.from('profiles').update({ role: 'zcp' }).eq('id', uid); await db.from('profiles').update({ role: 'zc' }).eq('id', currentUser.id); alert('Funkce byla předána.'); window.location.reload(); return; } else return;
         }
-        await db.from('profiles').update({ role: newRole }).eq('id', uid); 
-        alert('Role byla úspěšně změněna.'); 
-        loadAdminData();
+        await db.from('profiles').update({ role: newRole }).eq('id', uid); alert('Role byla úspěšně změněna.'); loadAdminData();
     };
 
-    window.saveSystemSettings = async function() { 
-        await db.from('system_settings').update({ 
-            bank_account: document.getElementById('bankAccountInput').value, 
-            fio_token: document.getElementById('fioTokenInput').value 
-        }).eq('id', 1); 
-        alert('Systémové nastavení uloženo.'); 
-    };
+    window.saveSystemSettings = async function() { await db.from('system_settings').update({ bank_account: document.getElementById('bankAccountInput').value, fio_token: document.getElementById('fioTokenInput').value }).eq('id', 1); alert('Systémové nastavení uloženo.'); };
 
     window.viewUserDetail = async function(uid) {
-        const { data: u } = await db.from('profiles').select('*').eq('id', uid).single(); 
-        let r = [];
-        if(u?.player_id_card) { 
-            const { data } = await db.from('registrations').select('*, tournaments(*)').eq('player_id_card', u.player_id_card); 
-            r = data || []; 
-        }
+        const { data: u } = await db.from('profiles').select('*').eq('id', uid).single(); let r = [];
+        if(u?.player_id_card) { const { data } = await db.from('registrations').select('*, tournaments(*)').eq('player_id_card', u.player_id_card); r = data || []; }
         document.getElementById('detailName').innerText = u.full_name || 'Nekompletní profil';
-        
-        let detailHtml = `<div><p><b>Značka (ID):</b> ${u.player_id_card||'-'}</p><p><b>E-mail:</b> ${u.email||'-'}</p><p><b>Město:</b> ${u.city||'-'}</p><p><b>Telefon:</b> ${u.phone||'-'}</p></div>`;
-        detailHtml += `<div><b>Aktuální přihlášky na turnaje:</b><br>${r.length > 0 ? r.map(reg => `<li>${reg.tournaments.title}</li>`).join('') : 'Žádné přihlášky.'}</div>`;
-        
-        document.getElementById('detailContent').innerHTML = detailHtml;
+        document.getElementById('detailContent').innerHTML = `<div><p><b>Značka (ID):</b> ${u.player_id_card||'-'}</p><p><b>E-mail:</b> ${u.email||'-'}</p><p><b>Město:</b> ${u.city||'-'}</p><p><b>Telefon:</b> ${u.phone||'-'}</p></div><div><b>Aktuální přihlášky na turnaje:</b><br>${r.length > 0 ? r.map(reg => `<li>${reg.tournaments.title}</li>`).join('') : 'Žádné přihlášky.'}</div>`;
         document.getElementById('userDetailModal').style.display = 'block';
     };
     
-    window.closeUserDetail = function() { 
-        document.getElementById('userDetailModal').style.display = 'none'; 
-    };
+    window.closeUserDetail = function() { document.getElementById('userDetailModal').style.display = 'none'; };
 
-    // --- SPRÁVA MAJETKU ---
-    window.toggleAssetElec = function() { 
-        const isElectrical = document.getElementById('assetIsElectrical').checked; 
-        document.getElementById('assetElecZone1').style.display = isElectrical ? 'block' : 'none'; 
-        document.getElementById('assetElecZone2').style.display = isElectrical ? 'block' : 'none'; 
-        document.getElementById('assetNextInspection').required = isElectrical; 
-    };
+    // ==========================================
+    // --- 11. SPRÁVA A EVIDENCE MAJETKU ---
+    // ==========================================
+    window.toggleAssetElec = function() { const isElectrical = document.getElementById('assetIsElectrical').checked; document.getElementById('assetElecZone1').style.display = isElectrical ? 'block' : 'none'; document.getElementById('assetElecZone2').style.display = isElectrical ? 'block' : 'none'; document.getElementById('assetNextInspection').required = isElectrical; };
 
     document.getElementById('addAssetForm')?.addEventListener('submit', async (e) => {
-        e.preventDefault(); 
-        const msg = document.getElementById('assetMsg'); 
-        msg.className = 'msg'; 
-        msg.innerText = 'Ukládám do evidence majetku...'; 
-        msg.style.display = 'block';
-        
-        let pdfUrl = null; 
-        const fileInput = document.getElementById('assetPdf');
-        
+        e.preventDefault(); const msg = document.getElementById('assetMsg'); msg.className = 'msg'; msg.innerText = 'Ukládám do evidence majetku...'; msg.style.display = 'block';
+        let pdfUrl = null; const fileInput = document.getElementById('assetPdf');
         if (fileInput && fileInput.files.length > 0) {
-            const file = fileInput.files[0];
-            const safeName = `revize_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
-            const { error } = await db.storage.from('revisions').upload(safeName, file); 
-            if (error) { 
-                msg.className='msg error'; 
-                msg.innerText=error.message; 
-                return; 
-            }
+            const safeName = `revize_${Date.now()}_${fileInput.files[0].name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+            const { error } = await db.storage.from('revisions').upload(safeName, fileInput.files[0]); 
+            if (error) { msg.className='msg error'; msg.innerText=error.message; return; }
             pdfUrl = db.storage.from('revisions').getPublicUrl(safeName).data.publicUrl;
         }
-        
         const isElectrical = document.getElementById('assetIsElectrical').checked;
-        const newAssetData = { 
-            asset_name: document.getElementById('assetName').value.trim(), 
-            inventory_number: document.getElementById('assetInvNum').value.trim(), 
-            location: document.getElementById('assetLocation').value.trim(), 
-            is_electrical: isElectrical, 
-            next_inspection: isElectrical ? document.getElementById('assetNextInspection').value : null, 
-            pdf_url: pdfUrl, 
-            status: 'V pořádku' 
-        };
-        
-        const { error } = await db.from('assets').insert(newAssetData);
-        
-        if (!error) { 
-            msg.className = 'msg success'; 
-            msg.innerText = 'Majetek byl úspěšně zaevidován.'; 
-            document.getElementById('addAssetForm').reset(); 
-            toggleAssetElec(); 
-            loadAssets(); 
-        } else { 
-            msg.className = 'msg error'; 
-            msg.innerText = error.message; 
-        }
+        const { error } = await db.from('assets').insert({ asset_name: document.getElementById('assetName').value.trim(), inventory_number: document.getElementById('assetInvNum').value.trim(), location: document.getElementById('assetLocation').value.trim(), is_electrical: isElectrical, next_inspection: isElectrical ? document.getElementById('assetNextInspection').value : null, pdf_url: pdfUrl, status: 'V pořádku' });
+        if (!error) { msg.className = 'msg success'; msg.innerText = 'Majetek byl úspěšně zaevidován.'; document.getElementById('addAssetForm').reset(); toggleAssetElec(); loadAssets(); } else { msg.className = 'msg error'; msg.innerText = error.message; }
     });
 
     async function loadAssets() {
         if (!['zc', 'zcp', 'superadmin'].includes(simulatedRole)) return;
-        const { data } = await db.from('assets').select('*').order('created_at', { ascending: false }); 
-        if(!data) return;
-        
+        const { data } = await db.from('assets').select('*').order('created_at', { ascending: false }); if(!data) return;
         let activeHtml = '<table class="stats-table"><tr><th>Inv.č.</th><th>Název</th><th>Umístění</th><th>Revize</th><th>Akce</th></tr>';
         let retiredHtml = '<table class="stats-table"><tr><th>Inv.č.</th><th>Název</th><th>Důvod/Způsob</th><th>Vyřadil</th></tr>';
-        let hasActive = false, hasRetired = false, alertsHtml = ''; 
-        const today = new Date();
+        let hasActive = false, hasRetired = false, alertsHtml = ''; const today = new Date();
 
         data.forEach(a => {
-            if (a.status === 'Vyřazeno') { 
-                hasRetired = true; 
-                retiredHtml += `<tr><td>${a.inventory_number}</td><td>${a.asset_name}</td><td>${a.retirement_reason} (${a.retirement_method})</td><td>${a.retired_by}</td></tr>`; 
-            } else {
-                hasActive = true; 
-                let revizeInfo = '-';
-                
+            if (a.status === 'Vyřazeno') { hasRetired = true; retiredHtml += `<tr><td>${a.inventory_number}</td><td>${a.asset_name}</td><td>${a.retirement_reason} (${a.retirement_method})</td><td>${a.retired_by}</td></tr>`; } else {
+                hasActive = true; let revizeInfo = '-';
                 if (a.is_electrical && a.next_inspection) {
-                    let diffDays = Math.ceil((new Date(a.next_inspection) - today) / 86400000); 
-                    let textColor = diffDays < 0 ? 'red' : (diffDays <= 30 ? 'orange' : 'green');
-                    
-                    if (diffDays <= 30) {
-                        alertsHtml += `⚠️ Zařízení <b>${a.asset_name}</b> (Inv: ${a.inventory_number}) vyprší revize za ${diffDays} dní!<br>`;
-                    }
-                    
-                    revizeInfo = `<span style="color:${textColor};font-weight:bold;">${formatDateTime(a.next_inspection).split(' ')[0]}</span>`;
-                    if(a.pdf_url) {
-                        revizeInfo += ` <a href="${a.pdf_url}" target="_blank" style="font-size:0.8rem; margin-left:5px;">[PDF Protokol]</a>`;
-                    }
+                    let diffDays = Math.ceil((new Date(a.next_inspection) - today) / 86400000); let textColor = diffDays < 0 ? 'red' : (diffDays <= 30 ? 'orange' : 'green');
+                    if (diffDays <= 30) alertsHtml += `⚠️ Zařízení <b>${a.asset_name}</b> (Inv: ${a.inventory_number}) vyprší revize za ${diffDays} dní!<br>`;
+                    revizeInfo = `<span style="color:${textColor};font-weight:bold;">${formatDateTime(a.next_inspection).split(' ')[0]}</span>${a.pdf_url ? ` <a href="${a.pdf_url}" target="_blank" style="font-size:0.8rem; margin-left:5px;">[PDF Protokol]</a>` : ''}`;
                 }
-                
-                activeHtml += `<tr><td>${a.inventory_number}</td><td>${a.asset_name}</td><td>${a.location}</td><td>${revizeInfo}</td><td><button class="btn-small btn-danger" onclick="openRetireModal('${a.id}','${a.asset_name}','${a.inventory_number}')">Vyřadit</button></td></tr>`;
+                activeHtml += `<tr><td>${a.inventory_number}</td><td>${a.asset_name}</td><td>${a.location}</td><td>${revizeInfo}</td><td><button class="btn-small btn-danger" onclick="openRetireModal('${a.id}','${a.asset_name.replace(/'/g, "\\'")}','${a.inventory_number}')">Vyřadit</button></td></tr>`;
             }
         });
-        
         document.getElementById('activeAssetsList').innerHTML = hasActive ? activeHtml + '</table>' : '<p style="color:#718096; font-style:italic;">Zatím neevidujete žádný aktivní majetek.</p>';
         document.getElementById('retiredAssetsList').innerHTML = hasRetired ? retiredHtml + '</table>' : '<p style="color:#718096; font-style:italic;">Archiv je prázdný.</p>';
-        
-        const alertBox = document.getElementById('assetAlertBox');
-        if (alertsHtml) { 
-            alertBox.innerHTML = alertsHtml; 
-            alertBox.style.display = 'block'; 
-        } else {
-            alertBox.style.display = 'none';
-        }
+        const alertBox = document.getElementById('assetAlertBox'); if (alertsHtml) { alertBox.innerHTML = alertsHtml; alertBox.style.display = 'block'; } else alertBox.style.display = 'none';
     }
 
-    window.openRetireModal = function(id, name, inv) { 
-        document.getElementById('retireAssetId').value = id; 
-        document.getElementById('retireAssetName').innerText = name; 
-        document.getElementById('retireAssetInv').innerText = inv; 
-        document.getElementById('retirePersonName').innerText = myProfileData.full_name; 
-        document.getElementById('retireAssetModal').style.display = 'flex'; 
-    };
-    
-    window.closeRetireModal = function() { 
-        document.getElementById('retireAssetModal').style.display = 'none'; 
-    };
+    window.openRetireModal = function(id, name, inv) { document.getElementById('retireAssetId').value = id; document.getElementById('retireAssetName').innerText = name; document.getElementById('retireAssetInv').innerText = inv; document.getElementById('retirePersonName').innerText = myProfileData.full_name; document.getElementById('retireAssetModal').style.display = 'flex'; };
+    window.closeRetireModal = function() { document.getElementById('retireAssetModal').style.display = 'none'; };
     
     document.getElementById('retireAssetForm')?.addEventListener('submit', async (e) => { 
         e.preventDefault(); 
-        const { error } = await db.from('assets').update({ 
-            status: 'Vyřazeno', 
-            retirement_reason: document.getElementById('retireReason').value, 
-            retirement_method: document.getElementById('retireMethod').value, 
-            retired_by: myProfileData.full_name 
-        }).eq('id', document.getElementById('retireAssetId').value); 
-        
-        if(!error) { 
-            alert('Majetek byl úspěšně zaevidován jako vyřazený.'); 
-            closeRetireModal(); 
-            loadAssets(); 
-        } else {
-            alert(error.message); 
-        }
+        const { error } = await db.from('assets').update({ status: 'Vyřazeno', retirement_reason: document.getElementById('retireReason').value, retirement_method: document.getElementById('retireMethod').value, retired_by: myProfileData.full_name }).eq('id', document.getElementById('retireAssetId').value); 
+        if(!error) { alert('Majetek byl úspěšně zaevidován jako vyřazený.'); closeRetireModal(); loadAssets(); } else alert(error.message); 
     });
     
     window.exportAssetsToCSV = async function() { 
-        const { data } = await db.from('assets').select('*'); 
-        if(!data) return; 
-        
+        const { data } = await db.from('assets').select('*'); if(!data) return; 
         let csv = "Inv_Cislo;Nazev;Umisteni;Elektro;Dalsi_Revize;Stav;Duvod_Vyrazeni;Zpusob_Likvidace;Vyradil\n"; 
-        data.forEach(a => {
-            csv += `${a.inventory_number};${a.asset_name};${a.location};${a.is_electrical?'ANO':'NE'};${a.next_inspection||'-'};${a.status};${a.retirement_reason||'-'};${a.retirement_method||'-'};${a.retired_by||'-'}\n`;
-        }); 
-        
-        const a = document.createElement('a'); 
-        a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' })); 
-        a.download = `Soupis_Majetku_${new Date().toISOString().slice(0,10)}.csv`; 
-        a.click(); 
+        data.forEach(a => csv += `${a.inventory_number};${a.asset_name};${a.location};${a.is_electrical?'ANO':'NE'};${a.next_inspection||'-'};${a.status};${a.retirement_reason||'-'};${a.retirement_method||'-'};${a.retired_by||'-'}\n`); 
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' })); a.download = `Soupis_Majetku_${new Date().toISOString().slice(0,10)}.csv`; a.click(); 
     };
 
     // ==========================================
