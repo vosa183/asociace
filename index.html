@@ -449,6 +449,38 @@
                 <button class="btn-small btn-green" onclick="saveSystemSettings()" style="margin-top:1rem; width: auto;">Uložit systémové nastavení</button>
             </div>
 
+            <div id="newsletterZone" style="display: none; background: #fff5f5; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #feb2b2;">
+                <h3 style="color: var(--secondary);">Hromadný rozesílač zpráv (až 10 000 kontaktů)</h3>
+                <p style="font-size: 0.85rem; margin-bottom: 1rem;">Nahrání externí databáze e-mailů (čte pouze sloupec A) a dávkové rozesílání.</p>
+
+                <div class="grid-2">
+                    <div style="background: white; border: 1px solid #cbd5e0; padding: 1rem; border-radius: 6px;">
+                        <h4 style="color: var(--primary);">1. Nahrát databázi e-mailů (.xlsx)</h4>
+                        <form id="uploadEmailsForm">
+                            <input type="file" id="emailsFile" accept=".xls, .xlsx" required style="background: white; margin-top: 10px;">
+                            <button type="submit" class="btn-blue btn-small">Nahrát maily do DB</button>
+                            <div id="emailsUploadMsg" class="msg"></div>
+                        </form>
+                        <div style="margin-top: 15px; font-size: 0.9rem; padding-top: 10px; border-top: 1px dashed #cbd5e0;">
+                            <strong>Celkem v databázi k odeslání:</strong> <span id="totalEmailsCount" style="color: var(--secondary); font-weight: bold; font-size: 1.1rem;">0</span> e-mailů
+                            <button class="btn-small btn-danger" style="margin-top: 10px; width:100%;" onclick="clearEmailDb()">⚠️ Vymazat celou DB e-mailů</button>
+                        </div>
+                    </div>
+
+                    <div style="background: white; border: 1px solid #cbd5e0; padding: 1rem; border-radius: 6px;">
+                        <h4 style="color: var(--primary);">2. Rozeslat zprávu</h4>
+                        <form id="sendNewsletterForm">
+                            <label>Předmět zprávy</label>
+                            <input type="text" id="nlSubject" required>
+                            <label>Text zprávy</label>
+                            <textarea id="nlMessage" rows="5" required placeholder="Dobrý den, zveme vás na další ročník..."></textarea>
+                            <button type="submit" class="btn-orange btn-small" id="sendNlBtn">🚀 Odeslat na všechny e-maily (Dávkově)</button>
+                            <div id="nlSendMsg" class="msg"></div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             <div id="zcZone" style="display: none;">
                 
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
@@ -1440,7 +1472,23 @@
     window.addComment = async function(vid) { const i = document.getElementById('commentInput_'+vid); const t = i.value.trim(); if(!t) return; await db.from('comments').insert({ vote_id: vid, user_id: currentUser.id, comment_text: t }); i.value = ''; loadVotes(); };
     window.closeDebate = async function(vid) { if(confirm('Uzavřít?')) { await db.from('votes').update({ is_closed: true }).eq('id', vid); loadVotes(); } };
 
-    // --- 9. ADMINISTRACE ---
+    // --- 9. ADMINISTRACE A NEWSLETTER ---
+    async function loadNewsletterStats() {
+        if (!['zcp', 'superadmin'].includes(simulatedRole)) {
+            const nlZone = document.getElementById('newsletterZone');
+            if (nlZone) nlZone.style.display = 'none';
+            return;
+        }
+        const nlZone = document.getElementById('newsletterZone');
+        if (nlZone) nlZone.style.display = 'block';
+        
+        try {
+            const { count } = await db.from('newsletter_subscribers').select('*', { count: 'exact', head: true });
+            const countEl = document.getElementById('totalEmailsCount');
+            if (countEl) countEl.innerText = count || 0;
+        } catch(e) { console.error(e); }
+    }
+
     async function loadAdminData() {
         const { count } = await db.from('profiles').select('*', { count: 'exact', head: true });
         document.getElementById('totalUsersCount').innerText = count || 0;
@@ -1487,6 +1535,8 @@
             document.getElementById('auditLogBox').innerHTML = logs && logs.length > 0 ? logs.map(l => `<div class="audit-log-item"><strong>${l.action}</strong> | ${l.user_name} (${formatDateTime(l.created_at)})<br>${l.details}</div>`).join('') : 'Prázdno';
             loadApiKeys();
         }
+
+        await loadNewsletterStats();
     }
 
     // Nástroje pro API klíče
@@ -1598,6 +1648,112 @@
         const { error } = await db.storage.from('results').upload(`vysledky_${Date.now()}_${file.name}`, file);
         if(!error) { msg.className = 'msg success'; msg.innerText = 'Výsledky nahrány!'; document.getElementById('uploadResultsForm').reset(); } 
         else { msg.className = 'msg error'; msg.innerText = 'Chyba: ' + error.message; }
+    });
+
+    // Event listenery pro Newsletter
+    document.getElementById('uploadEmailsForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = document.getElementById('emailsUploadMsg'); 
+        const file = document.getElementById('emailsFile').files[0];
+        if (!file) return; 
+        
+        msg.className = 'msg'; msg.innerText = 'Načítám Excel soubor...'; msg.style.display = 'block';
+        
+        const reader = new FileReader();
+        reader.onload = async function(ev) {
+            try {
+                const data = new Uint8Array(ev.target.result); 
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheetName = workbook.SheetNames[0];
+                const jsonRows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], {header: "A"});
+                
+                let toUpsert = [];
+                // Čteme pouze sloupec A
+                jsonRows.forEach(row => {
+                    let emailVal = row.A ? String(row.A).trim() : '';
+                    if(emailVal.includes('@') && emailVal.includes('.')) {
+                        toUpsert.push({ email: emailVal });
+                    }
+                });
+                
+                if(toUpsert.length === 0) { 
+                    msg.className = 'msg error'; msg.innerText = 'Ve sloupci A nebyly nalezeny platné e-maily.'; return; 
+                }
+                
+                msg.innerText = `Nalezeno ${toUpsert.length} e-mailů. Ukládám do databáze v dávkách...`;
+                
+                for(let i = 0; i < toUpsert.length; i += 500) { 
+                    const batch = toUpsert.slice(i, i + 500); 
+                    await db.from('newsletter_subscribers').upsert(batch, { onConflict: 'email' }); 
+                }
+                
+                msg.className = 'msg success'; 
+                msg.innerText = 'Databáze e-mailů byla úspěšně nahrána!'; 
+                document.getElementById('uploadEmailsForm').reset(); 
+                loadNewsletterStats();
+                logAction('Newsletter', `Nahrána nová databáze: ${toUpsert.length} kontaktů.`);
+            } catch(err) { 
+                msg.className = 'msg error'; msg.innerText = 'Chyba při čtení Excelu: ' + err.message; 
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    window.clearEmailDb = async function() {
+        if(confirm('VAROVÁNÍ: Opravdu chcete nenávratně smazat všechny e-maily z databáze?')) {
+            try {
+                await db.from('newsletter_subscribers').delete().neq('email', 'dummy_neexistujici_email@test.cz');
+                alert('Databáze vymazána.');
+                loadNewsletterStats();
+                logAction('Newsletter', 'Smazána databáze e-mailů.');
+            } catch(e) { alert('Chyba: ' + e.message); }
+        }
+    };
+
+    document.getElementById('sendNewsletterForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const subj = document.getElementById('nlSubject').value;
+        const msgText = document.getElementById('nlMessage').value;
+        const msgBox = document.getElementById('nlSendMsg');
+        const btn = document.getElementById('sendNlBtn');
+
+        if(!confirm('Spustit hromadné rozesílání? Toto může trvat několik minut.')) return;
+
+        btn.disabled = true;
+        msgBox.className = 'msg'; msgBox.innerText = 'Stahuji kontakty z DB...'; msgBox.style.display = 'block';
+
+        try {
+            const { data: emailsData, error } = await db.from('newsletter_subscribers').select('email');
+            if (error || !emailsData || emailsData.length === 0) {
+                msgBox.className = 'msg error'; msgBox.innerText = 'V databázi nejsou žádné e-maily.';
+                btn.disabled = false; return;
+            }
+
+            const allEmails = emailsData.map(e => e.email);
+            const total = allEmails.length;
+            let sentCount = 0;
+            const batchSize = 50; 
+
+            for (let i = 0; i < total; i += batchSize) {
+                const batch = allEmails.slice(i, i + batchSize);
+                msgBox.innerText = `Odesílám dávku... Zpracováno ${sentCount} z ${total}`;
+                
+                await sendEmailNotification(subj, msgText, batch);
+                
+                sentCount += batch.length;
+                await new Promise(r => setTimeout(r, 1000));
+            }
+
+            msgBox.className = 'msg success'; 
+            msgBox.innerText = `Rozesláno na ${total} kontaktů!`;
+            document.getElementById('sendNewsletterForm').reset();
+            logAction('Newsletter', `Rozeslán e-mail s předmětem "${subj}" na ${total} lidí.`);
+
+        } catch (err) {
+            msgBox.className = 'msg error'; msgBox.innerText = 'Chyba při odesílání: ' + err.message;
+        } finally {
+            btn.disabled = false;
+        }
     });
 
 </script>
