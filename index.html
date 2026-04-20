@@ -110,6 +110,8 @@
         .audit-log-box { max-height: 300px; overflow-y: auto; background: #fff; padding: 1rem; border: 1px solid #ccc; border-radius: 8px; font-size: 0.85rem; }
         .audit-log-item { border-bottom: 1px dashed #e2e8f0; padding: 0.5rem 0; }
 
+        /* Styly pro evidenci majetku a modální okna */
+        .asset-alert { background: #fff5f5; border: 2px solid #feb2b2; padding: 1rem; border-radius: 8px; color: #c53030; font-weight: bold; margin-bottom: 1.5rem; display: none; }
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
         .modal-box { background: white; padding: 2rem; border-radius: 12px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; position: relative; }
         .modal-close { position: absolute; top: 15px; right: 15px; background: transparent; color: var(--secondary); border: none; font-size: 1.5rem; cursor: pointer; width: auto; padding: 0; }
@@ -252,7 +254,6 @@
             </form>
         </div>
     </section>
-
     <section id="dashboard" class="page-section">
         <div class="card">
             <div style="display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; border-bottom: 2px solid var(--secondary); margin-bottom: 1.5rem; padding-bottom: 0.5rem;">
@@ -310,6 +311,7 @@
             </div>
         </div>
     </section>
+
     <section id="public-invite" class="page-section">
         <div class="card" style="padding-top: 0;">
             <div id="publicInviteContent">Načítám detaily turnaje, prosím čekejte...</div>
@@ -598,16 +600,17 @@
 
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
                     <h3>Nahrát výsledky proběhlého turnaje</h3>
+                    <p style="font-size: 0.85rem; margin-bottom: 1rem;">Očekává se Excel s listy "Databáze Hráčů" a "Výsledky Turnaje". Název souboru určí jméno a datum.</p>
                     <form id="uploadResultsForm">
-                        <input type="file" id="resultFile" accept=".pdf, .xls, .xlsx" required style="background: white;">
-                        <button type="submit" class="btn-blue">Nahrát do systému</button>
+                        <input type="file" id="resultFile" accept=".xls, .xlsx" required style="background: white;">
+                        <button type="submit" class="btn-blue" style="margin-top: 10px;">Zpracovat Excel a nahrát do statistik</button>
                         <div id="uploadMsg" class="msg"></div>
                     </form>
                 </div>
 
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border: 2px solid #a0aec0;">
                     <div style="display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; border-bottom: 1px solid #cbd5e0; padding-bottom: 10px; margin-bottom: 15px;">
-                        <h3>Správa a evidence majetku</h3>
+                        <h3 style="margin: 0;">Správa a evidence majetku</h3>
                         <button class="btn-small btn-green" onclick="exportAssetsToCSV()">📥 Stáhnout kompletní soupis (Excel/CSV)</button>
                     </div>
 
@@ -689,7 +692,9 @@
 </footer>
 
 <script>
+    // ==========================================
     // --- 1. INICIALIZACE A GLOBÁLNÍ PROMĚNNÉ ---
+    // ==========================================
     const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -716,7 +721,9 @@
         'superadmin': 'Super Admin (Ukončit simulaci)' 
     };
 
-    // --- 2. POMOCNÉ FUNKCE ---
+    // ==========================================
+    // --- 2. POMOCNÉ FUNKCE A NAVIGACE ---
+    // ==========================================
     function toggleMobileMenu() { 
         document.getElementById('mainNav').classList.toggle('mobile-active'); 
     }
@@ -738,18 +745,14 @@
                 action: akce, 
                 details: detaily 
             });
-        } catch (e) {
-            console.log('Chyba auditu', e);
-        }
+        } catch (e) { console.error('Audit log error', e); }
     }
 
     async function getAllZcEmails() {
         try {
             const { data } = await db.from('profiles').select('email').in('role', ['zc', 'zcp', 'superadmin']);
             if (data) return data.map(p => p.email).filter(e => e);
-        } catch (e) {
-            console.log(e);
-        }
+        } catch (e) { console.error(e); }
         return [];
     }
 
@@ -763,15 +766,12 @@
                     headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ subject: predmet, message: zprava, to: to })
                 });
-            } catch (e) {
-                console.log(e);
-            }
+            } catch (e) { console.error('Mail fail', e); }
         }
     }
 
     function switchTab(tabId) {
         document.getElementById('mainNav').classList.remove('mobile-active');
-        
         document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
         const targetSection = document.getElementById(tabId);
         if (targetSection) targetSection.classList.add('active');
@@ -782,23 +782,20 @@
         
         sessionStorage.setItem('activeTab', tabId);
 
-        if (tabId === 'tournaments') { 
-            loadTournaments(); 
-            if(currentUser) loadMyRegistrations(); 
-        }
+        if (tabId === 'tournaments') { loadTournaments(); if(currentUser) loadMyRegistrations(); }
         if (tabId === 'stats') loadHistoricalData();
         if (tabId === 'voting') loadVotes();
-        
         if (currentUser && myProfileData) {
             if (tabId === 'admin') loadAdminData();
             if (tabId === 'dashboard') renderDashboard();
         }
     }
 
-    // --- 3. AUTENTIZACE A ŘÍZENÍ PŘÍSTUPU ---
+    // ==========================================
+    // --- 3. AUTENTIZACE A PŘÍSTUPY ---
+    // ==========================================
     async function checkAuthState(user) {
         currentUser = user;
-
         if (user) {
             document.getElementById('menu-auth').style.display = 'none';
             document.getElementById('menu-tournaments').style.display = 'block';
@@ -806,25 +803,18 @@
             document.getElementById('menu-voting').style.display = 'block';
             document.getElementById('menu-profile').style.display = 'block';
             document.getElementById('menu-logout').style.display = 'block';
-            
             document.getElementById('statsAuthWarning').style.display = 'none';
             document.getElementById('personalStatsSection').style.display = 'block';
 
             try {
                 const { data: settings } = await db.from('system_settings').select('*').eq('id', 1).maybeSingle();
-                if(settings) { 
-                    globalBankAccount = settings.bank_account; 
-                    globalFioToken = settings.fio_token; 
-                }
+                if(settings) { globalBankAccount = settings.bank_account; globalFioToken = settings.fio_token; }
 
                 const { data: prof } = await db.from('profiles').select('*').eq('id', user.id).maybeSingle();
-                
                 if (prof && prof.player_id_card) {
                     myProfileData = prof; 
                     actualUserRole = prof.role || 'player';
-                    if (simulatedRole === 'player' && actualUserRole !== 'player') {
-                        simulatedRole = actualUserRole;
-                    }
+                    if (simulatedRole === 'player' && actualUserRole !== 'player') simulatedRole = actualUserRole;
                     updateMenuByRole();
                     
                     if (!presenceChannel) {
@@ -837,41 +827,19 @@
                             if (s === 'SUBSCRIBED') await presenceChannel.track({ user: prof.full_name || 'Neznámý' }); 
                         });
                     }
-                    
                     const { data: fam } = await db.from('players').select('*').eq('owner_id', user.id);
                     myFamily = fam || [];
                     
                     if (!authInitialized) { 
-                        authInitialized = true; 
-                        logAction('Přihlášení', 'Uživatel vstoupil do systému');
-                        
+                        authInitialized = true; logAction('Přihlášení', 'Uživatel vstoupil do systému');
                         const savedTab = sessionStorage.getItem('activeTab') || 'dashboard';
-                        if (savedTab === 'auth' || savedTab === 'profile-setup') { 
-                            switchTab('dashboard'); 
-                        } else { 
-                            switchTab(savedTab); 
-                        }
-                    } else {
-                        const currentTab = document.querySelector('.page-section.active')?.id;
-                        if (currentTab === 'dashboard') renderDashboard();
-                    }
-                } else { 
-                    switchTab('profile-setup'); 
-                }
-            } catch (e) {
-                console.log(e);
-                switchTab('profile-setup');
-            }
+                        if (savedTab === 'auth' || savedTab === 'profile-setup') switchTab('dashboard'); else switchTab(savedTab);
+                    } else { if (document.querySelector('.page-section.active')?.id === 'dashboard') renderDashboard(); }
+                } else { switchTab('profile-setup'); }
+            } catch (e) { switchTab('profile-setup'); }
         } else {
-            if (presenceChannel) { 
-                presenceChannel.unsubscribe(); 
-                presenceChannel = null; 
-            }
-            currentUser = null;
-            myProfileData = null; 
-            myFamily = []; 
-            authInitialized = false;
-            
+            if (presenceChannel) { presenceChannel.unsubscribe(); presenceChannel = null; }
+            currentUser = null; myProfileData = null; myFamily = []; authInitialized = false;
             document.getElementById('menu-auth').style.display = 'block';
             document.getElementById('menu-profile').style.display = 'none';
             document.getElementById('menu-admin').style.display = 'none';
@@ -879,99 +847,46 @@
             document.getElementById('menu-tournaments').style.display = 'none';
             document.getElementById('menu-stats').style.display = 'none';
             document.getElementById('menu-voting').style.display = 'none';
-            
             document.getElementById('statsAuthWarning').style.display = 'block';
             document.getElementById('personalStatsSection').style.display = 'none';
-
             const currentTab = sessionStorage.getItem('activeTab') || 'home';
-            if (['dashboard', 'profile-setup', 'admin', 'tournaments', 'voting', 'stats'].includes(currentTab)) {
-                switchTab('home');
-            } else {
-                switchTab(currentTab);
-            }
+            if (['dashboard', 'profile-setup', 'admin', 'tournaments', 'voting', 'stats'].includes(currentTab)) switchTab('home'); else switchTab(currentTab);
         }
     }
 
     let authStateTimeout;
-    db.auth.onAuthStateChange((_e, s) => { 
-        clearTimeout(authStateTimeout);
-        authStateTimeout = setTimeout(() => checkAuthState(s?.user), 100); 
-    });
+    db.auth.onAuthStateChange((_e, s) => { clearTimeout(authStateTimeout); authStateTimeout = setTimeout(() => checkAuthState(s?.user), 100); });
 
-    async function logOutUser() { 
-        if (currentUser) await logAction('Odhlášení', 'Uživatel odešel'); 
-        await db.auth.signOut(); 
-        window.location.reload();
-    }
+    async function logOutUser() { if (currentUser) await logAction('Odhlášení', 'Uživatel odešel'); await db.auth.signOut(); window.location.reload(); }
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const msg = document.getElementById('loginMsg'); 
-        msg.className = 'msg'; msg.innerText = 'Přihlašuji...'; msg.style.display = 'block';
-        
-        const { error } = await db.auth.signInWithPassword({ 
-            email: document.getElementById('loginEmail').value, 
-            password: document.getElementById('loginPassword').value 
-        });
-        
-        if (error) { msg.className = 'msg error'; msg.innerText = 'Špatné údaje.'; } 
-        else { msg.style.display = 'none'; }
+        e.preventDefault(); const msg = document.getElementById('loginMsg'); msg.className = 'msg'; msg.innerText = 'Přihlašuji...'; msg.style.display = 'block';
+        const { error } = await db.auth.signInWithPassword({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPassword').value });
+        if (error) { msg.className = 'msg error'; msg.innerText = 'Špatné údaje.'; } else msg.style.display = 'none';
     });
 
     document.getElementById('regForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const msg = document.getElementById('regMsg'); 
-        msg.className = 'msg'; msg.innerText = 'Zpracovávám...'; msg.style.display = 'block';
-        
-        const { error } = await db.auth.signUp({ 
-            email: document.getElementById('regEmail').value, 
-            password: document.getElementById('regPassword').value 
-        });
-        
-        if (error) { msg.className = 'msg error'; msg.innerText = error.message; } 
-        else { msg.className = 'msg success'; msg.innerText = 'Účet vytvořen. Nyní se můžete přihlásit a dokončit profil.'; }
+        e.preventDefault(); const msg = document.getElementById('regMsg'); msg.className = 'msg'; msg.innerText = 'Zpracovávám...'; msg.style.display = 'block';
+        const { error } = await db.auth.signUp({ email: document.getElementById('regEmail').value, password: document.getElementById('regPassword').value });
+        if (error) { msg.className = 'msg error'; msg.innerText = error.message; } else { msg.className = 'msg success'; msg.innerText = 'Účet vytvořen. Nyní se můžete přihlásit.'; }
     });
 
     document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const { error } = await db.auth.updateUser({ password: document.getElementById('newPasswordInput').value });
-        if(error) { alert('Chyba: ' + error.message); } 
-        else { 
-            alert('Heslo bezpečně změněno'); 
-            await logAction('Změna hesla', 'Uživatel si změnil heslo'); 
-            document.getElementById('changePasswordForm').reset();
-        }
+        if(error) { alert('Chyba: ' + error.message); } else { alert('Heslo bezpečně změněno'); await logAction('Změna hesla', 'Změna hesla'); document.getElementById('changePasswordForm').reset(); }
     });
 
     document.getElementById('profileForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const msg = document.getElementById('profMsg'); 
-        msg.className = 'msg'; msg.innerText = 'Ověřuji vaši značku v databázi a ukládám...'; msg.style.display = 'block';
-        
+        e.preventDefault(); const msg = document.getElementById('profMsg'); msg.className = 'msg'; msg.innerText = 'Ověřuji vaši značku...'; msg.style.display = 'block';
         const enteredId = document.getElementById('profIdCard').value.trim();
         const { data: profCheck } = await db.from('profiles').select('id').eq('player_id_card', enteredId).neq('id', currentUser.id);
-        
-        if (profCheck && profCheck.length > 0) { 
-            msg.className = 'msg error'; msg.innerText = 'Tento průkaz je již přiřazen k jinému účtu.'; return; 
-        }
-
+        if (profCheck && profCheck.length > 0) { msg.className = 'msg error'; msg.innerText = 'Tento průkaz je již u jiného účtu.'; return; }
         const { data: dbPlayer } = await db.from('player_database').select('full_name, city').eq('player_id_card', enteredId).single();
-        if (!dbPlayer) {
-             msg.className = 'msg error'; msg.innerText = 'Tato značka není evidována v centrální databázi asociace.'; return;
-        }
-
-        const updates = { 
-            id: currentUser.id, 
-            full_name: dbPlayer.full_name, 
-            city: dbPlayer.city || '-',
-            player_id_card: enteredId, 
-            email: document.getElementById('profEmail').value, 
-            phone: document.getElementById('profPhone').value 
-        };
-
+        if (!dbPlayer) { msg.className = 'msg error'; msg.innerText = 'Tato značka není v centrální DB.'; return; }
+        const updates = { id: currentUser.id, full_name: dbPlayer.full_name, city: dbPlayer.city || '-', player_id_card: enteredId, email: document.getElementById('profEmail').value, phone: document.getElementById('profPhone').value };
         const { error } = await db.from('profiles').upsert(updates);
-        if (error) { msg.className = 'msg error'; msg.innerText = 'Chyba při ukládání: ' + error.message; } 
-        else { msg.style.display = 'none'; authInitialized = false; checkAuthState(currentUser); }
+        if (error) { msg.className = 'msg error'; msg.innerText = 'Chyba: ' + error.message; } else { msg.style.display = 'none'; authInitialized = false; checkAuthState(currentUser); }
     });
 
     function updateMenuByRole() {
@@ -979,343 +894,172 @@
         document.getElementById('menu-admin').style.display = isZcPlus ? 'block' : 'none';
         document.getElementById('zcZone').style.display = isZcPlus ? 'block' : 'none';
         document.getElementById('zcpZone').style.display = ['zcp','superadmin'].includes(simulatedRole) ? 'block' : 'none';
-        
-        if (actualUserRole === 'superadmin') { 
-            document.getElementById('menu-admin').style.display = 'block';
-            document.getElementById('superAdminZone').style.display = 'block'; 
-            document.getElementById('roleSwitcher').value = simulatedRole;
-        }
-        
-        const propTitle = document.getElementById('proposalHeaderTitle');
-        if (propTitle) {
-            propTitle.innerText = (simulatedRole === 'pc') ? 'Zadat nový podnět k diskuzi (Oranžová debata)' : 'Založit novou diskuzi';
-        }
+        if (actualUserRole === 'superadmin') { document.getElementById('menu-admin').style.display = 'block'; document.getElementById('superAdminZone').style.display = 'block'; document.getElementById('roleSwitcher').value = simulatedRole; }
+        const pT = document.getElementById('proposalHeaderTitle'); if(pT) pT.innerText = simulatedRole === 'pc' ? 'Zadat nový podnět k diskuzi' : 'Založit novou diskuzi';
     }
+    document.getElementById('roleSwitcher')?.addEventListener('change', (e) => { simulatedRole = e.target.value; updateMenuByRole(); switchTab(document.querySelector('.page-section.active')?.id || 'dashboard'); });
 
-    document.getElementById('roleSwitcher').addEventListener('change', (e) => { 
-        simulatedRole = e.target.value; 
-        updateMenuByRole(); 
-        const activeTab = document.querySelector('.page-section.active');
-        if (activeTab) switchTab(activeTab.id); 
-    });
-
+    // ==========================================
     // --- 4. DASHBOARD A PROFIL ---
+    // ==========================================
     function renderDashboard() {
         if (!myProfileData) return;
-        document.getElementById('dashLoading').style.display = 'none';
-        document.getElementById('dashContent').style.display = 'block';
-
-        document.getElementById('dash-name').innerText = myProfileData.full_name || 'Neznámé jméno';
-        document.getElementById('dash-city').innerText = myProfileData.city || '-';
-        document.getElementById('dash-id').innerText = myProfileData.player_id_card || 'Nezadáno';
-        document.getElementById('dash-email').innerText = myProfileData.email || currentUser.email || 'Nezadáno';
-        
-        let roleText = roleNames[simulatedRole] || 'Hráč';
-        if (actualUserRole === 'superadmin' && simulatedRole !== 'superadmin') roleText += ' (Simulace)';
-        document.getElementById('dash-role').innerText = roleText;
-
+        document.getElementById('dashLoading').style.display = 'none'; document.getElementById('dashContent').style.display = 'block';
+        document.getElementById('dash-name').innerText = myProfileData.full_name; document.getElementById('dash-city').innerText = myProfileData.city;
+        document.getElementById('dash-id').innerText = myProfileData.player_id_card; document.getElementById('dash-email').innerText = myProfileData.email;
+        let roleText = roleNames[simulatedRole] || 'Hráč'; if (actualUserRole === 'superadmin' && simulatedRole !== 'superadmin') roleText += ' (Simulace)'; document.getElementById('dash-role').innerText = roleText;
         const list = document.getElementById('familyList'); 
-        if (list) {
-            list.innerHTML = '';
-            if (myFamily && myFamily.length > 0) {
-                myFamily.forEach(p => {
-                    list.innerHTML += `<li class="list-item">
-                        <span><strong>${p.full_name}</strong> (Průkaz: ${p.player_id_card})</span>
-                        <button class="btn-small btn-danger" onclick="removeFamily('${p.id}')">Odebrat z rodiny</button>
-                    </li>`;
-                });
-            } else { 
-                list.innerHTML = '<li><span style="color: #777;">Zatím nemáte přidané žádné další členy.</span></li>'; 
-            }
-        }
+        if (list) list.innerHTML = myFamily.length > 0 ? myFamily.map(p => `<li class="list-item"><span><strong>${p.full_name}</strong> (${p.player_id_card})</span><button class="btn-small btn-danger" onclick="removeFamily('${p.id}')">Odebrat z rodiny</button></li>`).join('') : '<li><span style="color: #777;">Zatím nemáte přidané žádné další členy.</span></li>';
     }
 
     window.editMyProfile = function(show = true) {
         document.getElementById('editProfileBox').style.display = show ? 'block' : 'none';
-        if(show) {
-            document.getElementById('editEmail').value = myProfileData.email || currentUser.email;
-            document.getElementById('editPhone').value = myProfileData.phone || '';
-            document.getElementById('editCity').value = myProfileData.city || '';
-        }
+        if(show) { document.getElementById('editEmail').value = myProfileData.email; document.getElementById('editPhone').value = myProfileData.phone; document.getElementById('editCity').value = myProfileData.city; }
     };
-
     window.saveProfileEdits = async function() {
-        const updates = { 
-            email: document.getElementById('editEmail').value, 
-            phone: document.getElementById('editPhone').value, 
-            city: document.getElementById('editCity').value 
-        };
-        const { error } = await db.from('profiles').update(updates).eq('id', currentUser.id);
-        if(!error) { alert('Údaje úspěšně uloženy.'); location.reload(); }
-        else { alert('Chyba: ' + error.message); }
+        const { error } = await db.from('profiles').update({ email: document.getElementById('editEmail').value, phone: document.getElementById('editPhone').value, city: document.getElementById('editCity').value }).eq('id', currentUser.id);
+        if(!error) location.reload(); else alert('Chyba: ' + error.message);
     };
 
     document.getElementById('addFamilyForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const msg = document.getElementById('famMsg');
-        const famId = document.getElementById('famId').value.trim();
-        
+        e.preventDefault(); const msg = document.getElementById('famMsg'); const famId = document.getElementById('famId').value.trim();
         const { data: dbPlayer } = await db.from('player_database').select('full_name, city').eq('player_id_card', famId).single();
-        if (!dbPlayer) {
-             msg.className = 'msg error'; msg.innerText = 'Tato značka není v centrální databázi evidována.'; msg.style.display = 'block'; return;
-        }
-
+        if (!dbPlayer) { msg.className = 'msg error'; msg.innerText = 'Tato značka není v databázi evidována.'; msg.style.display = 'block'; return; }
         const { error } = await db.from('players').insert({ owner_id: currentUser.id, full_name: dbPlayer.full_name, city: dbPlayer.city || '-', player_id_card: famId });
-        if (!error) { 
-            document.getElementById('addFamilyForm').reset(); msg.style.display = 'none'; logAction('Rodina', `Přidán člen z DB: ${dbPlayer.full_name}`); 
-            const { data: famData } = await db.from('players').select('*').eq('owner_id', currentUser.id);
-            myFamily = famData || []; renderDashboard(); 
-        } else { msg.className = 'msg error'; msg.innerText = 'Chyba při přidávání. Značka je pravděpodobně již zaregistrována.'; msg.style.display = 'block'; }
+        if (!error) { document.getElementById('addFamilyForm').reset(); msg.style.display = 'none'; const { data } = await db.from('players').select('*').eq('owner_id', currentUser.id); myFamily = data || []; renderDashboard(); } else { msg.className = 'msg error'; msg.innerText = 'Chyba při přidávání.'; msg.style.display = 'block'; }
     });
 
-    window.removeFamily = async function(id) {
-        if (confirm('Jste si jistí, že chcete tohoto člena trvale odebrat ze své rodiny?')) { 
-            await db.from('players').delete().eq('id', id); 
-            const { data: famData } = await db.from('players').select('*').eq('owner_id', currentUser.id);
-            myFamily = famData || []; logAction('Odebrání rodiny', 'Uživatel odebral člena ze svého seznamu'); renderDashboard();
-        }
-    };
+    window.removeFamily = async function(id) { if (confirm('Odebrat člena rodiny?')) { await db.from('players').delete().eq('id', id); const { data } = await db.from('players').select('*').eq('owner_id', currentUser.id); myFamily = data || []; renderDashboard(); } };
 
+    // ==========================================
     // --- 5. TISK PRŮKAZŮ A PLAKÁTŮ ---
+    // ==========================================
     function generateMultipleCardsHTML(players) {
-        let cardsHtml = players.map(p => `
-            <div class="card">
-                <div class="header">Průkaz Hráče</div>
-                <div class="content">
-                    <img class="qr" src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(p.id)}" />
-                    <div class="info"><label>Jméno a příjmení</label><div>${p.name}</div><label>Bydliště</label><div>${p.city || '-'}</div><label>Identifikátor (ID)</label><div class="id-box">${p.id}</div></div>
-                </div>
-            </div>
-        `).join('');
-
-        return `<html><head><title>Hromadný Tisk Průkazů</title><style>
-            body { font-family: 'Arial', sans-serif; margin: 0; padding: 20px; background: #fff; }
-            .print-grid { display: grid; grid-template-columns: repeat(auto-fill, 85.6mm); gap: 10mm; justify-content: center; }
-            .card { width: 85.6mm; height: 53.98mm; border: 2px dashed #a0aec0; border-radius: 12px; overflow: hidden; position: relative; background: #fff; box-sizing: border-box; page-break-inside: avoid; }
-            .header { background: #1a365d; color: white; text-align: center; padding: 6px 0; font-size: 16px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
-            .content { display: flex; padding: 12px; align-items: center; }
-            .qr { width: 80px; height: 80px; margin-right: 15px; }
-            .info { flex: 1; }
-            .info label { display: block; font-size: 10px; color: #718096; margin-top: 6px; text-transform: uppercase; letter-spacing: 1px; }
-            .info div { font-size: 15px; font-weight: bold; color: #2d3748; line-height: 1.2; }
-            .info .id-box { color: #c53030; font-family: monospace; font-size: 16px; }
-            @media print { .card { border: 1px solid #e2e8f0; } }
-        </style></head><body><div class="print-grid">${cardsHtml}</div><script>window.onload=function(){window.print(); setTimeout(function(){window.close();}, 500);}<\/script></body></html>`;
+        let cardsHtml = players.map(p => `<div class="card"><div class="header">Průkaz Hráče</div><div class="content"><img class="qr" src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(p.id)}" /><div class="info"><label>Jméno a příjmení</label><div>${p.name}</div><label>Bydliště</label><div>${p.city || '-'}</div><label>Identifikátor (ID)</label><div class="id-box">${p.id}</div></div></div></div>`).join('');
+        return `<html><head><title>Tisk</title><style>body { font-family: 'Arial', sans-serif; margin: 0; padding: 20px; background: #fff; } .print-grid { display: grid; grid-template-columns: repeat(auto-fill, 85.6mm); gap: 10mm; justify-content: center; } .card { width: 85.6mm; height: 53.98mm; border: 2px dashed #a0aec0; border-radius: 12px; overflow: hidden; position: relative; box-sizing: border-box; page-break-inside: avoid; } .header { background: #1a365d; color: white; text-align: center; padding: 6px 0; font-size: 16px; font-weight: bold; text-transform: uppercase; } .content { display: flex; padding: 12px; align-items: center; } .qr { width: 80px; height: 80px; margin-right: 15px; } .info label { display: block; font-size: 10px; color: #718096; margin-top: 6px; text-transform: uppercase; } .info div { font-size: 15px; font-weight: bold; } .info .id-box { color: #c53030; font-family: monospace; font-size: 16px; } @media print { .card { border: 1px solid #e2e8f0; } }</style></head><body><div class="print-grid">${cardsHtml}</div><script>window.onload=function(){window.print(); setTimeout(function(){window.close();}, 500);}<\/script></body></html>`;
     }
-
-    window.printMyCard = function() {
-        if(!myProfileData) return;
-        const w = window.open('', '_blank', 'width=800,height=600');
-        w.document.write(generateMultipleCardsHTML([{id: myProfileData.player_id_card, name: myProfileData.full_name, city: myProfileData.city}]));
-        w.document.close();
-    };
-
-    window.filterPrintList = function() {
-        const term = document.getElementById('printSearchInput').value.toLowerCase();
-        const labels = document.querySelectorAll('#adminPrintList label');
-        labels.forEach(lbl => {
-            const text = lbl.innerText.toLowerCase();
-            lbl.style.display = text.includes(term) ? 'flex' : 'none';
-        });
-    };
-
+    window.printMyCard = function() { if(!myProfileData) return; const w = window.open('', '_blank'); w.document.write(generateMultipleCardsHTML([{id: myProfileData.player_id_card, name: myProfileData.full_name, city: myProfileData.city}])); w.document.close(); };
+    window.filterPrintList = function() { const term = document.getElementById('printSearchInput').value.toLowerCase(); document.querySelectorAll('#adminPrintList label').forEach(lbl => { lbl.style.display = lbl.innerText.toLowerCase().includes(term) ? 'flex' : 'none'; }); };
     window.adminPrintSelectedCards = function() {
-        const checkboxes = document.querySelectorAll('.print-check:checked');
-        if(checkboxes.length === 0) { alert('Nevybrali jste žádného hráče pro tisk.'); return; }
-        
-        let playersToPrint = [];
-        checkboxes.forEach(cb => { playersToPrint.push({ id: cb.value, name: cb.dataset.name, city: cb.dataset.city }); });
-
-        const w = window.open('', '_blank', 'width=800,height=600');
-        w.document.write(generateMultipleCardsHTML(playersToPrint));
-        w.document.close();
-        
-        checkboxes.forEach(cb => cb.checked = false);
-        const counterEl = document.getElementById('printSelectionCount');
-        if (counterEl) counterEl.innerText = 0;
+        const cbs = document.querySelectorAll('.print-check:checked'); if(cbs.length === 0) { alert('Nevybrali jste hráče.'); return; }
+        let toPrint = []; cbs.forEach(cb => { toPrint.push({ id: cb.value, name: cb.dataset.name, city: cb.dataset.city }); });
+        const w = window.open('', '_blank'); w.document.write(generateMultipleCardsHTML(toPrint)); w.document.close();
+        cbs.forEach(cb => cb.checked = false); if(document.getElementById('printSelectionCount')) document.getElementById('printSelectionCount').innerText = 0;
     };
-
-    document.addEventListener('change', function(e) {
-        if(e.target && e.target.classList.contains('print-check')) {
-            const count = document.querySelectorAll('.print-check:checked').length;
-            const counterEl = document.getElementById('printSelectionCount');
-            if (counterEl) counterEl.innerText = count;
-        }
-    });
-
+    document.addEventListener('change', function(e) { if(e.target && e.target.classList.contains('print-check')) { if(document.getElementById('printSelectionCount')) document.getElementById('printSelectionCount').innerText = document.querySelectorAll('.print-check:checked').length; } });
     window.printTournamentPoster = function(title, datetime, fee) {
-        document.getElementById('pTitle').innerText = title.toUpperCase();
-        document.getElementById('pDate').innerText = formatDateTime(datetime);
-        document.getElementById('pFee').innerText = 'Zápisné: ' + fee + ' Kč';
-        
-        const preview = document.getElementById('posterPreview');
-        preview.style.display = 'block';
-        window.print();
-        
-        if (document.getElementById('tName') && document.getElementById('tName').value === '') {
-            preview.style.display = 'none';
-        }
+        document.getElementById('pTitle').innerText = title.toUpperCase(); document.getElementById('pDate').innerText = formatDateTime(datetime); document.getElementById('pFee').innerText = 'Zápisné: ' + fee + ' Kč';
+        const preview = document.getElementById('posterPreview'); preview.style.display = 'block'; window.print();
+        if (document.getElementById('tName') && document.getElementById('tName').value === '') preview.style.display = 'none';
     };
 
+    // ==========================================
     // --- 6. TURNAJE A REGISTRACE ---
+    // ==========================================
     document.getElementById('createTournamentForm').addEventListener('input', () => {
-        const tName = document.getElementById('tName').value;
-        const tDate = document.getElementById('tDate').value;
-        const tFee = document.getElementById('tFee').value;
-        const livePreviewContainer = document.getElementById('posterPreview');
-        
-        if (tName || tDate || tFee) { livePreviewContainer.style.display = 'block'; } 
-        else { livePreviewContainer.style.display = 'none'; }
-        
-        document.getElementById('pTitle').innerText = tName.toUpperCase() || 'NÁZEV TURNAJE';
-        document.getElementById('pDate').innerText = tDate ? formatDateTime(tDate) : 'Vyberte datum a čas konání';
-        document.getElementById('pFee').innerText = `Zápisné: ${tFee || 100} Kč`;
+        const tName = document.getElementById('tName').value, tDate = document.getElementById('tDate').value, tFee = document.getElementById('tFee').value;
+        const prv = document.getElementById('posterPreview');
+        if (tName || tDate || tFee) prv.style.display = 'block'; else prv.style.display = 'none';
+        document.getElementById('pTitle').innerText = tName.toUpperCase() || 'NÁZEV TURNAJE'; document.getElementById('pDate').innerText = tDate ? formatDateTime(tDate) : 'Vyberte datum'; document.getElementById('pFee').innerText = `Zápisné: ${tFee || 100} Kč`;
     });
-
     document.getElementById('createTournamentForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const { error } = await db.from('tournaments').insert({ 
-            title: document.getElementById('tName').value, 
-            event_date: document.getElementById('tDate').value, 
-            capacity: document.getElementById('tCap').value, 
-            fee: document.getElementById('tFee').value 
-        });
-        if (error) { alert('Chyba při vypisování turnaje: ' + error.message); } 
-        else { 
-            alert('Turnaj byl úspěšně přidán do systému!'); 
-            logAction('Vypsání turnaje', `Založen nový turnaj: ${document.getElementById('tName').value}`); 
-            document.getElementById('createTournamentForm').reset(); 
-            document.getElementById('posterPreview').style.display = 'none';
-        }
+        const { error } = await db.from('tournaments').insert({ title: document.getElementById('tName').value, event_date: document.getElementById('tDate').value, capacity: document.getElementById('tCap').value, fee: document.getElementById('tFee').value });
+        if (error) alert('Chyba: ' + error.message); else { alert('Turnaj přidán!'); document.getElementById('createTournamentForm').reset(); document.getElementById('posterPreview').style.display = 'none'; }
     });
 
     async function loadTournaments() {
-        const { data: tourns, error } = await db.from('tournaments').select('*').order('created_at', { ascending: false });
+        const { data: tourns } = await db.from('tournaments').select('*').order('created_at', { ascending: false });
         const list = document.getElementById('tournamentsList'); list.innerHTML = '';
-        if (!tourns || tourns.length === 0) { list.innerHTML = '<p>Zatím nejsou vypsané žádné termíny.</p>'; return; }
-
+        if (!tourns || tourns.length === 0) { list.innerHTML = '<p>Zatím nejsou vypsané turnaje.</p>'; return; }
         for (let t of tourns) {
             const { count } = await db.from('registrations').select('*', { count: 'exact', head: true }).eq('tournament_id', t.id);
-            let isFull = count >= t.capacity; 
-            let btnText = isFull ? 'Přihlásit jako NÁHRADNÍK' : 'Přihlásit SEBE na turnaj'; 
-            let btnColor = isFull ? '#ed8936' : 'var(--primary)';
-            let familySelectOptions = myFamily.map(f => `<option value="${f.player_id_card}">${f.full_name}</option>`).join('');
-            
-            list.innerHTML += `<div class="list-item" style="flex-direction: column; align-items: flex-start;">
-                <h4>${t.title} <span style="font-weight:normal; color:#4a5568;">(${formatDateTime(t.event_date)})</span></h4>
-                <p>Obsazeno: ${count || 0} / ${t.capacity}</p>
-                <div style="display:flex; gap:10px; width:100%; margin-top:10px; flex-wrap: wrap;">
-                    <button class="btn-small" style="background:${btnColor}" onclick="joinTournament('${t.id}')">${btnText}</button>
-                    ${myFamily.length > 0 ? `<select id="famSel_${t.id}" style="margin:0; width:auto;">${familySelectOptions}</select><button class="btn-small" onclick="joinFamilyTournament('${t.id}')">Přihlásit člena rodiny</button>` : ''}
-                    <button class="btn-small btn-orange" onclick="printTournamentPoster('${t.title.replace(/'/g, "\\'")}', '${t.event_date}', '${t.fee}')">🖨️ Stáhnout / Vytisknout leták</button>
-                </div>
-            </div>`;
+            let isFull = count >= t.capacity, btnText = isFull ? 'Přihlásit NÁHRADNÍKA' : 'Přihlásit SEBE', btnColor = isFull ? '#ed8936' : 'var(--primary)';
+            let famOpts = myFamily.map(f => `<option value="${f.player_id_card}">${f.full_name}</option>`).join('');
+            list.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:start;"><h4>${t.title} <span style="font-weight:normal;color:#4a5568;">(${formatDateTime(t.event_date)})</span></h4><p>Obsazeno: ${count||0} / ${t.capacity}</p><div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;"><button class="btn-small" style="background:${btnColor}" onclick="joinTournament('${t.id}')">${btnText}</button>${myFamily.length > 0 ? `<select id="famSel_${t.id}" style="margin:0;width:auto;">${famOpts}</select><button class="btn-small" onclick="joinFamilyTournament('${t.id}')">Přihlásit rodinu</button>` : ''}<button class="btn-small btn-orange" onclick="printTournamentPoster('${t.title.replace(/'/g, "\\'")}', '${t.event_date}', '${t.fee}')">Stáhnout leták</button></div></div>`;
         }
     }
 
     async function loadMyRegistrations() {
-        const { data: myRegs } = await db.from('registrations').select(`id, player_id_card, created_at, payment_status, tournaments ( id, title, event_date, fee )`).eq('registered_by', currentUser.id);
+        const { data: myRegs } = await db.from('registrations').select(`id, player_id_card, payment_status, tournaments ( id, title, event_date, fee )`).eq('registered_by', currentUser.id);
         const list = document.getElementById('myRegistrationsList'); list.innerHTML = '';
-        if (!myRegs || myRegs.length === 0) { list.innerHTML = '<p>Zatím nejste vy ani vaše rodina přihlášeni na žádný turnaj.</p>'; return; }
-
+        if (!myRegs || myRegs.length === 0) { list.innerHTML = '<p>Žádné přihlášky.</p>'; return; }
         myRegs.forEach(reg => {
-            const t = reg.tournaments; const uniqueQrId = 'qr_' + reg.id;
-            let playerName = 'Značka: ' + reg.player_id_card;
-            if(myProfileData && reg.player_id_card === myProfileData.player_id_card) { playerName = 'VY (Hlavní profil)'; } 
-            else { let fam = myFamily.find(f => f.player_id_card === reg.player_id_card); if(fam) playerName = fam.full_name + ' (Rodina)'; }
-
-            let paymentUI = reg.payment_status === true ? `<span class="badge" style="background: #38a169; padding: 0.5rem 1rem; font-size: 0.9rem;">✅ Uhrazeno</span>` : `<button class="btn-small" style="background: #2b6cb0;" onclick="toggleQR('${uniqueQrId}', '${t.fee}', '${reg.player_id_card}')">💳 Ukázat kód k platbě</button>`;
-
-            list.innerHTML += `<div class="list-item" style="flex-direction: column; align-items: flex-start; background: #fff; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
-                <h4 style="color: #2f855a;">${t.title}</h4><p><strong>Hráč:</strong> ${playerName} | <strong>Datum:</strong> ${formatDateTime(t.event_date)}</p>
-                <div style="display:flex; gap:10px; width:100%; margin-top:10px; flex-wrap: wrap; align-items: center;">
-                    ${paymentUI}
-                    <button class="btn-small" style="background: #4a5568;" onclick="downloadCalendar('${t.title}', '${t.event_date}')">📅 Přidat do kalendáře</button>
-                    <button class="btn-small btn-danger" onclick="cancelRegistration('${reg.id}')">❌ Nepřijedu</button>
-                </div>
-                <div id="${uniqueQrId}" class="qr-container">
-                    <p style="font-size: 0.8rem; margin-bottom: 10px;">Zápisné: <strong>${t.fee} Kč</strong> | Značka: <strong>${reg.player_id_card}</strong></p>
-                    <img src="" alt="kód" id="img_${uniqueQrId}">
-                </div>
-            </div>`;
+            const t = reg.tournaments; let pName = reg.player_id_card === myProfileData?.player_id_card ? 'VY' : (myFamily.find(f => f.player_id_card === reg.player_id_card)?.full_name + ' (Rodina)' || reg.player_id_card);
+            let payUI = reg.payment_status ? `<span class="badge" style="background:#38a169;">Uhrazeno</span>` : `<button class="btn-small" style="background:#2b6cb0;" onclick="toggleQR('qr_${reg.id}', '${t.fee}', '${reg.player_id_card}')">Kód k platbě</button>`;
+            list.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:start; background:#fff; border:1px solid #e2e8f0;"><h4 style="color:#2f855a;">${t.title}</h4><p>Hráč: ${pName} | Datum: ${formatDateTime(t.event_date)}</p><div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; align-items:center;">${payUI}<button class="btn-small" style="background:#4a5568;" onclick="downloadCalendar('${t.title}', '${t.event_date}')">Kalendář</button><button class="btn-small btn-danger" onclick="cancelRegistration('${reg.id}')">Zrušit</button></div><div id="qr_${reg.id}" class="qr-container"><p style="font-size:0.8rem;">Zápisné: ${t.fee} Kč | Značka: ${reg.player_id_card}</p><img id="img_qr_${reg.id}"></div></div>`;
         });
     }
 
-    window.toggleQR = function(containerId, fee, vs) {
-        const container = document.getElementById(containerId), img = document.getElementById('img_' + containerId);
-        if (container.style.display === 'block') { container.style.display = 'none'; } 
-        else { const spayd = `SPD*1.0*ACC:${globalBankAccount}*AM:${fee}.00*CC:CZK*X-VS:${vs}`; img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(spayd)}`; container.style.display = 'block'; }
-    };
-
-    window.downloadCalendar = function(title, dateStr) {
-        const d = new Date(dateStr);
-        if(isNaN(d)) return;
-        const pad = n => n<10?'0'+n:n;
-        const startDate = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
-        const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${startDate}\nDTEND:${startDate}\nSUMMARY:${title}\nDESCRIPTION:Oficiální turnaj v Prší.\nEND:VEVENT\nEND:VCALENDAR`;
-        const blob = new Blob([icsContent], { type: 'text/calendar' }); const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `Turnaj_${title.replace(/\s+/g, '_')}.ics`; a.click(); window.URL.revokeObjectURL(url);
-    };
-
-    window.joinTournament = async function(tId) { 
-        if (!myProfileData || !myProfileData.player_id_card) { alert("Chyba: Nejprve zkontrolujte profil."); return; }
-        const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: myProfileData.player_id_card, registered_by: currentUser.id });
-        if (error) { if (error.code === '23505') alert('Již jste přihlášeni!'); else alert('Chyba: ' + error.message); } 
-        else { 
-            alert('Registrace proběhla úspěšně!'); logAction('Registrace do hry', `Hlavní profil přihlášen na turnaj ID: ${tId}`); 
-            sendEmailNotification('Potvrzení registrace', 'Byli jste úspěšně přihlášeni. Zápisné uhraďte převodem s vaším ID jako variabilním symbolem.', myProfileData.email); 
-            loadTournaments(); loadMyRegistrations(); 
-        }
-    };
-
-    window.joinFamilyTournament = async function(tId) { 
-        const familyPlayerIdCard = document.getElementById('famSel_' + tId).value;
-        const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: familyPlayerIdCard, registered_by: currentUser.id });
-        if (error) { if (error.code === '23505') alert('Tento člen je již přihlášen!'); else alert('Chyba: ' + error.message); } 
-        else { alert('Člen úspěšně přihlášen.'); logAction('Registrace rodiny', `Člen přihlášen na turnaj ID: ${tId}`); loadTournaments(); loadMyRegistrations(); }
-    };
-
-    window.cancelRegistration = async function(regId) {
-        if(confirm("Opravdu chcete zrušit tuto přihlášku?")) {
-            const { error } = await db.from('registrations').delete().eq('id', regId);
-            if(!error) { alert("Zrušeno."); logAction('Zrušení', 'Zrušena účast'); loadTournaments(); loadMyRegistrations(); } else { alert("Chyba: " + error.message); }
-        }
-    };
-
+    window.toggleQR = function(cid, fee, vs) { const c = document.getElementById(cid), i = document.getElementById('img_' + cid); if (c.style.display === 'block') c.style.display = 'none'; else { i.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`SPD*1.0*ACC:${globalBankAccount}*AM:${fee}.00*CC:CZK*X-VS:${vs}`)}`; c.style.display = 'block'; } };
+    window.downloadCalendar = function(t, dStr) { const d = new Date(dStr); if(isNaN(d)) return; const pad=n=>n<10?'0'+n:n; const sD = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`; const b = new Blob([`BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${sD}\nDTEND:${sD}\nSUMMARY:${t}\nEND:VEVENT\nEND:VCALENDAR`], { type: 'text/calendar' }); const url = URL.createObjectURL(b); const a = document.createElement('a'); a.href = url; a.download = `Turnaj.ics`; a.click(); };
+    window.joinTournament = async function(tId) { if (!myProfileData) return; const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: myProfileData.player_id_card, registered_by: currentUser.id }); if (!error) { alert('Přihlášeno!'); loadTournaments(); loadMyRegistrations(); } else alert('Chyba (nebo už jste přihlášeni).'); };
+    window.joinFamilyTournament = async function(tId) { const fId = document.getElementById('famSel_' + tId).value; const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: fId, registered_by: currentUser.id }); if (!error) { alert('Člen přihlášen.'); loadTournaments(); loadMyRegistrations(); } else alert('Chyba.'); };
+    window.cancelRegistration = async function(regId) { if(confirm("Zrušit přihlášku?")) { await db.from('registrations').delete().eq('id', regId); loadTournaments(); loadMyRegistrations(); } };
+    // ==========================================
     // --- 7. STATISTIKY A KOMENTÁŘE ---
+    // ==========================================
     async function loadHistoricalData() {
         const box = document.getElementById('tournamentResultsBox');
         if (historicalData.length === 0) {
             box.innerHTML = 'Stahuji historický archiv ze serveru...';
             const { data, error } = await db.from('historical_results').select('*');
-            if (error) { box.innerHTML = '<p class="error">Nepodařilo se načíst historii.</p>'; return; }
-            historicalData = data; 
+            if (error) { 
+                box.innerHTML = '<p class="error">Nepodařilo se načíst historii.</p>'; 
+                return; 
+            }
+            historicalData = data || []; 
         }
         
         if (myProfileData) {
-            let pOptions = `<option value="${myProfileData.player_id_card}">${myProfileData.full_name} (VY)</option>` + myFamily.map(f => `<option value="${f.player_id_card}">${f.full_name} (Rodina)</option>`).join('');
+            let pOptions = `<option value="${myProfileData.player_id_card}">${myProfileData.full_name} (VY)</option>`;
+            myFamily.forEach(f => {
+                pOptions += `<option value="${f.player_id_card}">${f.full_name} (Rodina)</option>`;
+            });
             document.getElementById('statsPlayerSelect').innerHTML = pOptions;
         }
         
         let tourDates = {};
         historicalData.forEach(d => {
             let dObj = new Date(d.tournament_date || d.created_at);
-            if(!tourDates[d.tournament_name] || dObj > new Date(tourDates[d.tournament_name])) tourDates[d.tournament_name] = d.tournament_date || d.created_at; 
+            if(!tourDates[d.tournament_name] || dObj > new Date(tourDates[d.tournament_name])) {
+                tourDates[d.tournament_name] = d.tournament_date || d.created_at;
+            }
         });
+        
         uniqueTournaments = Object.keys(tourDates).sort((a, b) => new Date(tourDates[b]) - new Date(tourDates[a]));
         if (uniqueTournaments.length > 0) {
             const tSelect = document.getElementById('statsTournamentSelect');
             tSelect.innerHTML = uniqueTournaments.map(t => `<option value="${t}">${t}</option>`).join('');
             tSelect.value = uniqueTournaments[0];
         }
+        
+        renderPersonalStats(); 
         renderTournamentResults();
     }
 
     window.renderPersonalStats = function() {
-        const pid = document.getElementById('statsPlayerSelect').value, box = document.getElementById('personalStatsBox');
+        const pid = document.getElementById('statsPlayerSelect').value;
+        const box = document.getElementById('personalStatsBox');
         if (!pid) return;
-        let pData = historicalData.filter(d => d.player_id_card === pid), ucast = pData.length, maxBody = 0, bestRank = 9999;
-        pData.forEach(d => { let pts = parseInt(d.points), rnk = parseInt(d.rank); if (!isNaN(pts) && pts > maxBody) maxBody = pts; if (!isNaN(rnk) && rnk > 0 && rnk < bestRank) bestRank = rnk; });
-        if (ucast === 0) { box.innerHTML = '<p>Zatím žádné odehrané body.</p>'; return; }
+        
+        let pData = historicalData.filter(d => d.player_id_card === pid);
+        let ucast = pData.length;
+        let maxBody = 0;
+        let bestRank = 9999;
+        
+        pData.forEach(d => { 
+            let pts = parseInt(d.points);
+            let rnk = parseInt(d.rank); 
+            if (!isNaN(pts) && pts > maxBody) maxBody = pts; 
+            if (!isNaN(rnk) && rnk > 0 && rnk < bestRank) bestRank = rnk; 
+        });
+        
+        if (ucast === 0) { 
+            box.innerHTML = '<p>Zatím nemáte žádné odehrané body.</p>'; 
+            return; 
+        }
+        
         box.innerHTML = `<p>🛡️ Odehráno <strong>${ucast}</strong> turnajů. | 🔥 Rekord <strong>${maxBody}</strong> bodů. | 🏆 Historické maximum: <strong>${bestRank === 9999 ? '-' : bestRank + '.'} místo</strong>.</p>`;
     }
 
@@ -1325,27 +1069,39 @@
         const cBox = document.getElementById('tournamentCommentBox');
         const cText = document.getElementById('tournamentCommentText');
         const eBtnBox = document.getElementById('editCommentBtnBox');
-        if (!tName) return;
+        
+        if (!tName) return; 
         
         document.getElementById('editCommentFormBox').style.display = 'none';
         let tData = historicalData.filter(d => d.tournament_name === tName).sort((a, b) => parseInt(a.rank) - parseInt(b.rank));
         let allowed = myProfileData ? [myProfileData.player_id_card, ...myFamily.map(f => f.player_id_card)] : [];
         
         let html = '<table class="stats-table"><tr><th>Pořadí</th><th>Hráč</th><th>Body</th><th>Kvíz</th></tr>';
+        
         tData.forEach(row => {
             let isKnown = currentUser != null || allowed.includes(row.player_id_card);
             let name = isKnown ? `${row.first_name} ${row.last_name}` : `Hráč (ID: ${row.player_id_card})`;
             let city = (isKnown && row.city && row.city !== '-') ? ` <span style="color:#718096; font-size:0.85rem;">- ${row.city}</span>` : '';
-            html += `<tr ${allowed.includes(row.player_id_card)?'class="highlight-row"':''}><td>${row.rank}.</td><td>${name}${city}</td><td><strong>${row.points}</strong></td><td>${row.quiz_points||0}</td></tr>`;
+            let highlight = allowed.includes(row.player_id_card) ? 'class="highlight-row"' : '';
+            
+            html += `<tr ${highlight}>
+                <td>${row.rank || '-'}.</td>
+                <td>${name}${city}</td>
+                <td><strong>${row.points}</strong></td>
+                <td>${row.quiz_points || 0}</td>
+            </tr>`;
         });
+        
         box.innerHTML = html + '</table>';
 
         try {
-            const { data: tour } = await db.from('tournaments').select('tournament_comment').eq('title', tName).maybeSingle();
+            const { data } = await db.from('tournaments').select('tournament_comment').eq('title', tName).maybeSingle();
             eBtnBox.style.display = ['zc', 'zcp', 'superadmin'].includes(simulatedRole) ? 'block' : 'none';
-            cText.innerText = tour?.tournament_comment || "Žádný komentář k tomuto turnaji.";
+            cText.innerText = data?.tournament_comment || "Žádný komentář k tomuto turnaji nebyl přidán."; 
             cBox.style.display = 'block';
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+        }
     }
 
     window.openCommentEdit = async function() {
@@ -1360,214 +1116,323 @@
         const tName = document.getElementById('statsTournamentSelect').value;
         const newText = document.getElementById('editCommentInput').value.trim();
         const { error } = await db.from('tournaments').upsert({ title: tName, tournament_comment: newText }, { onConflict: 'title' });
-        if (!error) { alert('Komentář uložen.'); logAction('Komentář', `Upraven komentář: ${tName}`); renderTournamentResults(); } else { alert('Chyba: ' + error.message); }
+        
+        if (!error) {
+            alert('Komentář byl úspěšně uložen.');
+            logAction('Komentář', `Upraven komentář k turnaji: ${tName}`);
+            renderTournamentResults();
+        } else {
+            alert('Chyba: ' + error.message);
+        }
     };
 
     window.cancelCommentEdit = function() {
         document.getElementById('editCommentFormBox').style.display = 'none';
         document.getElementById('tournamentCommentBox').style.display = 'block';
     };
-    <footer>
-    <p>&copy; Česká asociace prší z. s.</p>
-</footer>
 
-<script>
     // ==========================================
-    // --- 8. PC EXCEL NAHRÁVÁNÍ A KOMBINOVÁNÍ ---
+    // --- 8. PC EXCEL NAHRÁVÁNÍ ---
     // ==========================================
     document.getElementById('uploadResultsForm').addEventListener('submit', async (e) => {
         e.preventDefault(); 
         const msg = document.getElementById('uploadMsg'); 
         const file = document.getElementById('resultFile').files[0]; 
+        
         if (!file) return; 
         
-        msg.className = 'msg'; msg.innerText = 'Zpracovávám Excel z PC aplikace...'; msg.style.display = 'block';
+        msg.className = 'msg'; 
+        msg.innerText = 'Zpracovávám Excel z PC aplikace...'; 
+        msg.style.display = 'block';
         
         const reader = new FileReader();
         reader.onload = async function(ev) {
             try {
                 const workbook = XLSX.read(new Uint8Array(ev.target.result), {type: 'array'});
-                const dbSheet = workbook.SheetNames.find(n => n.includes('Databáze')), resSheet = workbook.SheetNames.find(n => n.includes('Výsledky'));
-                if(!dbSheet || !resSheet) throw new Error('Excel musí obsahovat listy "Databáze Hráčů" a "Výsledky Turnaje"');
+                const dbSheet = workbook.SheetNames.find(n => n.includes('Databáze'));
+                const resSheet = workbook.SheetNames.find(n => n.includes('Výsledky'));
                 
-                let fileName = file.name.replace(/\.[^/.]+$/, ""), parts = fileName.split('_'), tName = parts[0].trim(), tDate = parts[1] ? `${parts[1].substring(0,4)}-${parts[1].substring(4,6)}-${parts[1].substring(6,8)}` : null;
+                if(!dbSheet || !resSheet) {
+                    throw new Error('Chybí listy "Databáze Hráčů" a "Výsledky Turnaje" v nahraném souboru.');
+                }
                 
-                let playerDict = {}, dbPlayersToUpsert = [];
+                let fileName = file.name.replace(/\.[^/.]+$/, "");
+                let parts = fileName.split('_');
+                let tName = parts[0].trim();
+                let tDate = parts[1] && parts[1].length === 8 ? `${parts[1].substring(0,4)}-${parts[1].substring(4,6)}-${parts[1].substring(6,8)}` : null;
+                
+                let playerDict = {};
+                let dbPlayersToUpsert = [];
+                
                 XLSX.utils.sheet_to_json(workbook.Sheets[dbSheet]).forEach(row => {
-                    let j = String(row['Jméno']||'').trim(), id = String(row['ID pro Banku']||row['ID (SPZ)']||'0').trim(), m = String(row['Místo']||'-').trim();
-                    if(j) { playerDict[j.toLowerCase()] = { id, city: m }; dbPlayersToUpsert.push({ player_id_card: id, full_name: j, city: m }); }
+                    let j = String(row['Jméno'] || '').trim();
+                    let id = String(row['ID pro Banku'] || row['ID (SPZ)'] || '0').trim();
+                    let m = String(row['Místo'] || '-').trim();
+                    if(j) { 
+                        playerDict[j.toLowerCase()] = { id, city: m }; 
+                        dbPlayersToUpsert.push({ player_id_card: id, full_name: j, city: m }); 
+                    }
                 });
 
-                let results = XLSX.utils.sheet_to_json(workbook.Sheets[resSheet]);
-                let toInsert = results.map(row => {
-                    let j = String(row['Jméno']||'').trim();
+                let toInsert = XLSX.utils.sheet_to_json(workbook.Sheets[resSheet]).map(row => {
+                    let j = String(row['Jméno'] || '').trim();
                     let info = playerDict[j.toLowerCase()] || { id: '0', city: '-' };
-                    return {
-                        tournament_name: tName, player_id_card: info.id, first_name: j.split(' ')[0], last_name: j.split(' ').slice(1).join(' '),
-                        city: info.city, points: parseInt(row['Turnajové Body'])||0, quiz_points: parseInt(row['Kvízové Body'])||0, rank: parseInt(row['Celkové Místo'])||0, tournament_date: tDate
+                    return { 
+                        tournament_name: tName, 
+                        player_id_card: info.id, 
+                        first_name: j.split(' ')[0], 
+                        last_name: j.split(' ').slice(1).join(' '), 
+                        city: info.city, 
+                        points: parseInt(row['Turnajové Body']) || 0, 
+                        quiz_points: parseInt(row['Kvízové Body']) || 0, 
+                        rank: parseInt(row['Celkové Místo']) || 0, 
+                        tournament_date: tDate 
                     };
                 });
 
-                const { error: resErr } = await db.from('historical_results').insert(toInsert);
+                const { error: resErr } = await db.from('historical_results').insert(toInsert); 
                 if(resErr) throw resErr;
                 
-                if (dbPlayersToUpsert.length > 0) {
-                    for(let i = 0; i < dbPlayersToUpsert.length; i += 500) { 
+                if (dbPlayersToUpsert.length > 0) { 
+                    for(let i = 0; i < dbPlayersToUpsert.length; i += 500) {
                         await db.from('player_database').upsert(dbPlayersToUpsert.slice(i, i + 500), { onConflict: 'player_id_card' }); 
                     }
                 }
-
-                msg.className = 'msg success'; msg.innerText = 'Hotovo! Turnaj uložen a databáze hráčů z PC byla synchronizována.';
-                document.getElementById('uploadResultsForm').reset(); historicalData = []; loadHistoricalData();
                 
-            } catch(err) { msg.className = 'msg error'; msg.innerText = 'Chyba: ' + err.message; }
+                msg.className = 'msg success'; 
+                msg.innerText = 'Hotovo! Výsledky byly uloženy do statistik a databáze hráčů byla synchronizována.'; 
+                document.getElementById('uploadResultsForm').reset(); 
+                historicalData = []; 
+                loadHistoricalData();
+                
+            } catch(err) { 
+                msg.className = 'msg error'; 
+                msg.innerText = 'Chyba: ' + err.message; 
+            }
         };
         reader.readAsArrayBuffer(file);
     });
 
-
     // ==========================================
     // --- 9. HLASOVÁNÍ, DEBATY A AUTO-UZAVŘENÍ ---
     // ==========================================
-    window.castRedVote = async function(vid, qIdx, val, totalQuestions, reqV) {
+    window.castRedVote = async function(vid, qIdx, val, totalQ, reqV) {
         try {
             const hash = Array.from(crypto.getRandomValues(new Uint8Array(8))).map(b => b.toString(16).padStart(2, '0')).join('');
-            const { error } = await db.from('voting_records').insert({ vote_id: vid, voter_id: currentUser.id, choice: `q${qIdx}:${val}`, vote_hash: hash });
+            const { error } = await db.from('voting_records').insert({ 
+                vote_id: vid, 
+                voter_id: currentUser.id, 
+                choice: `q${qIdx}:${val}`, 
+                vote_hash: hash 
+            });
             
-            if(error) { alert('Chyba zápisu (Zkontroluj RLS v Supabase): ' + error.message); return; }
-
-            // AUTO-UZAVŘENÍ: Pokud odhlasovali všichni ZČ
+            if(error) { 
+                alert('Chyba při zápisu hlasu (RLS?): ' + error.message); 
+                return; 
+            }
+            
             const { data: allVotes } = await db.from('voting_records').select('voter_id').eq('vote_id', vid);
-            const uniqueVoters = new Set(allVotes.map(r => r.voter_id)).size;
-            
-            if (uniqueVoters >= reqV) {
-                await db.from('votes').update({ is_closed: true }).eq('id', vid);
-                logAction('Auto-uzavření', `Ostré hlasování automaticky uzavřeno (100% účast).`);
-                sendEmailNotification('Hlasování UZAVŘENO', 'Ostré hlasování dosáhlo 100% účasti všech ZČ a bylo automaticky uzavřeno.', await getAllZcEmails());
+            if (new Set(allVotes.map(r => r.voter_id)).size >= reqV) { 
+                await db.from('votes').update({ is_closed: true }).eq('id', vid); 
+                sendEmailNotification('Hlasování UZAVŘENO', 'Ostré hlasování dosáhlo 100% účasti všech oprávněných ZČ.', await getAllZcEmails()); 
             }
             loadVotes();
-        } catch (e) { alert('Chyba: ' + e.message); console.error(e); }
+        } catch (e) { 
+            alert('Chyba: ' + e.message); 
+        }
     };
 
     window.castBlueVote = async function(vid, c) { 
-        try {
-            const hash = Array.from(crypto.getRandomValues(new Uint8Array(8))).map(b => b.toString(16).padStart(2, '0')).join('');
-            const { error } = await db.from('voting_records').insert({ vote_id: vid, voter_id: currentUser.id, choice: c, vote_hash: hash }); 
-            if(!error) { alert('Váš hlas byl zaznamenán!'); loadVotes(); } 
-            else { alert('Chyba (Zkontroluj RLS v Supabase): ' + error.message); }
-        } catch (e) { alert('Chyba: ' + e.message); console.error(e); }
+        const hash = Array.from(crypto.getRandomValues(new Uint8Array(8))).map(b => b.toString(16).padStart(2, '0')).join(''); 
+        const { error } = await db.from('voting_records').insert({ 
+            vote_id: vid, 
+            voter_id: currentUser.id, 
+            choice: c, 
+            vote_hash: hash 
+        }); 
+        
+        if(!error) { 
+            alert('Váš hlas byl úspěšně zaznamenán!'); 
+            loadVotes(); 
+        } else {
+            alert('Chyba: ' + error.message); 
+        }
     };
 
     window.addComment = async function(vid) { 
-        const i = document.getElementById('commentInput_'+vid); const t = i.value.trim(); if(!t) return; 
-        const { error } = await db.from('comments').insert({ vote_id: vid, user_id: currentUser.id, comment_text: t }); 
-        if(!error) { i.value = ''; loadVotes(); } else alert('Chyba (Zkontroluj RLS v Supabase): ' + error.message);
+        const inputField = document.getElementById('commentInput_' + vid);
+        const text = inputField.value.trim(); 
+        
+        if(!text) return; 
+        
+        const { error } = await db.from('comments').insert({ 
+            vote_id: vid, 
+            user_id: currentUser.id, 
+            comment_text: text 
+        }); 
+        
+        if(!error) { 
+            inputField.value = ''; 
+            loadVotes(); 
+        } else {
+            alert('Chyba při odesílání komentáře: ' + error.message); 
+        }
     };
-    window.closeDebate = async function(vid) { if(confirm('Skutečně uzavřít diskuzi/hlasování?')) { await db.from('votes').update({ is_closed: true }).eq('id', vid); loadVotes(); } };
+
+    window.closeDebate = async function(vid) { 
+        if(confirm('Skutečně chcete tuto diskuzi či hlasování trvale uzavřít?')) { 
+            await db.from('votes').update({ is_closed: true }).eq('id', vid); 
+            loadVotes(); 
+        } 
+    };
 
     async function loadVotes() {
-        const redZ = document.getElementById('redVotingZone'), blueZ = document.getElementById('blueVotingZone'), debL = document.getElementById('debateList');
-        if(redZ) redZ.innerHTML = ''; if(blueZ) blueZ.innerHTML = ''; if(debL) debL.innerHTML = '';
+        const redZone = document.getElementById('redVotingZone');
+        const blueZone = document.getElementById('blueVotingZone');
+        const debateList = document.getElementById('debateList');
         
-        let profs = []; let pMap = {};
-        try { const { data } = await db.from('profiles').select('id, full_name'); if (data) { profs = data; profs.forEach(p => pMap[p.id] = p.full_name); } } catch (e) {}
+        if(redZone) redZone.innerHTML = ''; 
+        if(blueZone) blueZone.innerHTML = ''; 
+        if(debateList) debateList.innerHTML = '';
         
-        let reqV = 1;
-        try { const { count: zcCount } = await db.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['zc', 'zcp', 'superadmin']); if (zcCount) reqV = zcCount; } catch (e) {}
+        let pMap = {}; 
+        try { 
+            const { data } = await db.from('profiles').select('id, full_name'); 
+            data?.forEach(p => pMap[p.id] = p.full_name); 
+        } catch(e) {}
+        
+        let reqV = 1; 
+        try { 
+            const { count } = await db.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['zc', 'zcp', 'superadmin']); 
+            if (count) reqV = count; 
+        } catch(e) {}
+        
+        const { data: vs } = await db.from('votes').select('*').order('created_at', { ascending: false }); 
+        if (!vs) return;
 
-        const { data: votes } = await db.from('votes').select('*').order('created_at', { ascending: false });
-        if (!votes) return;
-
-        const FIFTEEN_DAYS_MS = 15 * 24 * 60 * 60 * 1000;
-
-        for (let v of votes) {
-            const isRed = v.title.startsWith('[OSTRÉ]'), isBlue = v.title.startsWith('[MODRÉ] '), isProp = v.title.startsWith('[NÁVRH PČ] ');
+        for (let v of vs) {
+            const isRed = v.title.startsWith('[OSTRÉ]');
+            const isBlue = v.title.startsWith('[MODRÉ] ');
+            const isProposal = v.title.startsWith('[NÁVRH PČ] ');
             const displayTitle = v.title.replace('[OSTRÉ]', '').replace('[NÁVRH PČ] ', '').replace('[MODRÉ] ', '');
+            
             const { data: recs } = await db.from('voting_records').select('*').eq('vote_id', v.id);
-            const myVote = recs ? recs.find(r => r.voter_id === currentUser.id) : null;
+            const myVote = recs?.find(r => r.voter_id === currentUser.id);
             let isZcOrHigher = ['zc', 'zcp', 'superadmin'].includes(simulatedRole);
 
             if (isRed && isZcOrHigher) {
                 let ageMs = Date.now() - new Date(v.created_at).getTime();
-                // AUTO-UZAVŘENÍ: Časový limit 15 dní
-                if (ageMs > FIFTEEN_DAYS_MS && !v.is_closed) {
-                    await db.from('votes').update({ is_closed: true }).eq('id', v.id); v.is_closed = true;
-                    logAction('Auto-uzavření', `Hlasování ${displayTitle} automaticky uzavřeno (Čas vypršel).`);
+                
+                if (ageMs > 15 * 24 * 60 * 60 * 1000 && !v.is_closed) { 
+                    await db.from('votes').update({ is_closed: true }).eq('id', v.id); 
+                    v.is_closed = true; 
                 }
-
-                let questions = v.answers ? JSON.parse(v.answers) : [];
-                let uniqueVotersCount = recs ? new Set(recs.map(r => r.voter_id)).size : 0;
+                
+                let questions = JSON.parse(v.answers || '[]'); 
+                let uniqueVotersCount = recs ? new Set(recs.map(r => r.voter_id)).size : 0; 
                 let missingVotes = Math.max(0, reqV - uniqueVotersCount);
-                let votersText = `<p style="color:#2b6cb0; font-weight:bold; margin-bottom:15px;">Odevzdáno: ${uniqueVotersCount} z ${reqV} oprávněných ZČ</p>`;
-
-                let qHtml = questions.map((q, idx) => {
-                    const qVote = recs ? recs.find(r => r.voter_id === currentUser.id && r.choice.startsWith('q'+idx)) : null;
-                    let statsHtml = '';
+                
+                let questionsHtml = questions.map((q, idx) => {
+                    const qVote = recs?.find(r => r.voter_id === currentUser.id && r.choice.startsWith('q' + idx));
+                    let stats = '';
+                    
                     if (v.is_closed) {
-                        let proC = recs ? recs.filter(r => r.choice === `q${idx}:ano`).length : 0;
-                        let neC = recs ? recs.filter(r => r.choice === `q${idx}:ne`).length : 0;
-                        let zdrzC = recs ? recs.filter(r => r.choice === `q${idx}:zdržuji se`).length : 0;
-                        if (missingVotes > 0) {
-                            let maxC = Math.max(proC, neC, zdrzC);
-                            if (maxC === proC) proC += missingVotes; else if (maxC === neC) neC += missingVotes; else zdrzC += missingVotes;
+                        let pro = recs?.filter(r => r.choice === `q${idx}:ano`).length || 0;
+                        let ne = recs?.filter(r => r.choice === `q${idx}:ne`).length || 0;
+                        let zdrz = recs?.filter(r => r.choice === `q${idx}:zdržuji se`).length || 0;
+                        
+                        if (missingVotes > 0) { 
+                            let max = Math.max(pro, ne, zdrz); 
+                            if(max === pro) pro += missingVotes; 
+                            else if(max === ne) ne += missingVotes; 
+                            else zdrz += missingVotes; 
                         }
-                        statsHtml = `<div style="margin-top:10px; font-weight:bold;">Konečné výsledky (vč. přerozdělení mlčící většiny): <br><span style="color:#2f855a">ANO: ${proC}</span> | <span style="color:#c53030">NE: ${neC}</span> | <span style="color:#718096">ZDRŽEL SE: ${zdrzC}</span></div>`;
+                        stats = `<div style="margin-top:10px;"><b>Konečné výsledky (včetně mlčící většiny): <br><span style="color:#2f855a">ANO: ${pro}</span> | <span style="color:#c53030">NE: ${ne}</span> | ZDRŽEL SE: ${zdrz}</b></div>`;
                     }
-                    return `<div class="question-box"><p><strong>Otázka: ${q}</strong></p>
-                        ${v.is_closed ? statsHtml : (qVote ? `<span style="color:var(--primary); font-weight:bold;">Hlasováno: ${qVote.choice.split(':')[1].toUpperCase()} (Hash: <span class="hash-box">${qVote.vote_hash.substring(0,8)}...</span>)</span>` : `
-                        <div style="display:flex; gap:10px; margin-top: 10px; flex-wrap:wrap;">
+                    
+                    let actionHtml = v.is_closed ? stats : (qVote ? `<span style="color:var(--primary); font-weight:bold;">Hlasováno: ${qVote.choice.split(':')[1].toUpperCase()}</span>` : `
+                        <div style="display:flex;gap:10px;margin-top:10px;">
                             <button class="btn-small btn-green" onclick="castRedVote('${v.id}', ${idx}, 'ano', ${questions.length}, ${reqV})">ANO</button>
                             <button class="btn-small btn-danger" onclick="castRedVote('${v.id}', ${idx}, 'ne', ${questions.length}, ${reqV})">NE</button>
                             <button class="btn-small" style="background:#718096;" onclick="castRedVote('${v.id}', ${idx}, 'zdržuji se', ${questions.length}, ${reqV})">ZDRŽUJI SE</button>
-                        </div>`)}</div>`;
+                        </div>`);
+                        
+                    return `<div class="question-box"><p><b>${q}</b></p>${actionHtml}</div>`;
                 }).join('');
-
-                let timeBadge = !v.is_closed ? `<span style="color:#c53030; font-size:0.85rem; font-weight:bold; margin-left:10px;">(Zbývá dnů: ${Math.ceil((FIFTEEN_DAYS_MS - ageMs) / (1000 * 60 * 60 * 24))})</span>` : '';
-                redZ.innerHTML += `<div class="card vote-card-red"><span class="badge" style="background:${v.is_closed?'#c53030':'var(--secondary)'};">${v.is_closed?'UZAVŘENO':'OSTRÉ HLASOVÁNÍ'}</span>${timeBadge}<h3>${displayTitle}</h3>${votersText}${qHtml}</div>`;
+                
+                let timeBadge = !v.is_closed ? `<span style="color:#c53030; font-size:0.85rem; font-weight:bold; margin-left:10px;">(Zbývá dnů: ${Math.ceil((15 * 24 * 60 * 60 * 1000 - ageMs) / 86400000)})</span>` : '';
+                redZone.innerHTML += `<div class="card vote-card-red"><span class="badge" style="background:${v.is_closed ? '#c53030' : 'var(--secondary)'};">${v.is_closed ? 'UZAVŘENO' : 'OSTRÉ HLASOVÁNÍ'}</span>${timeBadge}<h3>${displayTitle}</h3><p style="color:#2b6cb0;font-weight:bold;">Odevzdáno: ${uniqueVotersCount} z ${reqV} ZČ</p>${questionsHtml}</div>`;
             } 
             else if (isBlue) {
-                const opts = v.answers ? v.answers.split(',').map(s => s.trim()).filter(s => s !== '') : ['ANO', 'NE'];
-                let sHtml = opts.map(o => `<span style="color:#2b6cb0; margin-right:10px;">${o.toUpperCase()} (${recs?.filter(r => r.choice.toLowerCase() === o.toLowerCase()).length || 0})</span>`).join('| ');
+                const opts = v.answers ? v.answers.split(',').map(s => s.trim()) : ['ANO', 'NE'];
+                let statsHtml = opts.map(o => `<span style="color:#2b6cb0; margin-right:10px;">${o} (${recs?.filter(r => r.choice.toLowerCase() === o.toLowerCase()).length || 0})</span>`).join('');
                 
-                let bHtml = `<div class="card vote-card-blue" style="background:#ebf8ff;"><span class="badge" style="background:var(--blue);">VEŘEJNÁ ANKETA</span><h3>${displayTitle}</h3><p style="font-weight:bold;">Průběžně: ${sHtml}</p>`;
-                if (!v.is_closed) {
-                    if (myVote) bHtml += `<p style="color:var(--blue);font-weight:bold;">Váš hlas: ${myVote.choice.toUpperCase()}</p>`; 
-                    else bHtml += `<div style="display:flex;gap:10px;margin-top:10px; flex-wrap:wrap;">${opts.map(o => `<button class="btn-small btn-blue" onclick="castBlueVote('${v.id}','${o.replace(/'/g, "\\'")}')">${o}</button>`).join('')}</div>`;
+                let html = `<div class="card vote-card-blue" style="background:#ebf8ff;"><span class="badge" style="background:var(--blue);">VEŘEJNÁ ANKETA</span><h3>${displayTitle}</h3><p><b>Průběžně:</b> ${statsHtml}</p>`;
+                
+                if (!v.is_closed) { 
+                    if (myVote) {
+                        html += `<p style="color:var(--blue);font-weight:bold;">Váš hlas: ${myVote.choice}</p>`; 
+                    } else {
+                        html += `<div style="display:flex;gap:10px;margin-top:10px;">${opts.map(o => `<button class="btn-small btn-blue" onclick="castBlueVote('${v.id}','${o}')">${o}</button>`).join('')}</div>`; 
+                    }
                 }
-                if (isZcOrHigher && !v.is_closed) bHtml += `<button class="btn-small btn-danger" style="margin-top: 1rem;" onclick="closeDebate('${v.id}')">Uzavřít anketu</button>`;
-                blueZ.innerHTML += bHtml + `</div>`;
-            } 
-            else if (isProp) {
-                if (simulatedRole === 'pc' && v.created_by !== currentUser.id) continue;
-                const { data: comms } = await db.from('comments').select('*').eq('vote_id', v.id).order('created_at');
-                let cH = comms?.map(c => `<div><strong>${pMap[c.user_id] || 'Člen'}</strong>: ${c.comment_text}</div>`).join('') || 'Žádné komentáře.';
                 
-                debL.innerHTML += `<div class="list-item vote-card-orange" style="flex-direction:column; align-items:start; background:#fff;"><span class="badge" style="background:${v.is_closed?'#718096':'var(--orange)'}">${v.is_closed?'UZAVŘENO':'AKTIVNÍ DISKUZE'}</span><h4 style="color:var(--orange);">${displayTitle}</h4><div style="width:100%; background:#f7fafc; padding:10px;">${cH}${!v.is_closed ? `<div style="display:flex; gap:5px; margin-top:10px;"><input type="text" id="commentInput_${v.id}" style="margin:0; flex:1;"><button class="btn-small btn-orange" onclick="addComment('${v.id}')">Odeslat</button></div>` : ''}${!v.is_closed && isZcOrHigher ? `<button class="btn-small btn-danger" style="margin-top:10px;width:100%" onclick="closeDebate('${v.id}')">Uzavřít diskuzi</button>` : ''}</div></div>`;
+                if (isZcOrHigher && !v.is_closed) {
+                    html += `<button class="btn-small btn-danger" style="margin-top:1rem;" onclick="closeDebate('${v.id}')">Uzavřít anketu</button>`;
+                }
+                blueZone.innerHTML += html + `</div>`;
+            } 
+            else if (isProposal) {
+                if (simulatedRole === 'pc' && v.created_by !== currentUser.id) continue;
+                
+                const { data: comms } = await db.from('comments').select('*').eq('vote_id', v.id).order('created_at');
+                let commentsHtml = comms?.map(c => `<div><b>${pMap[c.user_id] || 'Člen'}:</b> ${c.comment_text}</div>`).join('') || 'Zatím bez komentářů.';
+                
+                let proposalHtml = `<div class="list-item vote-card-orange" style="flex-direction:column; align-items:start; background:#fff;">
+                    <span class="badge" style="background:${v.is_closed ? '#718096' : 'var(--orange)'}">${v.is_closed ? 'UZAVŘENO' : 'DISKUZE'}</span>
+                    <h4 style="color:var(--orange);">${displayTitle}</h4>
+                    <div style="width:100%; background:#f7fafc; padding:10px;">${commentsHtml}`;
+                    
+                if (!v.is_closed) {
+                    proposalHtml += `<div style="display:flex; gap:5px; margin-top:10px;"><input type="text" id="commentInput_${v.id}" style="margin:0; flex:1;"><button class="btn-small btn-orange" onclick="addComment('${v.id}')">Odeslat</button></div>`;
+                }
+                if (!v.is_closed && isZcOrHigher) {
+                    proposalHtml += `<button class="btn-small btn-danger" style="margin-top:10px;" onclick="closeDebate('${v.id}')">Uzavřít diskuzi</button>`;
+                }
+                
+                proposalHtml += `</div></div>`;
+                debateList.innerHTML += proposalHtml;
             }
         }
     }
 
-
     // ==========================================
-    // --- 10. ADMINISTRACE, NEWSLETTER & EMAIL ---
+    // --- 10. ADMINISTRACE, NEWSLETTER & MAJETEK ---
     // ==========================================
     async function loadAdminData() {
         const { count } = await db.from('profiles').select('*', { count: 'exact', head: true });
         if(document.getElementById('totalUsersCount')) document.getElementById('totalUsersCount').innerText = count || 0;
         
         if (['zcp', 'superadmin'].includes(simulatedRole)) {
-            const { data: u } = await db.from('profiles').select('*').order('full_name');
-            let aRoles = Object.keys(roleNames).filter(k => k !== 'superadmin');
-            document.getElementById('adminUsersList').innerHTML = '<table class="stats-table"><tr><th>Jméno</th><th>Role</th><th>Akce</th></tr>' + u.map(user => `<tr><td>${user.full_name||'Nekompletní'} (${user.player_id_card||'-'})</td><td>${user.role==='superadmin'?'Super Admin':`<select id="role_sel_${user.id}" style="margin:0;">${aRoles.map(k=>`<option value="${k}" ${user.role===k?'selected':''}>${roleNames[k]}</option>`).join('')}</select>`}</td><td>${user.role!=='superadmin'?`<button class="btn-small btn-green" onclick="changeUserRole('${user.id}','${user.full_name}')">Uložit</button>`:''}</td></tr>`).join('') + '</table>';
+            const { data: profiles } = await db.from('profiles').select('*').order('full_name');
+            let availableRoles = Object.keys(roleNames).filter(k => k !== 'superadmin');
+            
+            let usersHtml = '<table class="stats-table"><tr><th>Jméno</th><th>Role</th><th>Akce</th></tr>';
+            profiles.forEach(user => {
+                let roleSelect = user.role === 'superadmin' ? 'Super Admin' : `<select id="role_sel_${user.id}" style="margin:0;">${availableRoles.map(k => `<option value="${k}" ${user.role === k ? 'selected' : ''}>${roleNames[k]}</option>`).join('')}</select>`;
+                let actionBtn = user.role !== 'superadmin' ? `<button class="btn-small btn-green" onclick="changeUserRole('${user.id}','${user.full_name}')">Uložit</button>` : '';
+                usersHtml += `<tr><td>${user.full_name || 'Nekompletní'} (${user.player_id_card || '-'})</td><td>${roleSelect}</td><td>${actionBtn}</td></tr>`;
+            });
+            document.getElementById('adminUsersList').innerHTML = usersHtml + '</table>';
         }
 
         if (['zc', 'zcp', 'superadmin'].includes(simulatedRole)) {
             const { data: dbPlayers } = await db.from('player_database').select('*').order('full_name');
-            if (dbPlayers) {
-                document.getElementById('totalDbPlayersCount').innerText = dbPlayers.length;
-                document.getElementById('adminPrintList').innerHTML = dbPlayers.map(c => `<label class="print-item"><input type="checkbox" class="print-check" value="${c.player_id_card}" data-name="${c.full_name}" data-city="${c.city||''}">${c.full_name} <span style="color:#718096; font-size:0.8rem;">(${c.player_id_card})</span></label>`).join('');
+            if (dbPlayers) { 
+                document.getElementById('totalDbPlayersCount').innerText = dbPlayers.length; 
+                document.getElementById('adminPrintList').innerHTML = dbPlayers.map(c => `<label class="print-item"><input type="checkbox" class="print-check" value="${c.player_id_card}" data-name="${c.full_name}" data-city="${c.city||''}">${c.full_name} (${c.player_id_card})</label>`).join(''); 
             }
-            loadAssets(); // Načte majetek!
+            loadAssets();
         }
         loadNewsletterStats();
     }
@@ -1576,176 +1441,311 @@
         if (!['zc', 'zcp', 'superadmin'].includes(simulatedRole)) return;
         const { count } = await db.from('newsletter_subscribers').select('*', { count: 'exact', head: true });
         document.getElementById('totalEmailsCount').innerText = count || 0;
+        
         const { data } = await db.from('newsletter_subscribers').select('email').order('email');
-        if(document.getElementById('apiEmailList') && data) document.getElementById('apiEmailList').innerHTML = data.map(e => `<div class="email-list-item" style="display:flex;justify-content:space-between;padding:5px;border-bottom:1px solid #eee;"><span>${e.email}</span><span style="color:red;cursor:pointer;" onclick="deleteEmail('${e.email}')">❌</span></div>`).join('');
+        if(document.getElementById('apiEmailList') && data) {
+            document.getElementById('apiEmailList').innerHTML = data.map(e => `<div class="email-list-item" style="display:flex;justify-content:space-between;padding:5px;border-bottom:1px solid #eee;"><span>${e.email}</span><span style="color:red;cursor:pointer;" onclick="deleteEmail('${e.email}')">❌ Smazat</span></div>`).join('');
+        }
     }
 
-    window.addSingleEmail = async function() { const v = document.getElementById('singleEmailInput').value.trim(); if(v.includes('@')) { await db.from('newsletter_subscribers').upsert({ email: v }); loadNewsletterStats(); } };
-    window.deleteEmail = async function(e) { if(confirm('Smazat?')) { await db.from('newsletter_subscribers').delete().eq('email', e); loadNewsletterStats(); } };
-    window.clearEmailDb = async function() { if(confirm('Vymazat vše?')) { await db.from('newsletter_subscribers').delete().neq('email', 'dummy'); loadNewsletterStats(); } };
-    window.filterEmailList = function() { const term = document.getElementById('searchEmailInput').value.toLowerCase(); document.querySelectorAll('.email-list-item').forEach(i => i.style.display = i.innerText.toLowerCase().includes(term) ? 'flex' : 'none'); };
+    window.addSingleEmail = async function() { 
+        const val = document.getElementById('singleEmailInput').value.trim(); 
+        if(val.includes('@')) { 
+            await db.from('newsletter_subscribers').upsert({ email: val }); 
+            loadNewsletterStats(); 
+            document.getElementById('singleEmailInput').value = ''; 
+        } 
+    };
+    
+    window.deleteEmail = async function(e) { 
+        if(confirm('Skutečně smazat e-mail ' + e + '?')) { 
+            await db.from('newsletter_subscribers').delete().eq('email', e); 
+            loadNewsletterStats(); 
+        } 
+    };
+    
+    window.clearEmailDb = async function() { 
+        if(confirm('Vymazat kompletně celou databázi e-mailů?')) { 
+            await db.from('newsletter_subscribers').delete().neq('email', 'dummy_email'); 
+            loadNewsletterStats(); 
+        } 
+    };
+    
+    window.filterEmailList = function() { 
+        const term = document.getElementById('searchEmailInput').value.toLowerCase(); 
+        document.querySelectorAll('.email-list-item').forEach(i => i.style.display = i.innerText.toLowerCase().includes(term) ? 'flex' : 'none'); 
+    };
 
+    document.getElementById('sendNewsletterForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault(); 
+        const subj = document.getElementById('nlSubject').value;
+        const msgText = document.getElementById('nlMessage').value;
+        const msgBox = document.getElementById('nlSendMsg');
+        const btn = document.getElementById('sendNlBtn');
+        
+        if(!confirm('Opravdu rozeslat zprávu všem kontaktům?')) return; 
+        
+        btn.disabled = true; 
+        msgBox.className = 'msg'; 
+        msgBox.innerText = 'Stahuji kontakty z DB...'; 
+        msgBox.style.display = 'block';
+        
+        try {
+            const { data: emailsData } = await db.from('newsletter_subscribers').select('email');
+            if (!emailsData || emailsData.length === 0) { 
+                msgBox.className = 'msg error'; 
+                msgBox.innerText = 'Databáze kontaktů je prázdná.'; 
+                btn.disabled = false; 
+                return; 
+            }
+            
+            const allEmails = emailsData.map(e => e.email); 
+            let sentCount = 0;
+            
+            for (let i = 0; i < allEmails.length; i += 50) {
+                const batch = allEmails.slice(i, i + 50); 
+                msgBox.innerText = `Odesílám... zpracováno ${sentCount} z ${allEmails.length}`;
+                
+                const promises = batch.map(email => {
+                    let fullMessage = msgText + `\n\n---\nOdhlášení z odběru: ${window.location.origin}?unsubscribe=${encodeURIComponent(email)}`;
+                    return sendEmailNotification(subj, fullMessage, [email]);
+                });
+                
+                await Promise.all(promises); 
+                sentCount += batch.length; 
+                await new Promise(r => setTimeout(r, 1000));
+            }
+            
+            msgBox.className = 'msg success'; 
+            msgBox.innerText = `Odesláno na všechny kontakty!`; 
+            document.getElementById('sendNewsletterForm').reset(); 
+            logAction('Newsletter', `Rozeslán hromadný e-mail.`);
+        } catch (err) { 
+            msgBox.className = 'msg error'; 
+            msgBox.innerText = 'Chyba: ' + err.message; 
+        } finally { 
+            btn.disabled = false; 
+        }
+    });
 
-    // ==========================================
-    // --- 11. SPRÁVA A EVIDENCE MAJETKU (NOVÉ) ---
-    // ==========================================
-    function toggleAssetElec() {
-        const isElec = document.getElementById('assetIsElectrical').checked;
-        document.getElementById('assetElecZone1').style.display = isElec ? 'block' : 'none';
-        document.getElementById('assetElecZone2').style.display = isElec ? 'block' : 'none';
-        document.getElementById('assetNextInspection').required = isElec;
+    window.addEventListener('load', () => { 
+        if (window.location.search.includes('unsubscribe')) {
+            document.getElementById('unsubscribeBox').style.display = 'block'; 
+        }
+    });
+    
+    window.confirmUnsubscribe = async function() { 
+        const emailToUnsubscribe = new URLSearchParams(window.location.search).get('unsubscribe'); 
+        await db.from('newsletter_subscribers').delete().eq('email', emailToUnsubscribe); 
+        alert('Váš e-mail byl odhlášen z odběru.'); 
+        window.location.href = window.location.origin; 
     }
 
-    document.getElementById('addAssetForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const msg = document.getElementById('assetMsg');
-        msg.className = 'msg'; msg.innerText = 'Ukládám majetek...'; msg.style.display = 'block';
+    window.changeUserRole = async function(uid, uName) {
+        const newRole = document.getElementById('role_sel_'+uid).value;
+        if (newRole === 'zcp' && actualUserRole === 'zcp' && uid !== currentUser.id) {
+            if(confirm('Předat funkci Předsedy? Vy se stanete běžným ZČ.')) { 
+                await db.from('profiles').update({ role: 'zcp' }).eq('id', uid); 
+                await db.from('profiles').update({ role: 'zc' }).eq('id', currentUser.id); 
+                alert('Funkce byla předána.'); 
+                window.location.reload(); 
+                return; 
+            } else return;
+        }
+        await db.from('profiles').update({ role: newRole }).eq('id', uid); 
+        alert('Role byla úspěšně změněna.'); 
+        loadAdminData();
+    };
 
-        let pdfUrl = null;
+    window.saveSystemSettings = async function() { 
+        await db.from('system_settings').update({ 
+            bank_account: document.getElementById('bankAccountInput').value, 
+            fio_token: document.getElementById('fioTokenInput').value 
+        }).eq('id', 1); 
+        alert('Systémové nastavení uloženo.'); 
+    };
+
+    window.viewUserDetail = async function(uid) {
+        const { data: u } = await db.from('profiles').select('*').eq('id', uid).single(); 
+        let r = [];
+        if(u?.player_id_card) { 
+            const { data } = await db.from('registrations').select('*, tournaments(*)').eq('player_id_card', u.player_id_card); 
+            r = data || []; 
+        }
+        document.getElementById('detailName').innerText = u.full_name || 'Nekompletní profil';
+        
+        let detailHtml = `<div><p><b>Značka (ID):</b> ${u.player_id_card||'-'}</p><p><b>E-mail:</b> ${u.email||'-'}</p><p><b>Město:</b> ${u.city||'-'}</p><p><b>Telefon:</b> ${u.phone||'-'}</p></div>`;
+        detailHtml += `<div><b>Aktuální přihlášky na turnaje:</b><br>${r.length > 0 ? r.map(reg => `<li>${reg.tournaments.title}</li>`).join('') : 'Žádné přihlášky.'}</div>`;
+        
+        document.getElementById('detailContent').innerHTML = detailHtml;
+        document.getElementById('userDetailModal').style.display = 'block';
+    };
+    
+    window.closeUserDetail = function() { 
+        document.getElementById('userDetailModal').style.display = 'none'; 
+    };
+
+    // --- SPRÁVA MAJETKU ---
+    window.toggleAssetElec = function() { 
+        const isElectrical = document.getElementById('assetIsElectrical').checked; 
+        document.getElementById('assetElecZone1').style.display = isElectrical ? 'block' : 'none'; 
+        document.getElementById('assetElecZone2').style.display = isElectrical ? 'block' : 'none'; 
+        document.getElementById('assetNextInspection').required = isElectrical; 
+    };
+
+    document.getElementById('addAssetForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault(); 
+        const msg = document.getElementById('assetMsg'); 
+        msg.className = 'msg'; 
+        msg.innerText = 'Ukládám do evidence majetku...'; 
+        msg.style.display = 'block';
+        
+        let pdfUrl = null; 
         const fileInput = document.getElementById('assetPdf');
+        
         if (fileInput && fileInput.files.length > 0) {
             const file = fileInput.files[0];
-            const fileName = `revize_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
-            const { data, error } = await db.storage.from('revisions').upload(fileName, file);
-            if (error) { msg.className = 'msg error'; msg.innerText = 'Chyba nahrávání PDF: ' + error.message; return; }
-            const { data: publicUrlData } = db.storage.from('revisions').getPublicUrl(fileName);
-            pdfUrl = publicUrlData.publicUrl;
+            const safeName = `revize_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+            const { error } = await db.storage.from('revisions').upload(safeName, file); 
+            if (error) { 
+                msg.className='msg error'; 
+                msg.innerText=error.message; 
+                return; 
+            }
+            pdfUrl = db.storage.from('revisions').getPublicUrl(safeName).data.publicUrl;
         }
-
-        const isElec = document.getElementById('assetIsElectrical').checked;
-        const newAsset = {
-            asset_name: document.getElementById('assetName').value.trim(),
-            inventory_number: document.getElementById('assetInvNum').value.trim(),
-            location: document.getElementById('assetLocation').value.trim(),
-            is_electrical: isElec,
-            next_inspection: isElec ? document.getElementById('assetNextInspection').value : null,
-            pdf_url: pdfUrl,
-            status: 'V pořádku'
+        
+        const isElectrical = document.getElementById('assetIsElectrical').checked;
+        const newAssetData = { 
+            asset_name: document.getElementById('assetName').value.trim(), 
+            inventory_number: document.getElementById('assetInvNum').value.trim(), 
+            location: document.getElementById('assetLocation').value.trim(), 
+            is_electrical: isElectrical, 
+            next_inspection: isElectrical ? document.getElementById('assetNextInspection').value : null, 
+            pdf_url: pdfUrl, 
+            status: 'V pořádku' 
         };
-
-        const { error } = await db.from('assets').insert(newAsset);
-        if (error) { msg.className = 'msg error'; msg.innerText = 'Chyba databáze (RLS?): ' + error.message; }
-        else {
-            msg.className = 'msg success'; msg.innerText = 'Majetek zaevidován.';
-            document.getElementById('addAssetForm').reset();
-            toggleAssetElec();
-            loadAssets();
-            logAction('Majetek', `Přidán nový majetek: ${newAsset.asset_name}`);
+        
+        const { error } = await db.from('assets').insert(newAssetData);
+        
+        if (!error) { 
+            msg.className = 'msg success'; 
+            msg.innerText = 'Majetek byl úspěšně zaevidován.'; 
+            document.getElementById('addAssetForm').reset(); 
+            toggleAssetElec(); 
+            loadAssets(); 
+        } else { 
+            msg.className = 'msg error'; 
+            msg.innerText = error.message; 
         }
     });
 
     async function loadAssets() {
         if (!['zc', 'zcp', 'superadmin'].includes(simulatedRole)) return;
-        const { data, error } = await db.from('assets').select('*').order('created_at', { ascending: false });
-        if (error) { console.error("Assets load error:", error); return; }
-
-        const activeBox = document.getElementById('activeAssetsList');
-        const retiredBox = document.getElementById('retiredAssetsList');
-        const alertBox = document.getElementById('assetAlertBox');
-
-        let activeHtml = '<table class="stats-table"><tr><th>Inv. č.</th><th>Název</th><th>Umístění</th><th>Revize</th><th>Akce</th></tr>';
-        let retiredHtml = '<table class="stats-table"><tr><th>Inv. č.</th><th>Název</th><th>Důvod a Způsob</th><th>Vyřadil</th></tr>';
-        let hasActive = false, hasRetired = false, alertsHtml = '';
-
+        const { data } = await db.from('assets').select('*').order('created_at', { ascending: false }); 
+        if(!data) return;
+        
+        let activeHtml = '<table class="stats-table"><tr><th>Inv.č.</th><th>Název</th><th>Umístění</th><th>Revize</th><th>Akce</th></tr>';
+        let retiredHtml = '<table class="stats-table"><tr><th>Inv.č.</th><th>Název</th><th>Důvod/Způsob</th><th>Vyřadil</th></tr>';
+        let hasActive = false, hasRetired = false, alertsHtml = ''; 
         const today = new Date();
-        const warningDays = 30; // Upozornit měsíc předem
 
         data.forEach(a => {
-            if (a.status === 'Vyřazeno') {
-                hasRetired = true;
-                retiredHtml += `<tr><td>${a.inventory_number}</td><td>${a.asset_name}</td><td>${a.retirement_reason} (${a.retirement_method})</td><td>${a.retired_by}</td></tr>`;
+            if (a.status === 'Vyřazeno') { 
+                hasRetired = true; 
+                retiredHtml += `<tr><td>${a.inventory_number}</td><td>${a.asset_name}</td><td>${a.retirement_reason} (${a.retirement_method})</td><td>${a.retired_by}</td></tr>`; 
             } else {
-                hasActive = true;
-                let revizeText = '-';
+                hasActive = true; 
+                let revizeInfo = '-';
+                
                 if (a.is_electrical && a.next_inspection) {
-                    let nextD = new Date(a.next_inspection);
-                    let diffDays = Math.ceil((nextD - today) / (1000 * 60 * 60 * 24));
-                    let color = diffDays < 0 ? 'red' : (diffDays <= warningDays ? 'orange' : 'green');
+                    let diffDays = Math.ceil((new Date(a.next_inspection) - today) / 86400000); 
+                    let textColor = diffDays < 0 ? 'red' : (diffDays <= 30 ? 'orange' : 'green');
                     
-                    if (diffDays <= warningDays) {
-                        alertsHtml += `⚠️ Zařízení <strong>${a.asset_name}</strong> (Inv: ${a.inventory_number}) vyprší revize za ${diffDays} dní (${formatDateTime(a.next_inspection).split(' ')[0]})!<br>`;
+                    if (diffDays <= 30) {
+                        alertsHtml += `⚠️ Zařízení <b>${a.asset_name}</b> (Inv: ${a.inventory_number}) vyprší revize za ${diffDays} dní!<br>`;
                     }
                     
-                    revizeText = `<span style="color:${color}; font-weight:bold;">${formatDateTime(a.next_inspection).split(' ')[0]}</span>`;
-                    if (a.pdf_url) revizeText += ` <a href="${a.pdf_url}" target="_blank" style="font-size:0.8rem; margin-left:5px;">[PDF Protokol]</a>`;
+                    revizeInfo = `<span style="color:${textColor};font-weight:bold;">${formatDateTime(a.next_inspection).split(' ')[0]}</span>`;
+                    if(a.pdf_url) {
+                        revizeInfo += ` <a href="${a.pdf_url}" target="_blank" style="font-size:0.8rem; margin-left:5px;">[PDF Protokol]</a>`;
+                    }
                 }
-                activeHtml += `<tr><td>${a.inventory_number}</td><td>${a.asset_name}</td><td>${a.location}</td><td>${revizeText}</td><td><button class="btn-small btn-danger" onclick="openRetireModal('${a.id}', '${a.asset_name}', '${a.inventory_number}')">Vyřadit</button></td></tr>`;
+                
+                activeHtml += `<tr><td>${a.inventory_number}</td><td>${a.asset_name}</td><td>${a.location}</td><td>${revizeInfo}</td><td><button class="btn-small btn-danger" onclick="openRetireModal('${a.id}','${a.asset_name}','${a.inventory_number}')">Vyřadit</button></td></tr>`;
             }
         });
-
-        activeBox.innerHTML = hasActive ? activeHtml + '</table>' : '<p style="color:#718096; font-style:italic;">Žádný aktivní majetek.</p>';
-        retiredBox.innerHTML = hasRetired ? retiredHtml + '</table>' : '<p style="color:#718096; font-style:italic;">Zatím nebyl vyřazen žádný majetek.</p>';
         
-        if (alertsHtml) { alertBox.innerHTML = alertsHtml; alertBox.style.display = 'block'; } 
-        else { alertBox.style.display = 'none'; }
+        document.getElementById('activeAssetsList').innerHTML = hasActive ? activeHtml + '</table>' : '<p style="color:#718096; font-style:italic;">Zatím neevidujete žádný aktivní majetek.</p>';
+        document.getElementById('retiredAssetsList').innerHTML = hasRetired ? retiredHtml + '</table>' : '<p style="color:#718096; font-style:italic;">Archiv je prázdný.</p>';
+        
+        const alertBox = document.getElementById('assetAlertBox');
+        if (alertsHtml) { 
+            alertBox.innerHTML = alertsHtml; 
+            alertBox.style.display = 'block'; 
+        } else {
+            alertBox.style.display = 'none';
+        }
     }
 
-    window.openRetireModal = function(id, name, inv) {
-        document.getElementById('retireAssetId').value = id;
-        document.getElementById('retireAssetName').innerText = name;
-        document.getElementById('retireAssetInv').innerText = inv;
-        document.getElementById('retirePersonName').innerText = myProfileData.full_name;
-        document.getElementById('retireAssetModal').style.display = 'flex';
+    window.openRetireModal = function(id, name, inv) { 
+        document.getElementById('retireAssetId').value = id; 
+        document.getElementById('retireAssetName').innerText = name; 
+        document.getElementById('retireAssetInv').innerText = inv; 
+        document.getElementById('retirePersonName').innerText = myProfileData.full_name; 
+        document.getElementById('retireAssetModal').style.display = 'flex'; 
     };
-    window.closeRetireModal = function() { document.getElementById('retireAssetModal').style.display = 'none'; };
-
-    document.getElementById('retireAssetForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const id = document.getElementById('retireAssetId').value;
+    
+    window.closeRetireModal = function() { 
+        document.getElementById('retireAssetModal').style.display = 'none'; 
+    };
+    
+    document.getElementById('retireAssetForm')?.addEventListener('submit', async (e) => { 
+        e.preventDefault(); 
+        const { error } = await db.from('assets').update({ 
+            status: 'Vyřazeno', 
+            retirement_reason: document.getElementById('retireReason').value, 
+            retirement_method: document.getElementById('retireMethod').value, 
+            retired_by: myProfileData.full_name 
+        }).eq('id', document.getElementById('retireAssetId').value); 
         
-        const { error } = await db.from('assets').update({
-            status: 'Vyřazeno',
-            retirement_reason: document.getElementById('retireReason').value,
-            retirement_method: document.getElementById('retireMethod').value,
-            retired_by: myProfileData.full_name
-        }).eq('id', id);
-
-        if (!error) {
-            alert('Majetek byl trvale vyřazen z evidence.');
-            logAction('Majetek', `Vyřazeno: Inv. č. ${document.getElementById('retireAssetInv').innerText}`);
-            closeRetireModal();
-            document.getElementById('retireAssetForm').reset();
-            loadAssets();
-        } else { alert('Chyba: ' + error.message); }
+        if(!error) { 
+            alert('Majetek byl úspěšně zaevidován jako vyřazený.'); 
+            closeRetireModal(); 
+            loadAssets(); 
+        } else {
+            alert(error.message); 
+        }
     });
-
-    window.exportAssetsToCSV = async function() {
-        const { data } = await db.from('assets').select('*').order('created_at', { ascending: false });
-        if(!data) return;
-        let csv = "Inv_Cislo;Nazev;Umisteni;Elektro;Dalsi_Revize;Stav;Duvod_Vyrazeni;Zpusob_Likvidace;Vyradil\n";
+    
+    window.exportAssetsToCSV = async function() { 
+        const { data } = await db.from('assets').select('*'); 
+        if(!data) return; 
+        
+        let csv = "Inv_Cislo;Nazev;Umisteni;Elektro;Dalsi_Revize;Stav;Duvod_Vyrazeni;Zpusob_Likvidace;Vyradil\n"; 
         data.forEach(a => {
             csv += `${a.inventory_number};${a.asset_name};${a.location};${a.is_electrical?'ANO':'NE'};${a.next_inspection||'-'};${a.status};${a.retirement_reason||'-'};${a.retirement_method||'-'};${a.retired_by||'-'}\n`;
-        });
-        const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' }); 
-        const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `Soupis_Majetku_${new Date().toISOString().slice(0,10)}.csv`; link.click();
+        }); 
+        
+        const a = document.createElement('a'); 
+        a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' })); 
+        a.download = `Soupis_Majetku_${new Date().toISOString().slice(0,10)}.csv`; 
+        a.click(); 
     };
 
     // ==========================================
-    // --- 12. KONTROLA BANKY (Fio API Logic) ---
+    // --- 12. KONTROLA BANKY (Fio API Simulace) ---
     // ==========================================
-    async function checkBankPayments() {
-        if (!globalFioToken) return;
-        const today = new Date();
-        const pastDate = new Date(today.setDate(today.getDate() - 14)).toISOString().slice(0,10); 
-        const endDate = new Date().toISOString().slice(0,10);
-        
-        try {
-            // Poznámka: Kvůli CORS ochraně prohlížečů se v ostrém provozu fetch volá přes Edge Function (Supabase)
-            // const resp = await fetch(`https://fioapi.fio.cz/v1/rest/periods/${globalFioToken}/${pastDate}/${endDate}/transactions.json`);
-            // const json = await resp.json();
-            // const transakce = json.accountStatement.transactionList.transaction;
-            
-            // transakce.forEach(async (t) => {
-            //    let vs = t.column5?.value; 
-            //    if (vs) { await db.from('registrations').update({ payment_status: true }).eq('player_id_card', vs).eq('payment_status', false); }
-            // });
-            console.log("Modul kontroly banky je aktivní (Simulace).");
-        } catch (e) { console.error("Chyba při kontrole banky:", e); }
+    async function checkBankPayments() { 
+        if (!globalFioToken) return; 
+        console.log("Kontrola Fio banky je aktivní (Simulační režim pro napojení)."); 
     }
     
-    // Periodické spouštění (Každých 12 hodin) pokud je přihlášený ZCP
-    setInterval(() => { if (actualUserRole === 'zcp' || actualUserRole === 'superadmin') checkBankPayments(); }, 43200000);
-    
+    // Spouštění kontroly každých 12 hodin pro Předsedu a Super Admina
+    setInterval(() => { 
+        if (actualUserRole === 'zcp' || actualUserRole === 'superadmin') checkBankPayments(); 
+    }, 43200000);
+
 </script>
 </body>
 </html>
