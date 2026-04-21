@@ -234,25 +234,43 @@
     </section>
 
     <section id="profile-setup" class="page-section">
-        <div class="card">
-            <h2>Dokončení registrace profilu</h2>
-            <form id="profileForm" style="max-width: 500px;">
-                <label>Vaše Průkazka (Tajné ID)</label>
-                <input type="text" id="profIdCard" required placeholder="Např. 12345">
-                <p style="font-size: 0.85rem; color: #718096; margin-top: -0.8rem; margin-bottom: 1rem;">Vaše jméno a město se automaticky a bezpečně načtou z centrální databáze asociace.</p>
-                
-                <label>E-mail pro komunikaci</label>
-                <input type="email" id="profEmail" required>
-                
-                <label>Telefonní kontakt</label>
-                <input type="text" id="profPhone" required>
-                
-                <div style="margin-bottom: 1rem; font-size: 0.85rem; color: #4a5568;">
-                    <input type="checkbox" id="profConsent" required style="width: auto; transform: scale(1.2); margin-right: 8px;"> 
-                    Souhlasím se zpracováním údajů a zveřejněním mého jména v členských sekcích statistik. <strong>Beru na vědomí, že mé osobní ID hráče je přísně důvěrný údaj a nebude nikdy veřejně zobrazován.</strong>
+        <div class="card" style="max-width: 500px; margin: 0 auto;">
+            <h2 style="color: var(--primary);">Propojení s databází hráčů</h2>
+            <p>Pro vstup do systému potřebujeme propojit váš účet s centrální databází.</p>
+            
+            <div style="margin: 20px 0; padding: 15px; background: #edf2f7; border-radius: 8px;">
+                <label style="display:flex; align-items:center; gap:10px; margin-bottom:10px; cursor:pointer;">
+                    <input type="radio" name="idChoice" value="haveId" checked onchange="toggleIdMode()" style="width:auto; margin:0;"> 
+                    <strong>Mám už přidělené ID hráče (Značku)</strong>
+                </label>
+                <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                    <input type="radio" name="idChoice" value="newId" onchange="toggleIdMode()" style="width:auto; margin:0;"> 
+                    <strong>Nemám ID (Jsem tu nový, chci vytvořit)</strong>
+                </label>
+            </div>
+
+            <form id="profileForm">
+                <div id="existingIdZone">
+                    <label for="profIdCard">Zadejte svou Značku (ID):</label>
+                    <input type="text" id="profIdCard" placeholder="Např. 12345">
                 </div>
-                <button type="submit">Spárovat účet s databází a pokračovat</button>
-                <div id="profMsg" class="msg"></div>
+
+                <div id="newIdZone" style="display:none; border-left: 3px solid var(--primary); padding-left: 15px; margin-bottom: 15px;">
+                    <label for="profFullName">Vaše celé jméno (Jméno a Příjmení):</label>
+                    <input type="text" id="profFullName" placeholder="Např. Jan Novák">
+                    
+                    <label for="profCity">Město / Bydliště:</label>
+                    <input type="text" id="profCity" placeholder="Např. Praha">
+                </div>
+
+                <label for="profEmail">Kontaktní E-mail:</label>
+                <input type="email" id="profEmail" required>
+
+                <label for="profPhone">Telefon (volitelné):</label>
+                <input type="text" id="profPhone" placeholder="+420 ...">
+
+                <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Uložit profil</button>
+                <p id="profMsg" class="msg" style="display: none;"></p>
             </form>
         </div>
     </section>
@@ -879,16 +897,92 @@
         if(error) { alert('Chyba: ' + error.message); } else { alert('Heslo bezpečně změněno'); await logAction('Změna hesla', 'Změna hesla'); document.getElementById('changePasswordForm').reset(); }
     });
 
+    // PŘEPÍNAČ PRO VOLBU ID
+    window.toggleIdMode = function() {
+        const mode = document.querySelector('input[name="idChoice"]:checked').value;
+        if (mode === 'haveId') {
+            document.getElementById('existingIdZone').style.display = 'block';
+            document.getElementById('newIdZone').style.display = 'none';
+        } else {
+            document.getElementById('existingIdZone').style.display = 'none';
+            document.getElementById('newIdZone').style.display = 'block';
+        }
+    };
+
+    // FORMULÁŘ PRO ULOŽENÍ A VYTVOŘENÍ PROFILU
     document.getElementById('profileForm').addEventListener('submit', async (e) => {
-        e.preventDefault(); const msg = document.getElementById('profMsg'); msg.className = 'msg'; msg.innerText = 'Ověřuji vaši značku...'; msg.style.display = 'block';
-        const enteredId = document.getElementById('profIdCard').value.trim();
-        const { data: profCheck } = await db.from('profiles').select('id').eq('player_id_card', enteredId).neq('id', currentUser.id);
-        if (profCheck && profCheck.length > 0) { msg.className = 'msg error'; msg.innerText = 'Tento průkaz je již u jiného účtu.'; return; }
-        const { data: dbPlayer } = await db.from('player_database').select('full_name, city').eq('player_id_card', enteredId).single();
-        if (!dbPlayer) { msg.className = 'msg error'; msg.innerText = 'Tato značka není v centrální DB.'; return; }
-        const updates = { id: currentUser.id, full_name: dbPlayer.full_name, city: dbPlayer.city || '-', player_id_card: enteredId, email: document.getElementById('profEmail').value, phone: document.getElementById('profPhone').value };
+        e.preventDefault(); 
+        const msg = document.getElementById('profMsg'); 
+        msg.className = 'msg'; 
+        msg.innerText = 'Ověřuji a zpracovávám data...'; 
+        msg.style.display = 'block';
+        
+        const mode = document.querySelector('input[name="idChoice"]:checked').value;
+        const email = document.getElementById('profEmail').value.trim();
+        const phone = document.getElementById('profPhone').value.trim();
+        
+        let finalId = '';
+        let finalName = '';
+        let finalCity = '';
+
+        if (mode === 'haveId') {
+            const enteredId = document.getElementById('profIdCard').value.trim();
+            if (!enteredId) { msg.className = 'msg error'; msg.innerText = 'Zadejte své ID.'; return; }
+            
+            const { data: profCheck } = await db.from('profiles').select('id').eq('player_id_card', enteredId).neq('id', currentUser.id);
+            if (profCheck && profCheck.length > 0) { msg.className = 'msg error'; msg.innerText = 'Tento průkaz je již u jiného účtu.'; return; }
+            
+            const { data: dbPlayer } = await db.from('player_database').select('full_name, city').eq('player_id_card', enteredId).single();
+            if (!dbPlayer) { msg.className = 'msg error'; msg.innerText = 'Tato značka není v centrální DB.'; return; }
+            
+            finalId = enteredId;
+            finalName = dbPlayer.full_name;
+            finalCity = dbPlayer.city || '-';
+        } else {
+            const newName = document.getElementById('profFullName').value.trim();
+            const newCity = document.getElementById('profCity').value.trim();
+            if (!newName || !newCity) { msg.className = 'msg error'; msg.innerText = 'Zadejte své jméno a město.'; return; }
+            
+            // Generování nového a unikátního 6místného ID
+            let isUnique = false;
+            let generatedId = '';
+            while (!isUnique) {
+                generatedId = Math.floor(100000 + Math.random() * 900000).toString();
+                const { data: existCheck } = await db.from('player_database').select('player_id_card').eq('player_id_card', generatedId);
+                if (!existCheck || existCheck.length === 0) isUnique = true;
+            }
+            
+            // Vytvoření hráče ve velké databázi
+            const { error: dbErr } = await db.from('player_database').insert({
+                player_id_card: generatedId,
+                full_name: newName,
+                city: newCity
+            });
+            if (dbErr) { msg.className = 'msg error'; msg.innerText = 'Chyba při tvorbě ID: ' + dbErr.message; return; }
+            
+            finalId = generatedId;
+            finalName = newName;
+            finalCity = newCity;
+        }
+
+        const updates = { 
+            id: currentUser.id, 
+            full_name: finalName, 
+            city: finalCity, 
+            player_id_card: finalId, 
+            email: email, 
+            phone: phone 
+        };
+        
         const { error } = await db.from('profiles').upsert(updates);
-        if (error) { msg.className = 'msg error'; msg.innerText = 'Chyba: ' + error.message; } else { msg.style.display = 'none'; authInitialized = false; checkAuthState(currentUser); }
+        if (error) { 
+            msg.className = 'msg error'; 
+            msg.innerText = 'Chyba: ' + error.message; 
+        } else { 
+            msg.style.display = 'none'; 
+            authInitialized = false; 
+            checkAuthState(currentUser); 
+        }
     });
 
     function updateMenuByRole() {
@@ -900,7 +994,6 @@
         const pT = document.getElementById('proposalHeaderTitle'); if(pT) pT.innerText = simulatedRole === 'pc' ? 'Zadat nový podnět k diskuzi' : 'Založit novou diskuzi';
     }
     document.getElementById('roleSwitcher')?.addEventListener('change', (e) => { simulatedRole = e.target.value; updateMenuByRole(); switchTab(document.querySelector('.page-section.active')?.id || 'dashboard'); });
-
     // ==========================================
     // --- 4. DASHBOARD A PROFIL ---
     // ==========================================
