@@ -1937,7 +1937,7 @@
     
     window.closeUserDetail = function() { document.getElementById('userDetailModal').style.display = 'none'; };
 
-    // ==========================================
+   // ==========================================
     // --- 11. SPRÁVA A EVIDENCE MAJETKU ---
     // ==========================================
     window.toggleAssetElec = function() { const isElectrical = document.getElementById('assetIsElectrical').checked; document.getElementById('assetElecZone1').style.display = isElectrical ? 'block' : 'none'; document.getElementById('assetElecZone2').style.display = isElectrical ? 'block' : 'none'; document.getElementById('assetNextInspection').required = isElectrical; };
@@ -1969,15 +1969,84 @@
                 if (a.is_electrical && a.next_inspection) {
                     let diffDays = Math.ceil((new Date(a.next_inspection) - today) / 86400000); let textColor = diffDays < 0 ? 'red' : (diffDays <= 30 ? 'orange' : 'green');
                     if (diffDays <= 30) alertsHtml += `⚠️ Zařízení <b>${a.asset_name}</b> (Inv: ${a.inventory_number}) vyprší revize za ${diffDays} dní!<br>`;
-                    revizeInfo = `<span style="color:${textColor};font-weight:bold;">${formatDateTime(a.next_inspection).split(' ')[0]}</span>${a.pdf_url ? ` <a href="${a.pdf_url}" target="_blank" style="font-size:0.8rem; margin-left:5px;">[PDF Protokol]</a>` : ''}`;
+                    
+                    // OPRAVA DATA: Použijeme toLocaleDateString pro správný český formát bez useknutí
+                    let datumRevize = new Date(a.next_inspection).toLocaleDateString('cs-CZ');
+                    revizeInfo = `<span style="color:${textColor};font-weight:bold;">${datumRevize}</span>${a.pdf_url ? ` <br><a href="${a.pdf_url}" target="_blank" style="font-size:0.8rem; color:var(--blue);">[Zobrazit PDF]</a>` : ''}`;
                 }
-                activeHtml += `<tr><td>${a.inventory_number}</td><td>${a.asset_name}</td><td>${a.location}</td><td>${revizeInfo}</td><td><button class="btn-small btn-danger" onclick="openRetireModal('${a.id}','${a.asset_name.replace(/'/g, "\\'")}','${a.inventory_number}')">Vyřadit</button></td></tr>`;
+                
+                // PŘIDÁNO: Tlačítko pro nahrání nové revize
+                let renewBtn = a.is_electrical ? `<button class="btn-small btn-blue" onclick="openRenewModal('${a.id}','${a.asset_name.replace(/'/g, "\\'")}')">Nová revize</button>` : '';
+                
+                activeHtml += `<tr><td>${a.inventory_number}</td><td>${a.asset_name}</td><td>${a.location}</td><td>${revizeInfo}</td><td style="display:flex; gap:5px; flex-wrap:wrap;">${renewBtn}<button class="btn-small btn-danger" onclick="openRetireModal('${a.id}','${a.asset_name.replace(/'/g, "\\'")}','${a.inventory_number}')">Vyřadit</button></td></tr>`;
             }
         });
         document.getElementById('activeAssetsList').innerHTML = hasActive ? activeHtml + '</table>' : '<p style="color:#718096; font-style:italic;">Zatím neevidujete žádný aktivní majetek.</p>';
         document.getElementById('retiredAssetsList').innerHTML = hasRetired ? retiredHtml + '</table>' : '<p style="color:#718096; font-style:italic;">Archiv je prázdný.</p>';
         const alertBox = document.getElementById('assetAlertBox'); if (alertsHtml) { alertBox.innerHTML = alertsHtml; alertBox.style.display = 'block'; } else alertBox.style.display = 'none';
+
+        // PŘIDÁNO: Dynamické generování okna pro obnovu revize, abys nemusel sahat do HTML
+        if (!document.getElementById('renewAssetModal')) {
+            document.body.insertAdjacentHTML('beforeend', `
+                <div id="renewAssetModal" class="modal-overlay">
+                    <div class="modal-box">
+                        <button class="modal-close" onclick="closeRenewModal()">×</button>
+                        <h3 style="color: var(--blue); border-bottom: 2px solid var(--blue); padding-bottom: 10px;">Nová revize majetku</h3>
+                        <p style="margin-bottom: 1.5rem;">Zařízení: <strong id="renewAssetName"></strong></p>
+                        <form id="renewAssetForm">
+                            <input type="hidden" id="renewAssetId">
+                            <label>Datum PŘÍŠTÍ revize</label>
+                            <input type="date" id="renewNextInspection" required style="width:100%; padding:0.8rem; margin-bottom:1.2rem; border:1px solid #ccc; border-radius:6px;">
+                            <label>Nový protokol z aktuální revize (PDF)</label>
+                            <input type="file" id="renewAssetPdf" accept=".pdf" required style="width:100%; padding:0.4rem; margin-bottom:1.2rem; border:1px solid #ccc; border-radius:6px;">
+                            <button type="submit" class="btn-blue" style="width:100%; padding:0.8rem; font-weight:bold; border-radius:6px; color:white; border:none; cursor:pointer;">Uložit novou revizi</button>
+                            <div id="renewMsg" class="msg"></div>
+                        </form>
+                    </div>
+                </div>
+            `);
+            
+            document.getElementById('renewAssetForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const msg = document.getElementById('renewMsg');
+                msg.className = 'msg'; msg.innerText = 'Nahrávám nový protokol...'; msg.style.display = 'block';
+                
+                const fileInput = document.getElementById('renewAssetPdf');
+                const assetId = document.getElementById('renewAssetId').value;
+                const nextDate = document.getElementById('renewNextInspection').value;
+                let pdfUrl = null;
+                
+                if (fileInput.files.length > 0) {
+                    const safeName = `revize_${Date.now()}_${fileInput.files[0].name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+                    const { error } = await db.storage.from('revisions').upload(safeName, fileInput.files[0]); 
+                    if (error) { msg.className='msg error'; msg.innerText=error.message; return; }
+                    pdfUrl = db.storage.from('revisions').getPublicUrl(safeName).data.publicUrl;
+                }
+                
+                const { error } = await db.from('assets').update({ next_inspection: nextDate, pdf_url: pdfUrl }).eq('id', assetId);
+                
+                if (!error) { 
+                    alert('Revize byla úspěšně aktualizována.'); 
+                    closeRenewModal(); 
+                    loadAssets(); 
+                } else { 
+                    msg.className = 'msg error'; msg.innerText = error.message; 
+                }
+            });
+        }
     }
+
+    // Funkce pro otevírání a zavírání nového okna pro revizi
+    window.openRenewModal = function(id, name) { 
+        document.getElementById('renewAssetId').value = id; 
+        document.getElementById('renewAssetName').innerText = name; 
+        document.getElementById('renewAssetModal').style.display = 'flex'; 
+    };
+    window.closeRenewModal = function() { 
+        document.getElementById('renewAssetModal').style.display = 'none'; 
+        document.getElementById('renewAssetForm').reset();
+        document.getElementById('renewMsg').style.display = 'none';
+    };
 
     window.openRetireModal = function(id, name, inv) { document.getElementById('retireAssetId').value = id; document.getElementById('retireAssetName').innerText = name; document.getElementById('retireAssetInv').innerText = inv; document.getElementById('retirePersonName').innerText = myProfileData.full_name; document.getElementById('retireAssetModal').style.display = 'flex'; };
     window.closeRetireModal = function() { document.getElementById('retireAssetModal').style.display = 'none'; };
@@ -1994,7 +2063,6 @@
         data.forEach(a => csv += `${a.inventory_number};${a.asset_name};${a.location};${a.is_electrical?'ANO':'NE'};${a.next_inspection||'-'};${a.status};${a.retirement_reason||'-'};${a.retirement_method||'-'};${a.retired_by||'-'}\n`); 
         const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' })); a.download = `Soupis_Majetku_${new Date().toISOString().slice(0,10)}.csv`; a.click(); 
     };
-
     // ==========================================
     // --- 12. KONTROLA BANKY ---
     // ==========================================
