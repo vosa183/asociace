@@ -791,7 +791,6 @@
 <footer>
     <p>&copy; Česká asociace prší z. s.</p>
 </footer>
-
 <script>
     // ==========================================
     // --- 1. INICIALIZACE A GLOBÁLNÍ PROMĚNNÉ ---
@@ -826,7 +825,7 @@
     // --- 2. POMOCNÉ FUNKCE A NAVIGACE ---
     // ==========================================
 
-    // --- KOMPLETNÍ ČÍSELNÍK OKRESŮ (0 - 76) ---
+    // --- KOMPLETNÍ ČÍSELNÍK OKRESŮ ---
     const okresyList = [
         { id: 0, zkratka: 'MB' }, { id: 1, zkratka: 'PR' }, { id: 2, zkratka: 'BM' }, { id: 3, zkratka: 'OS' },
         { id: 4, zkratka: 'PM' }, { id: 5, zkratka: 'CB' }, { id: 6, zkratka: 'HK' }, { id: 7, zkratka: 'UL' },
@@ -1376,7 +1375,6 @@
         document.getElementById('editCommentFormBox').style.display = 'none';
         document.getElementById('tournamentCommentBox').style.display = 'block';
     };
-
     // ==========================================
     // --- 8. PC EXCEL NAHRÁVÁNÍ ---
     // ==========================================
@@ -1808,7 +1806,6 @@
         const name = document.getElementById('newApiKeyName').value.trim();
         if(!name) return alert('Zadejte prosím název klíče (např. Notebook Turnaje).');
         
-        // Vygenerování 16-bytového hexadecimálního klíče
         const key = 'sk_' + Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
         
         const { error } = await db.from('api_keys').insert({ key_name: name, api_key: key });
@@ -1835,4 +1832,164 @@
         }
         
         list.innerHTML = data.map(k => `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid #eee;">
-            <span>
+            <span><strong>${k.key_name}</strong></span>
+            <span class="hash-box">${k.api_key}</span>
+        </div>`).join('');
+    };
+
+    async function loadAdminData() {
+        const { count } = await db.from('profiles').select('*', { count: 'exact', head: true });
+        if(document.getElementById('totalUsersCount')) document.getElementById('totalUsersCount').innerText = count || 0;
+        
+        if (['zcp', 'superadmin'].includes(simulatedRole)) {
+            const { data: profiles } = await db.from('profiles').select('*').order('full_name');
+            let availableRoles = Object.keys(roleNames).filter(k => k !== 'superadmin');
+            let usersHtml = '<table class="stats-table"><tr><th>Jméno</th><th>Role</th><th>Akce</th></tr>';
+            profiles.forEach(user => {
+                let roleSelect = user.role === 'superadmin' ? 'Super Admin' : `<select id="role_sel_${user.id}" style="margin:0;">${availableRoles.map(k => `<option value="${k}" ${user.role === k ? 'selected' : ''}>${roleNames[k]}</option>`).join('')}</select>`;
+                let actionBtn = user.role !== 'superadmin' ? `<button class="btn-small btn-green" onclick="changeUserRole('${user.id}','${user.full_name}')">Uložit</button>` : '';
+                usersHtml += `<tr><td>${user.full_name || 'Nekompletní'} (${formatSPZ(user.player_id_card) || '-'})</td><td>${roleSelect}</td><td style="display:flex;gap:5px;"><button class="btn-small btn-blue" onclick="viewUserDetail('${user.id}')">Náhled</button>${actionBtn}</td></tr>`;
+            });
+            document.getElementById('adminUsersList').innerHTML = usersHtml + '</table>';
+        }
+
+        if (['zc', 'zcp', 'superadmin'].includes(simulatedRole)) {
+            const { data: dbPlayers } = await db.from('player_database').select('*').order('full_name');
+            if (dbPlayers) { 
+                document.getElementById('totalDbPlayersCount').innerText = dbPlayers.length; 
+                document.getElementById('adminPrintList').innerHTML = dbPlayers.map(c => `<label class="print-item"><input type="checkbox" class="print-check" value="${c.player_id_card}" data-name="${c.full_name}" data-city="${c.city||''}">${c.full_name} (${formatSPZ(c.player_id_card)})</label>`).join(''); 
+            }
+            loadAssets();
+            loadApiKeys();
+        }
+        loadNewsletterStats();
+    }
+
+    async function loadNewsletterStats() {
+        if (!['zc', 'zcp', 'superadmin'].includes(simulatedRole)) return;
+        const { count } = await db.from('newsletter_subscribers').select('*', { count: 'exact', head: true });
+        document.getElementById('totalEmailsCount').innerText = count || 0;
+        const { data } = await db.from('newsletter_subscribers').select('email').order('email');
+        if(document.getElementById('apiEmailList') && data) {
+            document.getElementById('apiEmailList').innerHTML = data.map(e => `<div class="email-list-item" style="display:flex;justify-content:space-between;padding:5px;border-bottom:1px solid #eee;"><span>${e.email}</span><span style="color:red;cursor:pointer;" onclick="deleteEmail('${e.email}')">❌ Smazat</span></div>`).join('');
+        }
+    }
+
+    window.addSingleEmail = async function() { 
+        const val = document.getElementById('singleEmailInput').value.trim(); 
+        if(val.includes('@')) { await db.from('newsletter_subscribers').upsert({ email: val }); loadNewsletterStats(); document.getElementById('singleEmailInput').value = ''; } 
+    };
+    
+    window.deleteEmail = async function(e) { if(confirm('Skutečně smazat e-mail ' + e + '?')) { await db.from('newsletter_subscribers').delete().eq('email', e); loadNewsletterStats(); } };
+    window.clearEmailDb = async function() { if(confirm('Vymazat kompletně celou databázi e-mailů?')) { await db.from('newsletter_subscribers').delete().neq('email', 'dummy_email'); loadNewsletterStats(); } };
+    window.filterEmailList = function() { const term = document.getElementById('searchEmailInput').value.toLowerCase(); document.querySelectorAll('.email-list-item').forEach(i => i.style.display = i.innerText.toLowerCase().includes(term) ? 'flex' : 'none'); };
+
+    document.getElementById('sendNewsletterForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault(); const subj = document.getElementById('nlSubject').value, msgText = document.getElementById('nlMessage').value, msgBox = document.getElementById('nlSendMsg'), btn = document.getElementById('sendNlBtn');
+        if(!confirm('Opravdu rozeslat zprávu všem kontaktům?')) return; btn.disabled = true; msgBox.className = 'msg'; msgBox.innerText = 'Stahuji kontakty z DB...'; msgBox.style.display = 'block';
+        try {
+            const { data: emailsData } = await db.from('newsletter_subscribers').select('email');
+            if (!emailsData || emailsData.length === 0) { msgBox.className = 'msg error'; msgBox.innerText = 'Databáze kontaktů je prázdná.'; btn.disabled = false; return; }
+            const allEmails = emailsData.map(e => e.email); let sentCount = 0;
+            for (let i = 0; i < allEmails.length; i += 50) {
+                const batch = allEmails.slice(i, i + 50); msgBox.innerText = `Odesílám... zpracováno ${sentCount} z ${allEmails.length}`;
+                const promises = batch.map(email => sendEmailNotification(subj, msgText + `\n\n---\nOdhlášení z odběru: ${window.location.origin}?unsubscribe=${encodeURIComponent(email)}`, [email]));
+                await Promise.all(promises); sentCount += batch.length; await new Promise(r => setTimeout(r, 1000));
+            }
+            msgBox.className = 'msg success'; msgBox.innerText = `Odesláno na všechny kontakty!`; document.getElementById('sendNewsletterForm').reset(); logAction('Newsletter', `Rozeslán hromadný e-mail.`);
+        } catch (err) { msgBox.className = 'msg error'; msgBox.innerText = 'Chyba: ' + err.message; } finally { btn.disabled = false; }
+    });
+
+    window.addEventListener('load', () => { if (window.location.search.includes('unsubscribe')) document.getElementById('unsubscribeBox').style.display = 'block'; });
+    window.confirmUnsubscribe = async function() { const emailToUnsubscribe = new URLSearchParams(window.location.search).get('unsubscribe'); await db.from('newsletter_subscribers').delete().eq('email', emailToUnsubscribe); alert('Váš e-mail byl odhlášen z odběru.'); window.location.href = window.location.origin; }
+
+    window.changeUserRole = async function(uid, uName) {
+        const newRole = document.getElementById('role_sel_'+uid).value;
+        if (newRole === 'zcp' && actualUserRole === 'zcp' && uid !== currentUser.id) {
+            if(confirm('Předat funkci Předsedy? Vy se stanete běžným ZČ.')) { await db.from('profiles').update({ role: 'zcp' }).eq('id', uid); await db.from('profiles').update({ role: 'zc' }).eq('id', currentUser.id); alert('Funkce byla předána.'); window.location.reload(); return; } else return;
+        }
+        await db.from('profiles').update({ role: newRole }).eq('id', uid); alert('Role byla úspěšně změněna.'); loadAdminData();
+    };
+
+    window.saveSystemSettings = async function() { await db.from('system_settings').update({ bank_account: document.getElementById('bankAccountInput').value, fio_token: document.getElementById('fioTokenInput').value }).eq('id', 1); alert('Systémové nastavení uloženo.'); };
+
+    window.viewUserDetail = async function(uid) {
+        const { data: u } = await db.from('profiles').select('*').eq('id', uid).single(); let r = [];
+        if(u?.player_id_card) { const { data } = await db.from('registrations').select('*, tournaments(*)').eq('player_id_card', u.player_id_card); r = data || []; }
+        document.getElementById('detailName').innerText = u.full_name || 'Nekompletní profil';
+        document.getElementById('detailContent').innerHTML = `<div><p><b>Značka (ID):</b> ${formatSPZ(u.player_id_card)||'-'}</p><p><b>E-mail:</b> ${u.email||'-'}</p><p><b>Město:</b> ${u.city||'-'}</p><p><b>Telefon:</b> ${u.phone||'-'}</p></div><div><b>Aktuální přihlášky na turnaje:</b><br>${r.length > 0 ? r.map(reg => `<li>${reg.tournaments.title}</li>`).join('') : 'Žádné přihlášky.'}</div>`;
+        document.getElementById('userDetailModal').style.display = 'block';
+    };
+    
+    window.closeUserDetail = function() { document.getElementById('userDetailModal').style.display = 'none'; };
+
+    // ==========================================
+    // --- 11. SPRÁVA A EVIDENCE MAJETKU ---
+    // ==========================================
+    window.toggleAssetElec = function() { const isElectrical = document.getElementById('assetIsElectrical').checked; document.getElementById('assetElecZone1').style.display = isElectrical ? 'block' : 'none'; document.getElementById('assetElecZone2').style.display = isElectrical ? 'block' : 'none'; document.getElementById('assetNextInspection').required = isElectrical; };
+
+    document.getElementById('addAssetForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault(); const msg = document.getElementById('assetMsg'); msg.className = 'msg'; msg.innerText = 'Ukládám do evidence majetku...'; msg.style.display = 'block';
+        let pdfUrl = null; const fileInput = document.getElementById('assetPdf');
+        if (fileInput && fileInput.files.length > 0) {
+            const safeName = `revize_${Date.now()}_${fileInput.files[0].name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+            const { error } = await db.storage.from('revisions').upload(safeName, fileInput.files[0]); 
+            if (error) { msg.className='msg error'; msg.innerText=error.message; return; }
+            pdfUrl = db.storage.from('revisions').getPublicUrl(safeName).data.publicUrl;
+        }
+        const isElectrical = document.getElementById('assetIsElectrical').checked;
+        const { error } = await db.from('assets').insert({ asset_name: document.getElementById('assetName').value.trim(), inventory_number: document.getElementById('assetInvNum').value.trim(), location: document.getElementById('assetLocation').value.trim(), is_electrical: isElectrical, next_inspection: isElectrical ? document.getElementById('assetNextInspection').value : null, pdf_url: pdfUrl, status: 'V pořádku' });
+        if (!error) { msg.className = 'msg success'; msg.innerText = 'Majetek byl úspěšně zaevidován.'; document.getElementById('addAssetForm').reset(); toggleAssetElec(); loadAssets(); } else { msg.className = 'msg error'; msg.innerText = error.message; }
+    });
+
+    async function loadAssets() {
+        if (!['zc', 'zcp', 'superadmin'].includes(simulatedRole)) return;
+        const { data } = await db.from('assets').select('*').order('created_at', { ascending: false }); if(!data) return;
+        let activeHtml = '<table class="stats-table"><tr><th>Inv.č.</th><th>Název</th><th>Umístění</th><th>Revize</th><th>Akce</th></tr>';
+        let retiredHtml = '<table class="stats-table"><tr><th>Inv.č.</th><th>Název</th><th>Důvod/Způsob</th><th>Vyřadil</th></tr>';
+        let hasActive = false, hasRetired = false, alertsHtml = ''; const today = new Date();
+
+        data.forEach(a => {
+            if (a.status === 'Vyřazeno') { hasRetired = true; retiredHtml += `<tr><td>${a.inventory_number}</td><td>${a.asset_name}</td><td>${a.retirement_reason} (${a.retirement_method})</td><td>${a.retired_by}</td></tr>`; } else {
+                hasActive = true; let revizeInfo = '-';
+                if (a.is_electrical && a.next_inspection) {
+                    let diffDays = Math.ceil((new Date(a.next_inspection) - today) / 86400000); let textColor = diffDays < 0 ? 'red' : (diffDays <= 30 ? 'orange' : 'green');
+                    if (diffDays <= 30) alertsHtml += `⚠️ Zařízení <b>${a.asset_name}</b> (Inv: ${a.inventory_number}) vyprší revize za ${diffDays} dní!<br>`;
+                    revizeInfo = `<span style="color:${textColor};font-weight:bold;">${formatDateTime(a.next_inspection).split(' ')[0]}</span>${a.pdf_url ? ` <a href="${a.pdf_url}" target="_blank" style="font-size:0.8rem; margin-left:5px;">[PDF Protokol]</a>` : ''}`;
+                }
+                activeHtml += `<tr><td>${a.inventory_number}</td><td>${a.asset_name}</td><td>${a.location}</td><td>${revizeInfo}</td><td><button class="btn-small btn-danger" onclick="openRetireModal('${a.id}','${a.asset_name.replace(/'/g, "\\'")}','${a.inventory_number}')">Vyřadit</button></td></tr>`;
+            }
+        });
+        document.getElementById('activeAssetsList').innerHTML = hasActive ? activeHtml + '</table>' : '<p style="color:#718096; font-style:italic;">Zatím neevidujete žádný aktivní majetek.</p>';
+        document.getElementById('retiredAssetsList').innerHTML = hasRetired ? retiredHtml + '</table>' : '<p style="color:#718096; font-style:italic;">Archiv je prázdný.</p>';
+        const alertBox = document.getElementById('assetAlertBox'); if (alertsHtml) { alertBox.innerHTML = alertsHtml; alertBox.style.display = 'block'; } else alertBox.style.display = 'none';
+    }
+
+    window.openRetireModal = function(id, name, inv) { document.getElementById('retireAssetId').value = id; document.getElementById('retireAssetName').innerText = name; document.getElementById('retireAssetInv').innerText = inv; document.getElementById('retirePersonName').innerText = myProfileData.full_name; document.getElementById('retireAssetModal').style.display = 'flex'; };
+    window.closeRetireModal = function() { document.getElementById('retireAssetModal').style.display = 'none'; };
+    
+    document.getElementById('retireAssetForm')?.addEventListener('submit', async (e) => { 
+        e.preventDefault(); 
+        const { error } = await db.from('assets').update({ status: 'Vyřazeno', retirement_reason: document.getElementById('retireReason').value, retirement_method: document.getElementById('retireMethod').value, retired_by: myProfileData.full_name }).eq('id', document.getElementById('retireAssetId').value); 
+        if(!error) { alert('Majetek byl úspěšně zaevidován jako vyřazený.'); closeRetireModal(); loadAssets(); } else alert(error.message); 
+    });
+    
+    window.exportAssetsToCSV = async function() { 
+        const { data } = await db.from('assets').select('*'); if(!data) return; 
+        let csv = "Inv_Cislo;Nazev;Umisteni;Elektro;Dalsi_Revize;Stav;Duvod_Vyrazeni;Zpusob_Likvidace;Vyradil\n"; 
+        data.forEach(a => csv += `${a.inventory_number};${a.asset_name};${a.location};${a.is_electrical?'ANO':'NE'};${a.next_inspection||'-'};${a.status};${a.retirement_reason||'-'};${a.retirement_method||'-'};${a.retired_by||'-'}\n`); 
+        const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' })); a.download = `Soupis_Majetku_${new Date().toISOString().slice(0,10)}.csv`; a.click(); 
+    };
+
+    // ==========================================
+    // --- 12. KONTROLA BANKY ---
+    // ==========================================
+    async function checkBankPayments() { 
+        if (!globalFioToken) return; 
+        console.log("Kontrola Fio banky je aktivní (Simulační režim pro napojení)."); 
+    }
+    setInterval(() => { if (actualUserRole === 'zcp' || actualUserRole === 'superadmin') checkBankPayments(); }, 43200000);
+
+</script>
+</body>
+</html>
