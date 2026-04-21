@@ -1375,7 +1375,7 @@
         document.getElementById('editCommentFormBox').style.display = 'none';
         document.getElementById('tournamentCommentBox').style.display = 'block';
     };
-    // ==========================================
+   // ==========================================
     // --- 8. PC EXCEL NAHRÁVÁNÍ ---
     // ==========================================
     document.getElementById('uploadResultsForm').addEventListener('submit', async (e) => {
@@ -1831,10 +1831,24 @@
             return; 
         }
         
-        list.innerHTML = data.map(k => `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid #eee;">
-            <span><strong>${k.key_name}</strong></span>
-            <span class="hash-box">${k.api_key}</span>
-        </div>`).join('');
+        list.innerHTML = data.map(k => {
+            const hodnotaKlice = k.api_key || k.key || k.value || k.key_value || 'CHYBA_SLOUPCE';
+            return `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid #eee; flex-wrap:wrap; gap:10px;">
+                <span><strong>${k.key_name}</strong></span>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <span class="hash-box">${hodnotaKlice}</span>
+                    <button class="btn-small btn-green" onclick="navigator.clipboard.writeText('${hodnotaKlice}'); alert('Klíč zkopírován do schránky!');">📋 Kopírovat</button>
+                    <button class="btn-small btn-danger" onclick="deleteApiKey('${k.id}')">❌ Smazat</button>
+                </div>
+            </div>`;
+        }).join('');
+    };
+
+    window.deleteApiKey = async function(id) {
+        if(confirm('Skutečně chcete tento přístupový klíč trvale smazat a zneplatnit?')) {
+            await db.from('api_keys').delete().eq('id', id);
+            loadApiKeys();
+        }
     };
 
     async function loadAdminData() {
