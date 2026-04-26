@@ -703,7 +703,7 @@
                     <h3>Nahrát výsledky proběhlého turnaje</h3>
                     <p style="font-size: 0.85rem; margin-bottom: 1rem;">Očekává se Excel s listy "Databáze Hráčů" a "Výsledky Turnaje". Název souboru určí jméno a datum.</p>
                     <form id="uploadResultsForm">
-                        <input type="file" id="resultFile" accept=".xls, .xlsx" required style="background: white;">
+                        <input type="file" id="resultFile" accept=".xls, .xlsx" required style="background: white;" multiple>
                         <button type="submit" class="btn-blue" style="margin-top: 10px;">Zpracovat Excel a nahrát do statistik</button>
                         <div id="uploadMsg" class="msg"></div>
                     </form>
@@ -1375,32 +1375,40 @@
         document.getElementById('editCommentFormBox').style.display = 'none';
         document.getElementById('tournamentCommentBox').style.display = 'block';
     };
-// ==========================================
-    // --- 8. PC EXCEL NAHRÁVÁNÍ (OPRAVENO) ---
+
+    // ==========================================
+    // --- 8. PC EXCEL NAHRÁVÁNÍ (HROMADNÉ) ---
     // ==========================================
     document.getElementById('uploadResultsForm').addEventListener('submit', async (e) => {
         e.preventDefault(); 
         const msg = document.getElementById('uploadMsg'); 
-        const file = document.getElementById('resultFile').files[0]; 
-        if (!file) return; 
+        const files = document.getElementById('resultFile').files; 
+        if (files.length === 0) return; 
         
         msg.className = 'msg'; 
-        msg.innerText = 'Čistím stará data a nahrávám nová...'; 
+        msg.innerText = `Zpracovávám ${files.length} souborů, prosím čekej...`; 
         msg.style.display = 'block';
-        
-        const reader = new FileReader();
-        reader.onload = async function(ev) {
+
+        let errors = [];
+        let processed = 0;
+
+        for (const file of files) {
             try {
-                const workbook = XLSX.read(new Uint8Array(ev.target.result), {type: 'array'});
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = XLSX.read(new Uint8Array(arrayBuffer), {type: 'array'});
                 const dbSheet = workbook.SheetNames.find(n => n.includes('Databáze'));
                 const resSheet = workbook.SheetNames.find(n => n.includes('Výsledky'));
                 
+                if (!dbSheet || !resSheet) {
+                    errors.push(`${file.name}: Chybí listy`);
+                    continue;
+                }
+
                 let fileName = file.name.replace(/\.[^/.]+$/, "");
                 let parts = fileName.split('_');
                 let tName = parts[0].trim();
                 let tDate = parts[1] && parts[1].length === 8 ? `${parts[1].substring(0,4)}-${parts[1].substring(4,6)}-${parts[1].substring(6,8)}` : null;
 
-                // KROK 1: Smazat staré výsledky TOHOTO turnaje (prevence duplicit a šílených čísel)
                 await db.from('historical_results').delete().eq('tournament_name', tName);
 
                 let playerDict = {};
@@ -1436,34 +1444,27 @@
                     await db.from('player_database').upsert(dbPlayersToUpsert, { onConflict: 'player_id_card' });
                 }
                 
-                // KROK 2: Zajistit, aby turnaj existoval v tabulce 'tournaments' pro komentáře
                 await db.from('tournaments').upsert({ title: tName, event_date: tDate || new Date() }, { onConflict: 'title' });
-
-                msg.className = 'msg success'; 
-                msg.innerText = 'Hotovo! Data byla vyčištěna a nahrána správně.'; 
-                historicalData = []; 
-                loadHistoricalData();
+                
+                processed++;
+                msg.innerText = `Zpracováno: ${processed} z ${files.length} (${file.name})`;
             } catch(err) { 
-                msg.className = 'msg error'; msg.innerText = 'Chyba: ' + err.message; 
+                errors.push(`${file.name}: ${err.message}`);
             }
-        };
-        reader.readAsArrayBuffer(file);
+        }
+
+        if (errors.length > 0) {
+            msg.className = 'msg error'; 
+            msg.innerText = `Nahrávání dokončeno s chybami:\n${errors.join('\n')}`;
+        } else {
+            msg.className = 'msg success'; 
+            msg.innerText = `Hotovo! Všech ${processed} turnajů bylo úspěšně nahráno do databáze.`; 
+        }
+        
+        historicalData = []; 
+        loadHistoricalData();
     });
 
-    // --- OPRAVA KOMENTÁŘŮ (aby nehlásily chybu) ---
-    window.saveEditedComment = async function() {
-        const tName = document.getElementById('statsTournamentSelect').value;
-        const newText = document.getElementById('editCommentInput').value.trim();
-        // Hledáme podle názvu, protože ID z Excelu neznáme
-        const { error } = await db.from('tournaments').update({ tournament_comment: newText }).eq('title', tName);
-        
-        if (!error) {
-            alert('Komentář uložen.');
-            renderTournamentResults();
-        } else {
-            alert('Chyba: ' + error.message);
-        }
-    };
     // ==========================================
     // --- 9. HLASOVÁNÍ, DEBATY A AUTO-UZAVŘENÍ ---
     // ==========================================
