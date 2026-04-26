@@ -1376,8 +1376,8 @@
         document.getElementById('tournamentCommentBox').style.display = 'block';
     };
 
-    // ==========================================
-    // --- 8. PC EXCEL NAHRÁVÁNÍ (HROMADNÉ) ---
+// ==========================================
+    // --- 8. PC EXCEL NAHRÁVÁNÍ (SUPER-CHYTRÉ S OPRAVOU NUL) ---
     // ==========================================
     document.getElementById('uploadResultsForm').addEventListener('submit', async (e) => {
         e.preventDefault(); 
@@ -1386,8 +1386,26 @@
         if (files.length === 0) return; 
         
         msg.className = 'msg'; 
-        msg.innerText = `Zpracovávám ${files.length} souborů, prosím čekej...`; 
+        msg.innerText = `Stahuji centrální databázi pro automatické párování nul...`; 
         msg.style.display = 'block';
+
+        // TADY JE TO KOUZLO: Stáhneme si celou tvou DB ze Supabase do paměti!
+        let supabaseDbMap = {};
+        try {
+            const { data: allPlayers } = await db.from('player_database').select('player_id_card, full_name, city');
+            if (allPlayers) {
+                allPlayers.forEach(p => {
+                    if (p.full_name) {
+                        supabaseDbMap[p.full_name.toLowerCase().trim()] = {
+                            id: p.player_id_card,
+                            city: p.city || '-'
+                        };
+                    }
+                });
+            }
+        } catch (err) {
+            console.error("Chyba při stahování DB pro párování:", err);
+        }
 
         let errors = [];
         let processed = 0;
@@ -1399,49 +1417,73 @@
                 const dbSheet = workbook.SheetNames.find(n => n.includes('Databáze'));
                 const resSheet = workbook.SheetNames.find(n => n.includes('Výsledky'));
                 
-                if (!dbSheet || !resSheet) {
-                    errors.push(`${file.name}: Chybí listy`);
+                if (!resSheet) {
+                    errors.push(`${file.name}: Chybí list Výsledky`);
                     continue;
                 }
 
                 let fileName = file.name.replace(/\.[^/.]+$/, "");
                 let parts = fileName.split('_');
                 let tName = parts[0].trim();
-                let tDate = parts[1] && parts[1].length === 8 ? `${parts[1].substring(0,4)}-${parts[1].substring(4,6)}-${parts[1].substring(6,8)}` : null;
+                let tDate = parts[1] && parts[1].length >= 8 ? `${parts[1].substring(0,4)}-${parts[1].substring(4,6)}-${parts[1].substring(6,8)}` : null;
 
+                // Vymažeme stará data tohoto turnaje
                 await db.from('historical_results').delete().eq('tournament_name', tName);
 
-                let playerDict = {};
+                let excelPlayerMap = {};
+                if (dbSheet) {
+                    XLSX.utils.sheet_to_json(workbook.Sheets[dbSheet]).forEach(row => {
+                        let j = String(row['Jméno'] || '').trim().toLowerCase();
+                        let rawId = String(row['ID pro Banku'] || row['ID (SPZ)'] || '0').trim();
+                        let parsedId = parseSPZ(rawId);
+                        if(j) excelPlayerMap[j] = { id: parsedId, city: String(row['Místo'] || '-').trim() }; 
+                    });
+                }
+
                 let dbPlayersToUpsert = [];
-                XLSX.utils.sheet_to_json(workbook.Sheets[dbSheet]).forEach(row => {
-                    let j = String(row['Jméno'] || '').trim();
-                    let rawId = String(row['ID pro Banku'] || row['ID (SPZ)'] || '0').trim();
-                    let id = parseSPZ(rawId);
-                    if(j) { 
-                        playerDict[j.toLowerCase()] = { id, city: String(row['Místo'] || '-').trim() }; 
-                        dbPlayersToUpsert.push({ player_id_card: id, full_name: j, city: String(row['Místo'] || '-').trim() }); 
-                    }
-                });
 
                 let toInsert = XLSX.utils.sheet_to_json(workbook.Sheets[resSheet]).map(row => {
-                    let j = String(row['Jméno'] || '').trim();
-                    let info = playerDict[j.toLowerCase()] || { id: '0', city: '-' };
+                    let celeJmeno = String(row['Jméno'] || '').trim();
+                    let jmenoLow = celeJmeno.toLowerCase();
+                    
+                    let excelIdInfo = excelPlayerMap[jmenoLow];
+                    let excelId = (excelIdInfo && excelIdInfo.id !== '0') ? excelIdInfo.id : '0';
+                    let excelCity = (excelIdInfo) ? excelIdInfo.city : '-';
+                    
+                    let finalId = excelId;
+                    let finalCity = excelCity;
+
+                    // AGRESIVNÍ OPRAVA: Pokud je v Excelu nula, vezmeme ID rovnou ze Supabase!
+                    if (finalId === '0' || finalId === '') {
+                        if (supabaseDbMap[jmenoLow]) {
+                            finalId = supabaseDbMap[jmenoLow].id;
+                            finalCity = supabaseDbMap[jmenoLow].city;
+                        }
+                    }
+
+                    if (finalId !== '0') {
+                        dbPlayersToUpsert.push({ player_id_card: finalId, full_name: celeJmeno, city: finalCity });
+                    }
+
                     return { 
                         tournament_name: tName, 
-                        player_id_card: info.id, 
-                        first_name: j.split(' ')[0], 
-                        last_name: j.split(' ').slice(1).join(' '), 
-                        city: info.city, 
+                        player_id_card: finalId, 
+                        first_name: celeJmeno.split(' ')[0], 
+                        last_name: celeJmeno.split(' ').slice(1).join(' '), 
+                        city: finalCity, 
                         points: parseInt(row['Turnajové Body']) || 0, 
                         quiz_points: parseInt(row['Kvízové Body']) || 0, 
-                        rank: parseInt(row['Celkové Místo']) || 0, 
+                        rank: parseInt(row['Celkové Místo'] || row['Pořadí']) || 0, 
                         tournament_date: tDate 
                     };
-                });
+                }).filter(row => row.first_name !== ''); 
 
+                // Nahrání do Supabase
                 await db.from('historical_results').insert(toInsert);
+                
                 if (dbPlayersToUpsert.length > 0) {
-                    await db.from('player_database').upsert(dbPlayersToUpsert, { onConflict: 'player_id_card' });
+                    const uniqueUpserts = Array.from(new Map(dbPlayersToUpsert.map(item => [item.player_id_card, item])).values());
+                    await db.from('player_database').upsert(uniqueUpserts, { onConflict: 'player_id_card' });
                 }
                 
                 await db.from('tournaments').upsert({ title: tName, event_date: tDate || new Date() }, { onConflict: 'title' });
@@ -1458,7 +1500,7 @@
             msg.innerText = `Nahrávání dokončeno s chybami:\n${errors.join('\n')}`;
         } else {
             msg.className = 'msg success'; 
-            msg.innerText = `Hotovo! Všech ${processed} turnajů bylo úspěšně nahráno do databáze.`; 
+            msg.innerText = `Hotovo! Všech ${processed} turnajů nahráno. Všechny nuly byly automaticky nahrazeny správnými ID z databáze!`; 
         }
         
         historicalData = []; 
