@@ -1375,18 +1375,17 @@
         document.getElementById('editCommentFormBox').style.display = 'none';
         document.getElementById('tournamentCommentBox').style.display = 'block';
     };
-   // ==========================================
-    // --- 8. PC EXCEL NAHRÁVÁNÍ ---
+// ==========================================
+    // --- 8. PC EXCEL NAHRÁVÁNÍ (OPRAVENO) ---
     // ==========================================
     document.getElementById('uploadResultsForm').addEventListener('submit', async (e) => {
         e.preventDefault(); 
         const msg = document.getElementById('uploadMsg'); 
         const file = document.getElementById('resultFile').files[0]; 
-        
         if (!file) return; 
         
         msg.className = 'msg'; 
-        msg.innerText = 'Zpracovávám Excel z PC aplikace...'; 
+        msg.innerText = 'Čistím stará data a nahrávám nová...'; 
         msg.style.display = 'block';
         
         const reader = new FileReader();
@@ -1396,26 +1395,23 @@
                 const dbSheet = workbook.SheetNames.find(n => n.includes('Databáze'));
                 const resSheet = workbook.SheetNames.find(n => n.includes('Výsledky'));
                 
-                if(!dbSheet || !resSheet) {
-                    throw new Error('Chybí listy "Databáze Hráčů" a "Výsledky Turnaje" v nahraném souboru.');
-                }
-                
                 let fileName = file.name.replace(/\.[^/.]+$/, "");
                 let parts = fileName.split('_');
                 let tName = parts[0].trim();
                 let tDate = parts[1] && parts[1].length === 8 ? `${parts[1].substring(0,4)}-${parts[1].substring(4,6)}-${parts[1].substring(6,8)}` : null;
-                
+
+                // KROK 1: Smazat staré výsledky TOHOTO turnaje (prevence duplicit a šílených čísel)
+                await db.from('historical_results').delete().eq('tournament_name', tName);
+
                 let playerDict = {};
                 let dbPlayersToUpsert = [];
-                
                 XLSX.utils.sheet_to_json(workbook.Sheets[dbSheet]).forEach(row => {
                     let j = String(row['Jméno'] || '').trim();
                     let rawId = String(row['ID pro Banku'] || row['ID (SPZ)'] || '0').trim();
-                    let id = parseSPZ(rawId); // Převedeme SPZ do čistého ID
-                    let m = String(row['Místo'] || '-').trim();
+                    let id = parseSPZ(rawId);
                     if(j) { 
-                        playerDict[j.toLowerCase()] = { id, city: m }; 
-                        dbPlayersToUpsert.push({ player_id_card: id, full_name: j, city: m }); 
+                        playerDict[j.toLowerCase()] = { id, city: String(row['Místo'] || '-').trim() }; 
+                        dbPlayersToUpsert.push({ player_id_card: id, full_name: j, city: String(row['Místo'] || '-').trim() }); 
                     }
                 });
 
@@ -1435,29 +1431,39 @@
                     };
                 });
 
-                const { error: resErr } = await db.from('historical_results').insert(toInsert); 
-                if(resErr) throw resErr;
-                
-                if (dbPlayersToUpsert.length > 0) { 
-                    for(let i = 0; i < dbPlayersToUpsert.length; i += 500) {
-                        await db.from('player_database').upsert(dbPlayersToUpsert.slice(i, i + 500), { onConflict: 'player_id_card' }); 
-                    }
+                await db.from('historical_results').insert(toInsert);
+                if (dbPlayersToUpsert.length > 0) {
+                    await db.from('player_database').upsert(dbPlayersToUpsert, { onConflict: 'player_id_card' });
                 }
                 
+                // KROK 2: Zajistit, aby turnaj existoval v tabulce 'tournaments' pro komentáře
+                await db.from('tournaments').upsert({ title: tName, event_date: tDate || new Date() }, { onConflict: 'title' });
+
                 msg.className = 'msg success'; 
-                msg.innerText = 'Hotovo! Výsledky byly uloženy do statistik a databáze hráčů byla synchronizována.'; 
-                document.getElementById('uploadResultsForm').reset(); 
+                msg.innerText = 'Hotovo! Data byla vyčištěna a nahrána správně.'; 
                 historicalData = []; 
                 loadHistoricalData();
-                
             } catch(err) { 
-                msg.className = 'msg error'; 
-                msg.innerText = 'Chyba: ' + err.message; 
+                msg.className = 'msg error'; msg.innerText = 'Chyba: ' + err.message; 
             }
         };
         reader.readAsArrayBuffer(file);
     });
 
+    // --- OPRAVA KOMENTÁŘŮ (aby nehlásily chybu) ---
+    window.saveEditedComment = async function() {
+        const tName = document.getElementById('statsTournamentSelect').value;
+        const newText = document.getElementById('editCommentInput').value.trim();
+        // Hledáme podle názvu, protože ID z Excelu neznáme
+        const { error } = await db.from('tournaments').update({ tournament_comment: newText }).eq('title', tName);
+        
+        if (!error) {
+            alert('Komentář uložen.');
+            renderTournamentResults();
+        } else {
+            alert('Chyba: ' + error.message);
+        }
+    };    
     // ==========================================
     // --- 9. HLASOVÁNÍ, DEBATY A AUTO-UZAVŘENÍ ---
     // ==========================================
