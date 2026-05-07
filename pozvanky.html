@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generátor pozvánek (ZČ) | Česká asociace prší</title>
+    <title>Generátor pozvánek | Česká asociace prší</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
@@ -15,93 +15,122 @@
             --text: #2d3748; 
             --white: #ffffff; 
             --gray: #e2e8f0; 
-            --retro-red: #da291c; /* Upraveno přesně podle tvé grafiky */
+            
+            /* Zde se bude měnit barva u Retro šablony přes JavaScript */
+            --theme-color: #da291c; 
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Arial Black', Impact, sans-serif; }
-        body { background: var(--bg); color: var(--text); line-height: 1.6; display: flex; flex-direction: column; min-height: 100vh; font-family: 'Inter', sans-serif; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; flex-direction: column; min-height: 100vh; }
         
+        /* --- UI Administrace --- */
         header { background: var(--white); padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
-        .logo-container { display: flex; align-items: center; gap: 1rem; }
-        .logo-container h1 { font-size: 1.2rem; color: var(--primary); text-transform: uppercase; font-family: 'Inter', sans-serif;}
-        .back-btn { background: var(--gray); color: var(--primary); padding: 0.5rem 1rem; text-decoration: none; border-radius: 6px; font-weight: bold; transition: 0.2s; font-family: 'Inter', sans-serif;}
+        .logo-container h1 { font-size: 1.2rem; color: var(--primary); text-transform: uppercase; }
+        .back-btn { background: var(--gray); color: var(--primary); padding: 0.5rem 1rem; text-decoration: none; border-radius: 6px; font-weight: bold; }
+        
+        main { display: flex; gap: 2rem; padding: 2rem; max-width: 1600px; margin: 0 auto; width: 100%; align-items: flex-start; }
+        .panel-left { width: 400px; background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); flex-shrink: 0; max-height: 85vh; overflow-y: auto; }
+        .panel-right { flex-grow: 1; display: flex; justify-content: center; background: #cbd5e0; padding: 2rem; border-radius: 12px; overflow: auto; }
 
-        main { flex: 1; padding: 2rem; max-width: 1400px; margin: 0 auto; width: 100%; display: grid; grid-template-columns: 400px 1fr; gap: 2rem; }
-        @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
-        
-        .card { background: var(--white); padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
-        h2 { color: var(--primary); border-bottom: 2px solid var(--secondary); padding-bottom: 0.5rem; margin-bottom: 1.5rem; font-size: 1.3rem; font-family: 'Inter', sans-serif;}
-        
-        label { display: block; font-weight: bold; margin-bottom: 0.3rem; font-size: 0.9rem; color: #4a5568; font-family: 'Inter', sans-serif;}
-        input[type="text"], input[type="date"], input[type="time"], input[type="number"], select { 
-            width: 100%; padding: 0.6rem; margin-bottom: 1rem; border-radius: 6px; border: 1px solid #cbd5e0; background: #f7fafc; font-family: 'Inter', sans-serif;
-        }
-        
-        button { background: var(--primary); color: white; border: none; padding: 0.8rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; font-family: 'Inter', sans-serif;}
+        h2 { font-size: 1.2rem; color: var(--primary); border-bottom: 2px solid var(--secondary); padding-bottom: 0.5rem; margin-bottom: 1rem; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.2rem; color: #4a5568; }
+        input, select { width: 100%; padding: 0.6rem; border: 1px solid #cbd5e0; border-radius: 6px; font-family: inherit; }
+        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+        button { background: #2f855a; color: white; border: none; padding: 0.8rem; border-radius: 6px; font-weight: bold; width: 100%; cursor: pointer; margin-top: 1rem; }
 
-        /* --- 1:1 PLAKÁT --- */
-        .poster-container { background: #cbd5e0; padding: 2rem; border-radius: 12px; display: flex; justify-content: center; align-items: start; min-height: 800px; }
-        
-        /* Pevný rozměr A4 pro absolutní přesnost pozicování */
-        .poster { 
-            width: 595px; 
-            height: 842px; 
-            position: relative; 
-            background-color: white; 
-            background-size: cover; 
-            background-position: center; 
-            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        /* --- ŠABLONA 1: RETRO (1:1 podle obrázků) --- */
+        .poster-retro {
+            width: 595px; height: 842px; /* Fixní formát A4 */
+            background: white;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            font-family: 'Arial Black', 'Impact', sans-serif; /* Těžký font */
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
         }
 
-        /* MASKY A TEXTY 
-           Tyto vrstvy překryjí starý text na JPG a napíší nový.
-        */
+        /* Horní část kraftový papír */
+        .r-top-bg { position: absolute; top: 0; left: 0; width: 100%; height: 50%; background: #e3cca6; z-index: 1; }
+        /* Bílé obdélníky nahoře */
+        .r-cutout-left { position: absolute; top: 30px; left: 50px; width: 120px; height: 35px; background: white; z-index: 2; }
+        .r-cutout-right { position: absolute; top: 30px; right: 50px; width: 120px; height: 35px; background: white; z-index: 2; }
         
-        /* 1. Střední červený banner (překrytí data a času a zápisného) */
-        .mask-banner {
-            position: absolute;
-            top: 48%; /* Nutno doladit podle přesného JPG */
-            left: 0;
-            width: 100%;
-            height: 18%; /* Výška červeného pruhu */
-            background-color: var(--retro-red); /* Překryje starý text */
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            z-index: 10;
+        /* Prostor pro obrázek karet */
+        .r-image-area { position: absolute; top: 120px; left: 10%; width: 80%; height: 320px; z-index: 3; background: rgba(0,0,0,0.05); border: 2px dashed #a0aec0; display: flex; justify-content: center; align-items: center; text-align: center; color: #718096; font-family: 'Inter', sans-serif; font-size: 0.8rem; font-weight: bold;}
+        .r-image-area img { width: 100%; height: 100%; object-fit: contain; }
+
+        /* Hlavní barevný banner */
+        .r-banner { position: absolute; top: 50%; left: 0; width: 100%; transform: translateY(-30%); z-index: 4; background: var(--theme-color); text-align: center; padding: 20px 0; color: white; display: flex; flex-direction: column; align-items: center; }
+        .r-banner-row1 { display: flex; align-items: baseline; gap: 10px; }
+        .r-rocnik-box { background: white; color: var(--theme-color); padding: 0 15px; font-size: 45px; line-height: 50px; }
+        .r-rocnik-text { font-size: 45px; letter-spacing: 1px; }
+        .r-title { font-size: 50px; line-height: 1; margin: 5px 0 15px 0; letter-spacing: 1px; }
+        .r-banner-bottom { font-family: 'Arial', sans-serif; font-weight: 900; color: #1a202c; font-size: 18px; text-transform: uppercase; letter-spacing: 1px; }
+        .r-banner-bottom span { margin: 0 8px; font-weight: normal; }
+
+        /* Spodní část pod bannerem */
+        .r-bottom { position: absolute; top: 68%; left: 0; width: 100%; height: 32%; z-index: 2; background: white; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 15px; }
+        
+        .r-date-row { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 18px; margin-bottom: 5px; text-transform: uppercase; }
+        .r-date-box { border: 2px solid var(--theme-color); color: var(--theme-color); padding: 2px 10px; }
+        .r-city { color: var(--theme-color); }
+        
+        .r-info-row { font-family: 'Arial', sans-serif; font-weight: bold; font-size: 16px; color: #1a202c; margin-bottom: 30px; }
+        .r-sep { margin: 0 10px; color: #a0aec0; font-weight: normal; }
+        
+        .r-cat-title { font-size: 28px; color: var(--theme-color); letter-spacing: 1px; }
+        .r-cat-sub { font-family: 'Arial', sans-serif; font-size: 15px; color: #4a5568; margin-top: 5px; font-weight: bold; }
+        
+        .r-footer { position: absolute; bottom: 30px; left: 0; width: 100%; display: flex; justify-content: space-around; font-family: 'Arial', sans-serif; font-size: 14px; font-weight: bold; color: #1a202c; }
+
+        /* --- ŠABLONA 2: BUKOVENSKÁ KAPKA (1:1 podle obrázku) --- */
+        .poster-kapka {
+            width: 900px; height: 350px; /* Široká nudle */
+            background: #fcfbf6;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: none; /* Skryto v základu */
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
         }
 
-        .t-title { font-size: 42px; text-transform: uppercase; line-height: 1.1; margin-bottom: 5px; }
-        .t-info-bar { font-size: 16px; font-family: 'Inter', sans-serif; font-weight: bold; text-transform: uppercase; border-top: 1px solid rgba(255,255,255,0.3); border-bottom: 1px solid rgba(255,255,255,0.3); padding: 5px 20px; letter-spacing: 1px; }
-        .t-info-bar span { color: #f6ad55; /* Zlatavá barva pro zápisné */ }
+        .k-left { position: absolute; top: 0; left: 0; width: 220px; height: 100%; border-right: 2px solid #e6dcc3; padding: 15px; display: flex; flex-direction: column; justify-content: space-between; }
+        .k-emblem-area { height: 100px; background: rgba(0,0,0,0.05); border: 1px dashed #a0aec0; text-align: center; font-family: 'Inter', sans-serif; font-size: 0.7rem; color: #718096; display: flex; justify-content: center; align-items: center; }
+        .k-cards-area { height: 140px; background: #1b5e20; border: 3px solid #d69e2e; display: flex; justify-content: center; align-items: center; color: white; font-family: 'Inter', sans-serif; font-size: 0.7rem; text-align: center; }
+        
+        .k-center { position: absolute; top: 15px; left: 240px; width: 460px; text-align: center; }
+        .k-poradatel { font-family: 'Georgia', serif; font-size: 20px; color: #8b7355; font-weight: bold; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .k-poradatel-leaf { color: #bca073; }
+        .k-title { font-family: 'Georgia', serif; font-size: 40px; color: #8b7355; margin: 5px 0; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        .k-subtitle { font-family: 'Georgia', serif; font-size: 18px; color: #4a5568; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .k-subtitle-line { width: 40px; height: 1px; background: #a0aec0; }
 
-        /* 2. Spodní bílá část (překrytí GPS, kategorií atd.) */
-        .mask-bottom {
-            position: absolute;
-            top: 66%;
-            left: 5%;
-            width: 90%;
-            height: 25%;
-            background-color: white; /* Vygumuje staré texty dole */
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding-top: 20px;
+        .k-info-box { border: 2px solid #bca073; border-radius: 8px; background: #fff; padding: 10px; margin: 0 auto 15px auto; width: 95%; box-shadow: 2px 2px 5px rgba(0,0,0,0.05); }
+        .k-date-row { font-family: 'Arial Black', sans-serif; font-size: 22px; color: #2d3748; display: flex; justify-content: center; align-items: center; gap: 10px; }
+        .k-loc { font-family: 'Georgia', serif; font-size: 16px; font-weight: bold; color: #2d3748; margin: 5px 0; letter-spacing: 0.5px; }
+        .k-time { font-family: 'Georgia', serif; font-size: 18px; font-weight: bold; color: #2d3748; }
+
+        .k-family { font-family: 'Georgia', serif; font-size: 18px; font-weight: bold; color: #2d3748; letter-spacing: 1px; display: flex; justify-content: center; align-items: center; gap: 10px; }
+
+        .k-right { position: absolute; top: 0; right: 0; width: 200px; height: 100%; display: flex; flex-direction: column; align-items: center; }
+        .k-tradice { margin-top: 30px; font-family: 'Georgia', serif; font-size: 16px; font-weight: bold; color: #718096; transform: rotate(-15deg); letter-spacing: 2px; }
+        .k-fireman-area { position: absolute; bottom: 65px; right: 10px; width: 160px; height: 200px; background: rgba(0,0,0,0.05); border: 1px dashed #a0aec0; display: flex; justify-content: center; align-items: center; text-align: center; font-family: 'Inter', sans-serif; font-size: 0.7rem; color: #718096; }
+
+        .k-bottom-bar { position: absolute; bottom: 0; left: 0; width: 100%; height: 65px; background: #e6dcc3; border-top: 1px solid #c9b086; padding: 0 15px; display: flex; justify-content: space-between; align-items: center; font-family: 'Georgia', serif; font-size: 14px; color: #2d3748; }
+        .k-bottom-left { display: flex; align-items: center; gap: 10px; font-weight: bold; }
+        .k-bottom-center { text-align: center; }
+        .k-bottom-right { text-align: right; font-size: 20px; font-weight: bold; }
+
+        #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--white); z-index: 1000; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: var(--primary); font-weight: bold; }
+        
+        /* Skrytí UI pro tisk */
+        @media print {
+            body * { visibility: hidden; }
+            #livePoster, #livePoster * { visibility: visible; }
+            #livePoster { position: absolute; left: 0; top: 0; margin: 0; transform: scale(1) !important; box-shadow: none; border: none; }
         }
-
-        .t-date-loc { font-size: 20px; color: var(--retro-red); border: 2px solid var(--retro-red); padding: 5px 15px; margin-bottom: 10px; }
-        .t-gps-time { font-size: 18px; color: #2d3748; font-family: 'Inter', sans-serif; font-weight: bold; margin-bottom: 20px; }
-        .t-kategorie-title { font-size: 32px; color: var(--retro-red); margin-bottom: 5px; }
-        .t-kategorie-desc { font-size: 16px; color: #4a5568; font-family: 'Inter', sans-serif; font-weight: bold; }
-
-        /* Zarovnání svislítek s přesnými mezerami */
-        .sep { margin: 0 12px; color: #a0aec0; font-weight: normal; }
-
-        #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--white); z-index: 1000; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: var(--primary); font-weight: bold; font-family: 'Inter', sans-serif;}
     </style>
 </head>
 <body>
@@ -109,78 +138,150 @@
 <div id="loadingOverlay">Ověřuji oprávnění ZČ...</div>
 
 <header>
-    <div class="logo-container">
-        <h1>Generátor Pozvánek (1:1 Režim)</h1>
-    </div>
+    <div class="logo-container"><h1>Generátor Pozvánek (1:1 Text)</h1></div>
     <a href="index.html" class="back-btn">Zpět na web</a>
 </header>
 
 <main>
-    <div class="card" style="max-height: 800px; overflow-y: auto;">
-        <h2>Nastavení textů</h2>
-        
-        <label>Šablona pozadí (URL k tvému originálnímu JPG)</label>
-        <select id="bgSelect" onchange="updatePreview()">
-            <option value="https://asociaceprsi.cz/wp-content/uploads/2023/04/retro-cervena-pozadi.jpg">Retro Červená</option>
-            <option value="https://asociaceprsi.cz/wp-content/uploads/2023/04/kapka-pozadi.jpg">Bukovenská Kapka</option>
+    <div class="panel-left">
+        <h2>Výběr šablony</h2>
+        <div class="form-group">
+            <select id="tplSelect" onchange="toggleTemplate()">
+                <option value="retro">Série RETRO (Svislý formát)</option>
+                <option value="kapka">BUKOVENSKÁ KAPKA (Široký formát)</option>
             </select>
-
-        <label>Název turnaje</label>
-        <input type="text" id="inTitle" value="26. TURNAJ ČESKÉHO RÁJE">
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-            <div><label>Datum</label><input type="date" id="inDate"></div>
-            <div><label>Čas začátku</label><input type="time" id="inTime" value="10:00"></div>
         </div>
 
-        <label>Název podniku</label>
-        <input type="text" id="inLocName" value="HOSPŮDKA NA KŘIŽOVATCE">
-        
-        <label>Obec</label>
-        <input type="text" id="inObec" value="NOVÁ TELIB">
-        
-        <label>Souřadnice GPS</label>
-        <input type="text" id="inGps" value="50.3664053N, 14.9818817E">
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-            <div><label>Zápisné (Kč)</label><input type="text" id="inFee" value="250"></div>
-            <div><label>Prezentace do</label><input type="time" id="inPrez" value="09:45"></div>
-        </div>
-
-        <button type="button" onclick="window.print()" style="margin-top: 1rem;">🖨️ Vytisknout / Uložit PDF</button>
-    </div>
-
-    <div class="card" style="display: flex; flex-direction: column; align-items: center;">
-        <h2 style="align-self: flex-start; margin-bottom: 0;">Přesný náhled</h2>
-        <p style="font-size: 0.85rem; color: #718096; margin-bottom: 1rem; align-self: flex-start;">Kód vloží tvůj originální obrázek do pozadí a na něj položí čisté, vycentrované texty.</p>
-        
-        <div class="poster-container">
-            <div class="poster" id="livePoster" style="background-image: url('');">
-                
-                <div class="mask-banner">
-                    <div class="t-title" id="outTitle">26. TURNAJ ČESKÉHO RÁJE</div>
-                    <div class="t-info-bar">
-                        <span id="outLocName" style="color: white;">HOSPŮDKA NA KŘIŽOVATCE</span>
-                        <span class="sep">|</span>
-                        <span>STARTOVNÉ <span id="outFee">250</span> KČ</span>
-                    </div>
-                </div>
-
-                <div class="mask-bottom">
-                    <div class="t-date-loc">
-                        <span id="outDate">22.02.2026</span> <span class="sep">-</span> <span id="outObec">NOVÁ TELIB</span>
-                    </div>
-                    <div class="t-gps-time">
-                        <span id="outTime">10:00</span> <span class="sep">|</span> <span id="outGps">50.3664053N, 14.9818817E</span> <span class="sep">|</span> VĚCNÉ CENY
-                    </div>
-                    <div class="t-kategorie-title">KATEGORIE OPEN</div>
-                    <div class="t-kategorie-desc">
-                        BEZ OHLEDU NA POHLAVÍ A VĚK <span class="sep">|</span> PREZENTACE <span id="outPrez">09:45</span>
-                    </div>
-                </div>
-
+        <div id="retroSettings">
+            <div class="form-group">
+                <label>Barva Retro plakátu</label>
+                <select id="inColor" onchange="updateContent()">
+                    <option value="#da291c">Červená</option>
+                    <option value="#6b46c1">Fialová</option>
+                    <option value="#319795">Tyrkysová</option>
+                    <option value="#d69e2e">Zlatá</option>
+                </select>
+            </div>
+            
+            <div class="form-group"><label>Odkaz na obrázek karet (Průhledné PNG)</label><input type="text" id="imgRetroCards" value="" placeholder="https://..."></div>
+            <div class="form-group"><label>Ročník (číslo)</label><input type="text" id="inRetroRocnik" value="26"></div>
+            <div class="form-group"><label>Název podniku</label><input type="text" id="inRetroPenzion" value="PENZIÓN SLUNEČNO"></div>
+            <div class="row-2">
+                <div class="form-group"><label>Startovné (Kč)</label><input type="text" id="inRetroFee" value="250"></div>
+                <div class="form-group"><label>Datum (např. 22.02.2026)</label><input type="text" id="inRetroDate" value="22.02.2026"></div>
+            </div>
+            <div class="form-group"><label>Obec</label><input type="text" id="inRetroCity" value="KAMENICE U DOLNÍHO BOUSOVA"></div>
+            <div class="row-2">
+                <div class="form-group"><label>Čas začátku</label><input type="text" id="inRetroTime" value="10:00"></div>
+                <div class="form-group"><label>Čas prezentace</label><input type="text" id="inRetroPrez" value="9:45"></div>
+            </div>
+            <div class="form-group"><label>GPS Souřadnice</label><input type="text" id="inRetroGps" value="50.4896889N, 15.1113025E"></div>
+            <div class="form-group"><label>E-mail</label><input type="text" id="inRetroEmail" value="prsi@libosovice.cz"></div>
+            <div class="row-2">
+                <div class="form-group"><label>Web</label><input type="text" id="inRetroWeb" value="www.libosovice.cz"></div>
+                <div class="form-group"><label>Telefon</label><input type="text" id="inRetroPhone" value="724 710 874"></div>
             </div>
         </div>
+
+        <div id="kapkaSettings" style="display: none;">
+            <div class="form-group"><label>Odkaz na znak (Průhledné PNG)</label><input type="text" id="imgKapkaZnak" value="" placeholder="https://..."></div>
+            <div class="form-group"><label>Odkaz na karty stůl (JPG/PNG)</label><input type="text" id="imgKapkaKarty" value="" placeholder="https://..."></div>
+            <div class="form-group"><label>Odkaz na postavu hasiče (Průhledné PNG)</label><input type="text" id="imgKapkaHasic" value="" placeholder="https://..."></div>
+            
+            <div class="form-group"><label>Ročník (číslo)</label><input type="text" id="inKapkaRocnik" value="4"></div>
+            <div class="form-group"><label>Datum turnaje</label><input type="text" id="inKapkaDate" value="18. dubna 2026"></div>
+            <div class="form-group"><label>Čas začátku</label><input type="text" id="inKapkaTime" value="11:00"></div>
+            <div class="row-2">
+                <div class="form-group"><label>Zápisné Dospělí</label><input type="text" id="inKapkaFee" value="200"></div>
+                <div class="form-group"><label>Zápisné Děti</label><input type="text" id="inKapkaFeeKids" value="100"></div>
+            </div>
+            <div class="form-group"><label>RSVP datum</label><input type="text" id="inKapkaRsvp" value="10.04.2026"></div>
+            <div class="form-group"><label>Telefon</label><input type="text" id="inKapkaPhone" value="605 938 458"></div>
+        </div>
+
+        <button type="button" onclick="window.print()">🖨️ Tisk / Uložit PDF</button>
+    </div>
+
+    <div class="panel-right">
+        
+        <div id="livePosterRetro" class="poster-retro">
+            <div class="r-top-bg"></div>
+            <div class="r-cutout-left"></div>
+            <div class="r-cutout-right"></div>
+            
+            <div class="r-image-area" id="retroImgArea">
+                ZDE SE ZOBRAZÍ OBRÁZEK KARET<br>(Vložte odkaz do formuláře)
+            </div>
+
+            <div class="r-banner" id="retroBannerStyle">
+                <div class="r-banner-row1">
+                    <div class="r-rocnik-box" id="outRetroRocnik">26</div>
+                    <div class="r-rocnik-text">ROČNÍK</div>
+                </div>
+                <div class="r-title">TURNAJE V PRŠÍ</div>
+                <div class="r-banner-bottom">
+                    <span id="outRetroPenzion">PENZIÓN SLUNEČNO</span> <span class="r-sep">|</span> STARTOVNÉ <span id="outRetroFee">250</span> KČ
+                </div>
+            </div>
+
+            <div class="r-bottom">
+                <div class="r-date-row">
+                    <div class="r-date-box" id="outRetroDate">22.02.2026</div> <span class="r-sep">-</span> <div class="r-city" id="outRetroCity">KAMENICE U DOLNÍHO BOUSOVA</div>
+                </div>
+                <div class="r-info-row">
+                    <span id="outRetroTime">10:00</span> <span class="r-sep">|</span> <span id="outRetroGps">50.4896889N, 15.1113025E</span> <span class="r-sep">|</span> Věcné ceny
+                </div>
+                
+                <div class="r-cat-title">KATEGORIE OPEN</div>
+                <div class="r-cat-sub">BEZ OHLEDU NA POHLAVÍ A VĚK <span class="r-sep">|</span> PREZENTACE <span id="outRetroPrez">9:45</span></div>
+            </div>
+
+            <div class="r-footer">
+                <span id="outRetroEmail">prsi@libosovice.cz</span>
+                <span id="outRetroWeb">www.libosovice.cz</span>
+                <span id="outRetroPhone">724 710 874</span>
+            </div>
+        </div>
+
+        <div id="livePosterKapka" class="poster-kapka">
+            <div class="k-left">
+                <div class="k-emblem-area" id="kapkaZnakArea">ZDE BUDE ZNAK</div>
+                <div class="k-cards-area" id="kapkaKartyArea">ZDE BUDOU KARTY NA STOLE</div>
+            </div>
+
+            <div class="k-center">
+                <div class="k-poradatel"><span class="k-poradatel-leaf">🌿</span> SPOLEK DOBROVOLNÝCH HASIČŮ BUKOVNO <span class="k-poradatel-leaf">🌿</span></div>
+                <div class="k-title"><span id="outKapkaRocnik">4</span>. HASIČSKÁ KAPKA</div>
+                <div class="k-subtitle"><div class="k-subtitle-line"></div> v karetní hře PRŠÍ <div class="k-subtitle-line"></div></div>
+                
+                <div class="k-info-box">
+                    <div class="k-date-row">📅 <span id="outKapkaDate">18. dubna 2026</span> 🕒</div>
+                    <div class="k-loc">NAŠE HOSPODA BUKOVENSKO - LÍNSKÁ</div>
+                    <div class="k-time">od <span id="outKapkaTime">11:00</span> hodin</div>
+                </div>
+
+                <div class="k-family">👪 HRA JE PRO DĚTI I DOSPĚLÉ 🃏</div>
+            </div>
+
+            <div class="k-right">
+                <div class="k-tradice">TRADICE & RADOST</div>
+                <div class="k-fireman-area" id="kapkaHasicArea">ZDE BUDE HASIČ (PNG)</div>
+            </div>
+
+            <div class="k-bottom-bar">
+                <div class="k-bottom-left">
+                    🏷️ Zápisné: <span id="outKapkaFee">200</span>,- Kč <span style="font-weight:normal">(platba na místě – včetně oběda)</span><br>
+                    <span id="outKapkaFeeKids">100</span>,- Kč <span style="font-weight:normal">(děti do 18 let)</span>
+                </div>
+                <div class="k-bottom-center">
+                    Pro účast, prosím, potvrďte do <span id="outKapkaRsvp">10.04.2026</span>
+                </div>
+                <div class="k-bottom-right">
+                    📞 tel.: <span id="outKapkaPhone">605 938 458</span>
+                </div>
+            </div>
+        </div>
+
     </div>
 </main>
 
@@ -197,37 +298,75 @@
             window.location.href = 'index.html'; return;
         }
         document.getElementById('loadingOverlay').style.display = 'none';
-        document.getElementById('inDate').valueAsDate = new Date();
-        updatePreview();
+        updateContent();
     }
     checkAuth();
 
-    function formatDotDate(dateStr) {
-        if (!dateStr) return '';
-        const d = new Date(dateStr);
-        const pad = n => n < 10 ? '0' + n : n;
-        return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()}`;
+    function toggleTemplate() {
+        const val = document.getElementById('tplSelect').value;
+        if(val === 'retro') {
+            document.getElementById('retroSettings').style.display = 'block';
+            document.getElementById('kapkaSettings').style.display = 'none';
+            document.getElementById('livePosterRetro').style.display = 'flex';
+            document.getElementById('livePosterKapka').style.display = 'none';
+        } else {
+            document.getElementById('retroSettings').style.display = 'none';
+            document.getElementById('kapkaSettings').style.display = 'block';
+            document.getElementById('livePosterRetro').style.display = 'none';
+            document.getElementById('livePosterKapka').style.display = 'block';
+        }
     }
 
-    function updatePreview() {
-        // Změna obrázku na pozadí
-        document.getElementById('livePoster').style.backgroundImage = `url('${document.getElementById('bgSelect').value}')`;
-
-        // Přepis textů do absolutních vrstev
-        document.getElementById('outTitle').innerText = document.getElementById('inTitle').value.toUpperCase();
-        document.getElementById('outLocName').innerText = document.getElementById('inLocName').value.toUpperCase();
-        document.getElementById('outFee').innerText = document.getElementById('inFee').value;
-        
-        document.getElementById('outDate').innerText = formatDotDate(document.getElementById('inDate').value);
-        document.getElementById('outObec').innerText = document.getElementById('inObec').value.toUpperCase();
-        
-        document.getElementById('outTime').innerText = document.getElementById('inTime').value;
-        document.getElementById('outGps').innerText = document.getElementById('inGps').value;
-        document.getElementById('outPrez').innerText = document.getElementById('inPrez').value;
+    function setImageOrPlaceholder(areaId, urlStr) {
+        const area = document.getElementById(areaId);
+        if (urlStr.trim() !== '') {
+            area.innerHTML = `<img src="${urlStr}" style="width:100%; height:100%; object-fit:contain; background: transparent;">`;
+            area.style.border = 'none';
+            area.style.background = 'transparent';
+        } else {
+            area.innerHTML = `ZDE VLOŽTE ODKAZ NA OBRÁZEK`;
+            area.style.border = '1px dashed #a0aec0';
+            area.style.background = 'rgba(0,0,0,0.05)';
+        }
     }
 
-    const inputs = ['bgSelect', 'inTitle', 'inDate', 'inTime', 'inLocName', 'inObec', 'inGps', 'inFee', 'inPrez'];
-    inputs.forEach(id => document.getElementById(id).addEventListener('input', updatePreview));
+    function updateContent() {
+        // --- RETRO ---
+        const themeColor = document.getElementById('inColor').value;
+        document.documentElement.style.setProperty('--theme-color', themeColor);
+        
+        setImageOrPlaceholder('retroImgArea', document.getElementById('imgRetroCards').value);
+        
+        document.getElementById('outRetroRocnik').innerText = document.getElementById('inRetroRocnik').value;
+        document.getElementById('outRetroPenzion').innerText = document.getElementById('inRetroPenzion').value.toUpperCase();
+        document.getElementById('outRetroFee').innerText = document.getElementById('inRetroFee').value;
+        document.getElementById('outRetroDate').innerText = document.getElementById('inRetroDate').value;
+        document.getElementById('outRetroCity').innerText = document.getElementById('inRetroCity').value.toUpperCase();
+        document.getElementById('outRetroTime').innerText = document.getElementById('inRetroTime').value;
+        document.getElementById('outRetroPrez').innerText = document.getElementById('inRetroPrez').value;
+        document.getElementById('outRetroGps').innerText = document.getElementById('inRetroGps').value;
+        document.getElementById('outRetroEmail').innerText = document.getElementById('inRetroEmail').value;
+        document.getElementById('outRetroWeb').innerText = document.getElementById('inRetroWeb').value;
+        document.getElementById('outRetroPhone').innerText = document.getElementById('inRetroPhone').value;
+
+        // --- KAPKA ---
+        setImageOrPlaceholder('kapkaZnakArea', document.getElementById('imgKapkaZnak').value);
+        setImageOrPlaceholder('kapkaKartyArea', document.getElementById('imgKapkaKarty').value);
+        setImageOrPlaceholder('kapkaHasicArea', document.getElementById('imgKapkaHasic').value);
+
+        document.getElementById('outKapkaRocnik').innerText = document.getElementById('inKapkaRocnik').value;
+        document.getElementById('outKapkaDate').innerText = document.getElementById('inKapkaDate').value;
+        document.getElementById('outKapkaTime').innerText = document.getElementById('inKapkaTime').value;
+        document.getElementById('outKapkaFee').innerText = document.getElementById('inKapkaFee').value;
+        document.getElementById('outKapkaFeeKids').innerText = document.getElementById('inKapkaFeeKids').value;
+        document.getElementById('outKapkaRsvp').innerText = document.getElementById('inKapkaRsvp').value;
+        document.getElementById('outKapkaPhone').innerText = document.getElementById('inKapkaPhone').value;
+    }
+
+    // Navěšení posluchačů událostí na všechny inputy
+    document.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', updateContent);
+    });
 
 </script>
 </body>
