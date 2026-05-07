@@ -15,8 +15,6 @@
             --text: #2d3748; 
             --white: #ffffff; 
             --gray: #e2e8f0; 
-            
-            /* Zde se bude měnit barva pro Retro pruhy přes JavaScript */
             --theme-color: #da291c; 
         }
 
@@ -38,13 +36,11 @@
         .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
         button { background: #2f855a; color: white; border: none; padding: 0.8rem; border-radius: 6px; font-weight: bold; width: 100%; cursor: pointer; margin-top: 1rem; }
 
-        /* --- ABSOLUTNÍ POZICOVÁNÍ TEXTŮ PŘES BIANKO OBRÁZEK --- */
-        
-        /* RETRO ŠABLONA (Formát A4) */
+        /* RETRO ŠABLONA */
         .poster-retro {
             width: 595px; height: 842px; 
-            /* ABSOLUTNÍ ODKAZ NA OBRÁZEK V ZÁKLADNÍ SLOŽCE */
-            background-image: url('https://www.asociaceprsi.cz/pozvanka.png'); 
+            /* Výchozí nastavení na tvůj nový soubor clear.png */
+            background-image: url('https://www.asociaceprsi.cz/clear.png'); 
             background-color: #e3cca6; 
             background-size: cover;
             background-position: center;
@@ -54,17 +50,13 @@
             overflow: hidden;
         }
 
-        /* TADY JE TO KOUZLO: 
-           Uděláme barevný pruh (banner) čistě přes CSS vrstvu, 
-           která leží NAD bianko obrázkem a POD textem.
-        */
         .r-color-pruh {
             position: absolute;
-            top: 48%; /* Ladíme pozici pruhu přesně podle originálu */
+            top: 48%; 
             left: 0;
             width: 100%;
-            height: 18%; /* Výška barevného pruhu */
-            background-color: var(--theme-color); /* Dynamická barva pruhu */
+            height: 18%; 
+            background-color: var(--theme-color); 
             z-index: 10;
             display: flex;
             flex-direction: column;
@@ -80,7 +72,6 @@
         .r-title { font-size: 50px; line-height: 1; letter-spacing: 1px;}
         .r-loc-fee { font-family: 'Arial', sans-serif; font-weight: 900; color: #1a202c; font-size: 18px; text-transform: uppercase; letter-spacing: 1px; border-top: 1px solid rgba(255,255,255,0.3); border-bottom: 1px solid rgba(255,255,255,0.3); padding: 5px 20px;}
 
-        /* Spodní texty (leží na bílé části obrázku pozvanka.png) */
         .r-bottom { position: absolute; top: 68%; left: 0; width: 100%; height: 32%; z-index: 11; background: transparent; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 15px; }
         
         .r-date-city { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 18px; margin-bottom: 5px; text-transform: uppercase; }
@@ -95,7 +86,7 @@
         
         .r-footer { position: absolute; bottom: 30px; left: 0; width: 100%; display: flex; justify-content: space-around; font-family: 'Arial', sans-serif; font-size: 14px; font-weight: bold; color: #1a202c; }
 
-        /* KAPKA ŠABLONA (Ostatní turnaje) */
+        /* KAPKA ŠABLONA */
         .poster-kapka {
             width: 900px; height: 350px; 
             background-color: #fcfbf6;
@@ -109,7 +100,6 @@
             color: #2d3748;
         }
 
-        /* Zde ladíš pozici textů pro Kapku, pokud ji chceš také předělat na bianko metodu */
         .k-rocnik-title { position: absolute; top: 25%; left: 240px; width: 460px; text-align: center; font-size: 40px; color: #8b7355; }
         .k-date-time { position: absolute; top: 48%; left: 240px; width: 460px; text-align: center; font-size: 22px; font-family: 'Arial Black', sans-serif;}
         .k-time-sub { position: absolute; top: 62%; left: 240px; width: 460px; text-align: center; font-size: 18px; font-weight: bold;}
@@ -140,21 +130,26 @@
         <h2>Výběr šablony a barvy</h2>
         <div class="form-group">
             <select id="tplSelect" onchange="toggleTemplate()">
-                <option value="retro">Série RETRO (Základ pozvanka.png)</option>
+                <option value="retro">Série RETRO (Základ clear.png)</option>
                 <option value="kapka">Ostatní (Formát Kapka)</option>
             </select>
         </div>
 
         <div id="retroSettings">
             <div class="form-group">
-                <label>1. Výběr barevného pruhu (pattern)</label>
+                <label style="color: #c53030;">Odkaz na bianko obrázek (URL)</label>
+                <input type="text" id="inRetroBgUrl" value="https://www.asociaceprsi.cz/clear.png" placeholder="https://...">
+            </div>
+
+            <div class="form-group">
+                <label>Výběr barvy středového pruhu</label>
                 <select id="retroColorSelect" onchange="updateContent()">
-                    <option value="#da291c">Červený (Původní vzor)</option>
-                    <option value="#6b46c1">Fialový pattern</option>
-                    <option value="#319795">Tyrkysový pattern</option>
-                    <option value="#d69e2e">Zlatý pattern</option>
-                    <option value="#38a169">Zelený pattern</option>
-                    <option value="#2b6cb0">Modrý pattern</option>
+                    <option value="#da291c">Červená</option>
+                    <option value="#6b46c1">Fialová</option>
+                    <option value="#319795">Tyrkysová</option>
+                    <option value="#d69e2e">Zlatá</option>
+                    <option value="#38a169">Zelená</option>
+                    <option value="#2b6cb0">Modrá</option>
                 </select>
             </div>
             
@@ -178,9 +173,10 @@
         </div>
 
         <div id="kapkaSettings" style="display: none;">
-            <p style="font-size: 0.8rem; color: #718096; background: #f7fafc; padding: 10px; border-radius: 6px;">
-                Šablona Kapka zatím není na bianko režim napojena. Zobrazuje se jen simulace textů nad prázdnou plochou. Pro tuto šablonu budeme muset vytvořit soubor kapka-bianko.jpg.
-            </p>
+            <div class="form-group">
+                <label style="color: #c53030;">Odkaz na bianko obrázek KAPKY (URL)</label>
+                <input type="text" id="inKapkaBgUrl" value="" placeholder="https://...">
+            </div>
         </div>
 
         <button type="button" onclick="window.print()" style="margin-top: 1rem; background: #2f855a;">🖨️ Tisk / Uložit PDF</button>
@@ -267,11 +263,12 @@
 
     function updateContent() {
         // --- RETRO ---
-        // Načtení barvy z roletky
+        const bgUrl = document.getElementById('inRetroBgUrl').value;
+        document.getElementById('livePosterRetro').style.backgroundImage = bgUrl ? `url('${bgUrl}')` : 'none';
+
         const themeColor = document.getElementById('retroColorSelect').value;
         document.documentElement.style.setProperty('--theme-color', themeColor);
         
-        // Přepis textů do absolutních vrstev
         document.getElementById('outRetroRocnik').innerText = document.getElementById('inRetroRocnik').value;
         document.getElementById('outRetroPenzion').innerText = document.getElementById('inRetroPenzion').value.toUpperCase();
         document.getElementById('outRetroFee').innerText = document.getElementById('inRetroFee').value;
@@ -284,11 +281,14 @@
         document.getElementById('outRetroWeb').innerText = document.getElementById('inRetroWeb').value;
         document.getElementById('outRetroPhone').innerText = document.getElementById('inRetroPhone').value;
 
-        // Obarvení textů dole, které jsou v SVG/PNG červené (datum a kategorie open)
         document.getElementById('outRetroDate').style.color = themeColor;
         document.getElementById('outRetroDate').style.borderColor = themeColor;
         document.getElementById('outRetroCity').style.color = themeColor;
         document.querySelector('.r-cat-title').style.color = themeColor;
+
+        // --- KAPKA ---
+        const kapkaUrl = document.getElementById('inKapkaBgUrl').value;
+        document.getElementById('livePosterKapka').style.backgroundImage = kapkaUrl ? `url('${kapkaUrl}')` : 'none';
     }
 
     document.querySelectorAll('input, select').forEach(input => {
