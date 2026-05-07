@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generátor pozvánek | Česká asociace prší</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        :root { 
+            --primary: #1a365d; 
+            --secondary: #c53030; 
+            --bg: #f4f7f6; 
+            --text: #2d3748; 
+            --white: #ffffff; 
+            --gray: #e2e8f0; 
+            --gold: #d69e2e;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg); color: var(--text); line-height: 1.6; display: flex; flex-direction: column; min-height: 100vh; }
+        
+        header { background: var(--white); padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
+        .logo-container { display: flex; align-items: center; gap: 1rem; }
+        .logo-container h1 { font-size: 1.2rem; color: var(--primary); text-transform: uppercase; }
+        .back-btn { background: var(--gray); color: var(--primary); padding: 0.5rem 1rem; text-decoration: none; border-radius: 6px; font-weight: bold; transition: 0.2s; }
+        .back-btn:hover { background: #cbd5e0; }
+
+        main { flex: 1; padding: 2rem; max-width: 1400px; margin: 0 auto; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+        
+        .card { background: var(--white); padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+        h2 { color: var(--primary); border-bottom: 2px solid var(--secondary); padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
+        
+        label { display: block; font-weight: bold; margin-bottom: 0.3rem; font-size: 0.9rem; }
+        input[type="text"], input[type="date"], input[type="time"], input[type="number"], textarea, select { 
+            width: 100%; padding: 0.8rem; margin-bottom: 1.2rem; border-radius: 6px; border: 1px solid #ccc; font-family: inherit; 
+        }
+        
+        button { background: var(--primary); color: white; border: none; padding: 0.8rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; }
+        button:hover { background: var(--secondary); }
+        .btn-green { background: #2f855a; }
+
+        /* --- ŠABLONY PLAKÁTŮ (ČISTÉ CSS) --- */
+        .poster-container { background: #e2e8f0; padding: 2rem; border-radius: 12px; display: flex; justify-content: center; align-items: center; min-height: 600px; }
+        
+        .poster { width: 100%; max-width: 500px; aspect-ratio: 1 / 1.414; /* Formát A4 */ position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); transition: all 0.3s ease; }
+        
+        /* Šablona 1: Klasická asociace (Tmavá) */
+        .tpl-1 { background: linear-gradient(135deg, #1a365d, #0f2038); border: 8px solid var(--gold); padding: 2rem; text-align: center; color: white; display: flex; flex-direction: column; justify-content: space-between; }
+        .tpl-1 .p-header { color: #a0aec0; text-transform: uppercase; letter-spacing: 2px; font-size: 0.9rem; }
+        .tpl-1 .p-title { color: var(--gold); font-size: 2.5rem; text-transform: uppercase; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1.2; margin: 1rem 0; }
+        .tpl-1 .p-date-box { background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+        .tpl-1 .p-date { font-size: 1.8rem; font-weight: bold; }
+        .tpl-1 .p-time { font-size: 1.2rem; color: #cbd5e0; }
+        .tpl-1 .p-location { font-size: 1.2rem; margin: 1rem 0; }
+        .tpl-1 .p-fee { background: rgba(214, 158, 46, 0.2); display: inline-block; padding: 0.5rem 1.5rem; border: 1px solid var(--gold); border-radius: 8px; font-size: 1.2rem; margin: 1rem auto; }
+        .tpl-1 .p-footer { font-size: 0.8rem; color: #718096; }
+
+        /* Šablona 2: Moderní světlá */
+        .tpl-2 { background: #ffffff; border: 2px solid #e2e8f0; border-top: 15px solid var(--secondary); padding: 2rem; color: var(--text); display: flex; flex-direction: column; }
+        .tpl-2 .p-header { color: var(--secondary); font-weight: bold; text-transform: uppercase; margin-bottom: 1rem; }
+        .tpl-2 .p-title { font-size: 2.2rem; color: var(--primary); font-weight: 900; line-height: 1.1; margin-bottom: 2rem; border-bottom: 3px solid var(--gray); padding-bottom: 1rem; }
+        .tpl-2 .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem; text-align: left; }
+        .tpl-2 .detail-item strong { display: block; color: #718096; font-size: 0.8rem; text-transform: uppercase; }
+        .tpl-2 .detail-item span { font-size: 1.1rem; font-weight: bold; color: var(--primary); }
+        .tpl-2 .p-notes { background: #f7fafc; padding: 1rem; border-left: 4px solid var(--gold); font-size: 0.9rem; flex: 1; }
+
+        #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--white); z-index: 1000; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: var(--primary); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="loadingOverlay">Ověřuji oprávnění ZČ...</div>
+
+<header>
+    <div class="logo-container">
+        <h1>Administrace ZČ - Generátor pozvánek</h1>
+    </div>
+    <a href="index.html" class="back-btn">Zpět na hlavní web</a>
+</header>
+
+<main>
+    <div class="card">
+        <h2>Nastavení turnaje</h2>
+        
+        <label>Výběr šablony plakátu</label>
+        <select id="tplSelect">
+            <option value="tpl-1">Šablona 1: Klasická (Tmavá)</option>
+            <option value="tpl-2">Šablona 2: Moderní (Světlá)</option>
+        </select>
+
+        <label>Název turnaje</label>
+        <input type="text" id="inTitle" placeholder="Např. 27. turnaj Českého ráje" value="NÁZEV TURNAJE">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div>
+                <label>Datum</label>
+                <input type="date" id="inDate">
+            </div>
+            <div>
+                <label>Čas začátku</label>
+                <input type="time" id="inTime">
+            </div>
+        </div>
+
+        <label>Místo konání (Hospoda, Sál...)</label>
+        <input type="text" id="inLocation" placeholder="Kde se hraje..." value="MÍSTO KONÁNÍ">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div>
+                <label>Zápisné (Kč)</label>
+                <input type="number" id="inFee" value="100">
+            </div>
+            <div>
+                <label>Kapacita hráčů</label>
+                <input type="number" id="inCap" value="64">
+            </div>
+        </div>
+
+        <label>Doplňující informace (pro členité šablony)</label>
+        <textarea id="inNotes" rows="3" placeholder="Zde můžete vypsat ceny, sponzory nebo další pravidla..."></textarea>
+
+        <button type="button" class="btn-green" onclick="saveInvitationToDB()" style="margin-top: 1rem;">💾 Uložit pozvánku a vypsat na webu</button>
+        <p id="saveMsg" style="margin-top: 10px; font-weight: bold; display: none;"></p>
+    </div>
+
+    <div class="card">
+        <h2>Živý náhled pozvánky</h2>
+        <div class="poster-container">
+            
+            <div id="livePoster" class="poster tpl-1">
+                </div>
+
+        </div>
+    </div>
+</main>
+
+<script>
+    // 1. INICIALIZACE SUPABASE
+    const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
+    const db = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+    // 2. TVRDÉ OVĚŘENÍ OPRÁVNĚNÍ
+    async function checkAuth() {
+        const { data: { session } } = await db.auth.getSession();
+        if (!session) {
+            window.location.href = 'index.html';
+            return;
+        }
+        
+        const { data: profile } = await db.from('profiles').select('role').eq('id', session.user.id).single();
+        if (!profile || !['zc', 'zcp', 'superadmin'].includes(profile.role)) {
+            alert('Přístup odepřen. Tuto sekci mohou spravovat pouze Zakládající členové.');
+            window.location.href = 'index.html';
+            return;
+        }
+        
+        // Pokud je vše OK, skryjeme načítací clonu
+        document.getElementById('loadingOverlay').style.display = 'none';
+        
+        // Nastavíme dnešní datum do inputu
+        document.getElementById('inDate').valueAsDate = new Date();
+        updatePreview();
+    }
+    
+    checkAuth();
+
+    // 3. LOGIKA ŽIVÉHO NÁHLEDU (Vykreslování HTML šablon)
+    const inputs = ['inTitle', 'inDate', 'inTime', 'inLocation', 'inFee', 'inCap', 'inNotes', 'tplSelect'];
+    inputs.forEach(id => document.getElementById(id).addEventListener('input', updatePreview));
+
+    function formatDate(dateStr) {
+        if (!dateStr) return 'Vyberte datum';
+        const d = new Date(dateStr);
+        return `${d.getDate()}. ${d.getMonth()+1}. ${d.getFullYear()}`;
+    }
+
+    function updatePreview() {
+        const tpl = document.getElementById('tplSelect').value;
+        const title = document.getElementById('inTitle').value || 'NÁZEV TURNAJE';
+        const date = formatDate(document.getElementById('inDate').value);
+        const time = document.getElementById('inTime').value || '00:00';
+        const loc = document.getElementById('inLocation').value || 'MÍSTO KONÁNÍ';
+        const fee = document.getElementById('inFee').value || '0';
+        const cap = document.getElementById('inCap').value || '0';
+        const notes = document.getElementById('inNotes').value;
+
+        const poster = document.getElementById('livePoster');
+        poster.className = `poster ${tpl}`; // Změní CSS třídu podle výběru
+
+        if (tpl === 'tpl-1') {
+            poster.innerHTML = `
+                <div class="p-header">Oficiální turnaj asociace</div>
+                <div class="p-title">${title}</div>
+                <div class="p-date-box">
+                    <div class="p-date">${date}</div>
+                    <div class="p-time">Začátek: ${time}</div>
+                </div>
+                <div class="p-location">📍 ${loc}</div>
+                <div class="p-fee">Zápisné: ${fee} Kč</div>
+                <div style="font-size: 0.9rem; margin-bottom: 1rem;">Kapacita omezena na ${cap} hráčů</div>
+                <div class="p-footer">${notes || 'Registrace předem na webu asociace'}</div>
+            `;
+        } else if (tpl === 'tpl-2') {
+            poster.innerHTML = `
+                <div class="p-header">Pozvánka na turnaj</div>
+                <div class="p-title">${title}</div>
+                <div class="detail-grid">
+                    <div class="detail-item"><strong>Kdy hrajeme</strong><span>${date} v ${time}</span></div>
+                    <div class="detail-item"><strong>Kde se hraje</strong><span>${loc}</span></div>
+                    <div class="detail-item"><strong>Zápisné</strong><span>${fee} Kč</span></div>
+                    <div class="detail-item"><strong>Kapacita</strong><span>${cap} hráčů</span></div>
+                </div>
+                <div class="p-notes">${notes ? notes.replace(/\n/g, '<br>') : 'Těšíme se na vaši účast! Nezapomeňte se včas přihlásit.'}</div>
+            `;
+        }
+    }
+
+    // 4. ULOŽENÍ DO DATABÁZE (Zatím jen simulace)
+    async function saveInvitationToDB() {
+        const msg = document.getElementById('saveMsg');
+        msg.style.display = 'block';
+        msg.style.color = '#dd6b20';
+        msg.innerText = 'Tlačítko funguje! V dalším kroku sem napojíme odeslání přímo do veřejné tabulky turnajů.';
+        
+        // Zde pak přidáme kód: await db.from('tournaments').insert({...}) a uložení HTML struktury plakátu
+    }
+
+</script>
+</body>
+</html>
