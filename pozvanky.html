@@ -92,25 +92,21 @@
             color: #2d3748;
         }
 
-        /* OPRAVENÉ SOUŘADNICE PRO KAPKU */
-        .k-rocnik { position: absolute; top: 90px; left: 240px; font-size: 42px; color: #8b7355; font-weight: bold; text-align: right; width: 60px; }
+        /* OPRAVENÉ SOUŘADNICE PRO KAPKU (ČISTÁ DATA) */
         
-        .k-date { position: absolute; top: 158px; left: 440px; font-size: 21px; font-family: 'Arial Black', sans-serif; color: #2d3748; }
-        .k-time { position: absolute; top: 158px; left: 720px; font-size: 21px; font-family: 'Arial Black', sans-serif; color: #2d3748; }
+        /* Ročník (posunuto nahoru a doleva před "HASIČSKÁ") */
+        .k-rocnik { position: absolute; top: 72px; left: 215px; font-size: 38px; color: #8b7355; font-weight: bold; text-align: right; width: 60px; }
         
-        .k-loc { position: absolute; top: 205px; left: 320px; width: 500px; text-align: center; font-size: 19px; font-weight: bold; color: #2d3748; }
+        /* Obsah středového rámečku (vycentrováno do jeho šířky) */
+        .k-date { position: absolute; top: 133px; left: 240px; width: 440px; text-align: center; font-size: 22px; font-family: 'Arial Black', sans-serif; color: #2d3748; }
+        .k-loc { position: absolute; top: 165px; left: 240px; width: 440px; text-align: center; font-size: 18px; font-weight: bold; color: #2d3748; letter-spacing: 0.5px; }
+        .k-time { position: absolute; top: 195px; left: 240px; width: 440px; text-align: center; font-size: 18px; font-weight: bold; color: #2d3748; }
 
-        /* Spodní texty uspořádané bez béžové masky (nutno vygumovat starý text z obrázku) */
-        .k-bottom-text {
-            position: absolute; top: 275px; left: 310px; width: 440px; height: 90px;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            font-family: 'Georgia', serif; color: #2d3748; line-height: 1.2;
-        }
-        
-        .k-fee-row { font-size: 16px; font-weight: bold; margin-bottom: 2px;}
-        .k-small { font-weight: normal; font-size: 13px; }
-        .k-rsvp-row { font-size: 14px; margin-top: 2px; }
-        .k-phone-row { font-size: 18px; font-weight: bold; margin-top: 2px; }
+        /* Trefování do spodních mezer (už žádné HTML texty, jen hodnoty z formuláře) */
+        .k-val-fee { position: absolute; top: 274px; left: 340px; font-size: 16px; font-weight: bold; color: #2d3748; }
+        .k-val-kids { position: absolute; top: 294px; left: 388px; font-size: 16px; font-weight: bold; color: #2d3748; }
+        .k-val-rsvp { position: absolute; top: 314px; left: 550px; font-size: 14px; color: #2d3748; }
+        .k-val-phone { position: absolute; top: 337px; left: 450px; font-size: 18px; font-weight: bold; color: #2d3748; }
 
         #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--white); z-index: 1000; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: var(--primary); font-weight: bold; font-family: 'Inter', sans-serif; }
         
@@ -185,8 +181,8 @@
             
             <div class="form-group"><label>Ročník</label><input type="text" id="inKapkaRocnik" value="4."></div>
             <div class="form-group"><label>Datum turnaje</label><input type="text" id="inKapkaDate" value="18. dubna 2026"></div>
-            <div class="form-group"><label>Čas začátku</label><input type="text" id="inKapkaTime" value="od 11:00 hodin"></div>
             <div class="form-group"><label>Místo konání</label><input type="text" id="inKapkaLoc" value="NAŠE HOSPODA BUKOVENSKO - LÍNSKÁ"></div>
+            <div class="form-group"><label>Čas začátku</label><input type="text" id="inKapkaTime" value="od 11:00 hodin"></div>
             
             <div class="row-2">
                 <div class="form-group"><label>Zápisné Dospělí (Kč)</label><input type="text" id="inKapkaFee" value="200"></div>
@@ -233,27 +229,18 @@
         </div>
 
         <div id="livePosterKapka" class="poster-kapka" style="display: block;">
+            
             <div class="k-rocnik" id="outKapkaRocnik">4.</div>
             
             <div class="k-date" id="outKapkaDate">18. dubna 2026</div>
-            <div class="k-time" id="outKapkaTime">od 11:00 hodin</div>
-            
             <div class="k-loc" id="outKapkaLoc">NAŠE HOSPODA BUKOVENSKO - LÍNSKÁ</div>
+            <div class="k-time" id="outKapkaTime">od 11:00 hodin</div>
 
-            <div class="k-bottom-text">
-                <div class="k-fee-row">
-                    🏷️ Zápisné: <span id="outKapkaFee">200</span>,- Kč <span class="k-small">(platba na místě – včetně oběda)</span>
-                </div>
-                <div class="k-fee-row">
-                    <span id="outKapkaFeeKids">100</span>,- Kč <span class="k-small">(děti do 18 let)</span>
-                </div>
-                <div class="k-rsvp-row">
-                    Pro účast, prosím, potvrďte do <span id="outKapkaRsvp">10.04.2026</span>
-                </div>
-                <div class="k-phone-row">
-                    📞 tel.: <span id="outKapkaPhone">605 938 458</span>
-                </div>
-            </div>
+            <div class="k-val-fee" id="outKapkaFee">200</div>
+            <div class="k-val-kids" id="outKapkaFeeKids">100</div>
+            <div class="k-val-rsvp" id="outKapkaRsvp">10.04.2026</div>
+            <div class="k-val-phone" id="outKapkaPhone">605 938 458</div>
+            
         </div>
 
     </div>
