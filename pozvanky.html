@@ -80,7 +80,7 @@
 
         /* 2. KAPKA ŠABLONA */
         .poster-kapka {
-            width: 900px; height: 368px; /* Upraven poměr stran, aby to sedělo na tvůj soubor */
+            width: 900px; height: 368px;
             background-color: #fcfbf6;
             background-size: cover;
             background-position: center;
@@ -92,7 +92,6 @@
             color: #2d3748;
         }
 
-        /* Trefování souřadnic (px odshora, px zleva) */
         .k-rocnik { position: absolute; top: 100px; left: 305px; font-size: 38px; color: #8b7355; font-weight: bold; text-align: right; width: 60px; }
         
         .k-date { position: absolute; top: 161px; left: 395px; font-size: 20px; font-family: 'Arial Black', sans-serif; color: #2d3748; }
@@ -100,13 +99,11 @@
         
         .k-loc { position: absolute; top: 198px; left: 240px; width: 440px; text-align: center; font-size: 18px; font-weight: bold; color: #2d3748; }
 
-        /* Maska, která překryje původní text dole v obrázku a napíše nový */
-        .k-bottom-mask {
+        /* Spodní texty uspořádané bez béžové masky */
+        .k-bottom-text {
             position: absolute; top: 260px; left: 260px; width: 400px; height: 100px;
-            background-color: #efe6d1; /* Barva, co vymaže starý text z pozadí */
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             font-family: 'Georgia', serif; color: #2d3748; line-height: 1.2;
-            padding: 5px;
         }
         
         .k-fee-row { font-size: 16px; font-weight: bold; margin-bottom: 2px;}
@@ -138,11 +135,11 @@
         <div class="form-group">
             <select id="tplSelect" onchange="toggleTemplate()">
                 <option value="retro">Série RETRO (Základ clear.png)</option>
-                <option value="kapka">BUKOVENSKÁ KAPKA</option>
+                <option value="kapka" selected>BUKOVENSKÁ KAPKA</option>
             </select>
         </div>
 
-        <div id="retroSettings">
+        <div id="retroSettings" style="display: none;">
             <div class="form-group">
                 <label style="color: #c53030;">Odkaz na bianko obrázek RETRO (URL)</label>
                 <input type="text" id="inRetroBgUrl" value="https://www.asociaceprsi.cz/clear.png" placeholder="https://...">
@@ -179,10 +176,10 @@
             </div>
         </div>
 
-        <div id="kapkaSettings" style="display: none;">
+        <div id="kapkaSettings" style="display: block;">
             <div class="form-group">
                 <label style="color: #c53030;">Odkaz na bianko obrázek KAPKY (URL)</label>
-                <input type="text" id="inKapkaBgUrl" value="https://www.asociaceprsi.cz/bukovnoclear.png" placeholder="https://...">
+                <input type="text" id="inKapkaBgUrl" value="https://www.asociaceprsi.cz/Bukovnoclear.png" placeholder="https://...">
             </div>
             
             <div class="form-group"><label>Ročník</label><input type="text" id="inKapkaRocnik" value="4."></div>
@@ -203,7 +200,7 @@
 
     <div class="panel-right">
         
-        <div id="livePosterRetro" class="poster-retro">
+        <div id="livePosterRetro" class="poster-retro" style="display: none;">
             <div class="r-color-pruh" id="retroBannerStyle">
                 <div class="r-rocnik-row">
                     <div class="r-rocnik-box" id="outRetroRocnik">26</div>
@@ -234,7 +231,7 @@
             </div>
         </div>
 
-        <div id="livePosterKapka" class="poster-kapka">
+        <div id="livePosterKapka" class="poster-kapka" style="display: block;">
             <div class="k-rocnik" id="outKapkaRocnik">4.</div>
             
             <div class="k-date" id="outKapkaDate">18. dubna 2026</div>
@@ -242,7 +239,7 @@
             
             <div class="k-loc" id="outKapkaLoc">NAŠE HOSPODA BUKOVENSKO - LÍNSKÁ</div>
 
-            <div class="k-bottom-mask">
+            <div class="k-bottom-text">
                 <div class="k-fee-row">
                     🏷️ Zápisné: <span id="outKapkaFee">200</span>,- Kč <span class="k-small">(platba na místě – včetně oběda)</span>
                 </div>
