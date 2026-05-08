@@ -89,6 +89,11 @@
         .vote-card-orange { border-top: 5px solid var(--orange); }
         .question-box { background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid var(--gray); }
         
+        .poster-wrapper { background: linear-gradient(135deg, #1a365d, #0f2038); border: 4px solid var(--gold); border-radius: 12px; padding: 3rem 2rem; text-align: center; color: white; position: relative; overflow: hidden; }
+        .poster-wrapper h4 { color: var(--gold); font-size: 2.5rem; margin: 1rem 0; text-transform: uppercase; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        .poster-wrapper .date { font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem; }
+        .poster-wrapper .fee { background: rgba(214, 158, 46, 0.2); display: inline-block; padding: 0.5rem 1.5rem; border: 1px solid var(--gold); border-radius: 8px; font-size: 1.2rem; }
+        
         .print-modal { background: white; border: 1px solid #cbd5e0; border-radius: 8px; overflow: hidden; margin-bottom: 1.5rem; display: flex; flex-direction: column; }
         .print-header { background: #f7fafc; padding: 1rem; border-bottom: 1px solid #cbd5e0; }
         .print-header input { margin-bottom: 0; }
@@ -113,6 +118,14 @@
         .modal-close { position: absolute; top: 15px; right: 15px; background: transparent; color: var(--secondary); border: none; font-size: 1.5rem; cursor: pointer; width: auto; padding: 0; }
 
         footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 2rem; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #posterPreview, #posterPreview * { visibility: visible; }
+            #posterPreview { position: absolute; left: 0; top: 0; width: 100%; border: none !important; margin: 0 !important; padding: 2rem !important; }
+            .poster-wrapper { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background: #1a365d !important; }
+            .no-print { display: none !important; }
+        }
     </style>
 </head>
 <body>
@@ -341,7 +354,6 @@
             </form>
         </div>
     </section>
-    
     <section id="dashboard" class="page-section">
         <div class="card">
             <div style="display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; border-bottom: 2px solid var(--secondary); margin-bottom: 1.5rem; padding-bottom: 0.5rem;">
@@ -397,6 +409,12 @@
                 <div id="famMsg" class="msg"></div>
                 <ul class="family-list" id="familyList" style="margin-top: 1rem;"></ul>
             </div>
+        </div>
+    </section>
+
+    <section id="public-invite" class="page-section">
+        <div class="card" style="padding-top: 0;">
+            <div id="publicInviteContent">Načítám detaily turnaje, prosím čekejte...</div>
         </div>
     </section>
 
@@ -927,7 +945,6 @@
         
         sessionStorage.setItem('activeTab', tabId);
 
-        // ZMĚNA CHIRURGA 3: Zde bylo odstraněno načítání starých turnajů
         if (tabId === 'tournaments') { if(currentUser) loadMyRegistrations(); }
         if (tabId === 'stats') loadHistoricalData();
         if (tabId === 'voting') loadVotes();
@@ -940,6 +957,31 @@
     // ==========================================
     // --- 3. AUTENTIZACE A PŘÍSTUPY ---
     // ==========================================
+    
+    // ZMĚNA CHIRURGA (Zvací odkazy): Pokud je v URL ?reg=XX, otevře se registrace a vybere se daný okres.
+    window.addEventListener('load', () => { 
+        const urlParams = new URLSearchParams(window.location.search);
+        const regOkres = urlParams.get('reg');
+        if (regOkres) {
+            switchTab('auth');
+            document.querySelector('input[name="idChoice"][value="newId"]').checked = true;
+            toggleIdMode();
+            setTimeout(() => {
+                const selectEl = document.getElementById('profOkres');
+                for (let i = 0; i < selectEl.options.length; i++) {
+                    if (selectEl.options[i].text.includes(`(${regOkres.toUpperCase()})`)) {
+                        selectEl.selectedIndex = i;
+                        break;
+                    }
+                }
+            }, 500);
+        }
+        
+        if (window.location.search.includes('unsubscribe')) {
+            document.getElementById('unsubscribeBox').style.display = 'block'; 
+        }
+    });
+
     async function checkAuthState(user) {
         currentUser = user;
         if (user) {
@@ -1148,10 +1190,9 @@
     document.addEventListener('change', function(e) { if(e.target && e.target.classList.contains('print-check')) { if(document.getElementById('printSelectionCount')) document.getElementById('printSelectionCount').innerText = document.querySelectorAll('.print-check:checked').length; } });
 
     // ==========================================
-    // --- 6. TURNAJE A REGISTRACE ---
+    // --- 6. REGISTRACE NA TURNAJ (Pro MOJE Přihlášky) ---
     // ==========================================
     
-    // ZMĚNA CHIRURGA 4: Ponechány pouze funkce pro správu MOJÍ přihlášky (Zbytek přesunut do pozvanky.html)
     async function loadMyRegistrations() {
         const { data: myRegs } = await db.from('registrations').select(`id, player_id_card, payment_status, tournaments ( id, title, event_date, fee )`).eq('registered_by', currentUser.id);
         const list = document.getElementById('myRegistrationsList'); list.innerHTML = '';
@@ -2043,5 +2084,3 @@
     setInterval(() => { if (actualUserRole === 'zcp' || actualUserRole === 'superadmin') checkBankPayments(); }, 43200000);
 
 </script>
-</body>
-</html>
