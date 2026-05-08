@@ -6,7 +6,6 @@
     <title>Generátor pozvánek (ZČ) | Česká asociace prší</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style id="printPageStyle">
@@ -41,18 +40,20 @@
         input, select { width: 100%; padding: 0.6rem; border: 1px solid #cbd5e0; border-radius: 6px; font-family: inherit; background: #f7fafc;}
         .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
         
-        .btn-group { display: flex; gap: 10px; margin-top: 1.5rem; }
+        .btn-group { display: flex; gap: 10px; margin-top: 1.5rem; flex-direction: column; }
+        .btn-row { display: flex; gap: 10px; }
         button { color: white; border: none; padding: 0.8rem; border-radius: 6px; font-weight: bold; width: 100%; cursor: pointer; transition: opacity 0.2s; }
         button:hover { opacity: 0.9; }
         .btn-print { background: #2f855a; }
         .btn-jpeg { background: #2b6cb0; }
+        .btn-publish { background: #dd6b20; font-size: 1.05rem; padding: 1rem; text-transform: uppercase; letter-spacing: 0.5px; }
 
         /* Našeptávač styl */
         #autocompleteList { position: absolute; z-index: 100; background: white; width: 100%; border: 1px solid #cbd5e0; border-top: none; max-height: 150px; overflow-y: auto; border-radius: 0 0 6px 6px; display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .ac-item { padding: 8px; cursor: pointer; font-size: 0.85rem; border-bottom: 1px solid #f0f4f8; }
         .ac-item:hover { background-color: #e2e8f0; }
 
-        /* Styl pro sekci ladění */
+        /* Styl pro sekci ladění a odesílání */
         .tuning-box { background: #edf2f7; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e0; margin-top: 1.5rem; }
         .tuning-box h3 { font-size: 0.95rem; color: #2b6cb0; margin-bottom: 10px; border-bottom: 1px solid #cbd5e0; padding-bottom: 5px;}
         .tune-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px dashed #e2e8f0; }
@@ -210,12 +211,26 @@
                 <div class="tune-row"><label>Datum RSVP</label><div class="tune-inputs">X: <input type="number" id="t_kapka_rsvp_x" value="690"> Y: <input type="number" id="t_kapka_rsvp_y" value="314"> S: <input type="number" id="t_kapka_rsvp_s" value="14"></div></div>
                 <div class="tune-row"><label>Telefon</label><div class="tune-inputs">X: <input type="number" id="t_kapka_phone_x" value="610"> Y: <input type="number" id="t_kapka_phone_y" value="340"> S: <input type="number" id="t_kapka_phone_s" value="20"></div></div>
             </div>
+        </div>
 
+        <div class="tuning-box" style="margin-top: 1.5rem; border-color: #3182ce; background: #ebf8ff;">
+            <h3 style="color: #2b6cb0; border-bottom: 1px solid #90cdf4;">📧 Rozeslání a zveřejnění</h3>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Kterému pořadateli (okresu) se má pozvánka rozeslat?</label>
+                <select id="inTargetGroup">
+                    <option value="mb">Mladá Boleslav a okolí (MB)</option>
+                    <option value="zl">Zlín a okolí (ZL)</option>
+                    <option value="vse">Všem registrovaným hráčům v ČR</option>
+                </select>
+            </div>
         </div>
 
         <div class="btn-group">
-            <button type="button" class="btn-print" onclick="window.print()">🖨️ Tisk / PDF</button>
-            <button type="button" class="btn-jpeg" onclick="saveAsJpeg()">🖼️ Uložit jako JPEG</button>
+            <div class="btn-row">
+                <button type="button" class="btn-print" onclick="window.print()">🖨️ Tisk / PDF</button>
+                <button type="button" class="btn-jpeg" onclick="saveAsJpeg()">🖼️ Uložit jako JPEG</button>
+            </div>
+            <button type="button" class="btn-publish" onclick="publishTournament()">🚀 Zveřejnit na webu a Rozeslat e-maily</button>
         </div>
     </div>
 
@@ -274,7 +289,8 @@
         const { data: { session } } = await db.auth.getSession();
         if (!session) { window.location.href = 'index.html'; return; }
         const { data: profile } = await db.from('profiles').select('role').eq('id', session.user.id).single();
-        if (!profile || !['zc', 'zcp', 'superadmin'].includes(profile.role)) {
+        // Přidán přístup i pro PC (Pořadatelé)
+        if (!profile || !['pc', 'zc', 'zcp', 'superadmin'].includes(profile.role)) {
             window.location.href = 'index.html'; return;
         }
         document.getElementById('loadingOverlay').style.display = 'none';
@@ -404,28 +420,21 @@
         overlay.innerText = "Generuji obrázek...";
         overlay.style.display = 'flex';
 
-        // Určení, který plakát je zrovna aktivní
         const isRetro = document.getElementById('tplSelect').value === 'retro';
         const activePosterId = isRetro ? 'livePosterRetro' : 'livePosterKapka';
         const element = document.getElementById(activePosterId);
 
-        // html2canvas překreslí DOM do Canvasu
         html2canvas(element, {
-            scale: 2, // Dvojnásobné rozlišení pro hezčí kvalitu
-            useCORS: true, // Nutné pro načtení obrázků z asociaceprsi.cz
+            scale: 2, 
+            useCORS: true, 
             allowTaint: true
         }).then(canvas => {
-            // Převod canvasu na Data URL ve formátu JPEG s kvalitou 90%
             const imgData = canvas.toDataURL('image/jpeg', 0.9);
-            
-            // Virtuální kliknutí na odkaz pro stažení
             const link = document.createElement('a');
             const dateStr = new Date().toISOString().slice(0,10);
             link.download = `pozvanka-${isRetro ? 'retro' : 'kapka'}-${dateStr}.jpg`;
             link.href = imgData;
             link.click();
-            
-            // Návrat do normálního stavu
             overlay.style.display = 'none';
             overlay.innerText = "Ověřuji oprávnění..."; 
         }).catch(err => {
@@ -433,6 +442,17 @@
             alert("Nepodařilo se vygenerovat obrázek. Zkuste to prosím znovu.");
             overlay.style.display = 'none';
         });
+    }
+
+    // --- BUDOUCÍ FUNKCE PRO ZVEŘEJNĚNÍ A ODESLÁNÍ ---
+    function publishTournament() {
+        const targetGroupSelect = document.getElementById('inTargetGroup');
+        const selectedGroupText = targetGroupSelect.options[targetGroupSelect.selectedIndex].text;
+        
+        // Zde budeme později generovat JPEG přes html2canvas (bez stahování),
+        // ukládat data do databáze 'turnaje' a přes Edge Function posílat e-maily.
+        
+        alert(`Tato funkce je připravena!\n\nAž dokončíme databázi, toto tlačítko uloží pozvánku na stránku /turnaje a rozešle ji e-mailem na skupinu:\n"${selectedGroupText}"`);
     }
 
 </script>
