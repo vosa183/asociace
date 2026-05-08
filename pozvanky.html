@@ -7,6 +7,8 @@
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
     <style id="printPageStyle">
         @page { margin: 0; }
     </style>
@@ -38,7 +40,12 @@
         label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.2rem; color: #4a5568; }
         input, select { width: 100%; padding: 0.6rem; border: 1px solid #cbd5e0; border-radius: 6px; font-family: inherit; background: #f7fafc;}
         .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
-        button { background: #2f855a; color: white; border: none; padding: 0.8rem; border-radius: 6px; font-weight: bold; width: 100%; cursor: pointer; margin-top: 1rem; }
+        
+        .btn-group { display: flex; gap: 10px; margin-top: 1.5rem; }
+        button { color: white; border: none; padding: 0.8rem; border-radius: 6px; font-weight: bold; width: 100%; cursor: pointer; transition: opacity 0.2s; }
+        button:hover { opacity: 0.9; }
+        .btn-print { background: #2f855a; }
+        .btn-jpeg { background: #2b6cb0; }
 
         /* Našeptávač styl */
         #autocompleteList { position: absolute; z-index: 100; background: white; width: 100%; border: 1px solid #cbd5e0; border-top: none; max-height: 150px; overflow-y: auto; border-radius: 0 0 6px 6px; display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
@@ -117,7 +124,7 @@
 <div id="loadingOverlay">Ověřuji oprávnění...</div>
 
 <header>
-    <div class="logo-container"><h1>Generátor Pozvánek (Verze Písmo)</h1></div>
+    <div class="logo-container"><h1>Generátor Pozvánek</h1></div>
     <a href="index.html" class="back-btn">Zpět na web</a>
 </header>
 
@@ -206,7 +213,10 @@
 
         </div>
 
-        <button type="button" onclick="window.print()" style="margin-top: 1rem; background: #2f855a;">🖨️ Tisk / Uložit PDF</button>
+        <div class="btn-group">
+            <button type="button" class="btn-print" onclick="window.print()">🖨️ Tisk / PDF</button>
+            <button type="button" class="btn-jpeg" onclick="saveAsJpeg()">🖼️ Uložit jako JPEG</button>
+        </div>
     </div>
 
     <div class="panel-right">
@@ -310,6 +320,12 @@
         }, 500);
     });
 
+    document.addEventListener('click', function (e) {
+        if (e.target !== searchInput && e.target !== acList) {
+            acList.style.display = 'none';
+        }
+    });
+
     function toggleTemplate() {
         const val = document.getElementById('tplSelect').value;
         const pageStyle = document.getElementById('printPageStyle');
@@ -381,6 +397,44 @@
     document.querySelectorAll('input, select').forEach(input => {
         if(input.id !== 'inRetroPenzion') input.addEventListener('input', updateContent);
     });
+
+    // --- FUNKCE PRO ULOŽENÍ JAKO JPEG ---
+    function saveAsJpeg() {
+        const overlay = document.getElementById('loadingOverlay');
+        overlay.innerText = "Generuji obrázek...";
+        overlay.style.display = 'flex';
+
+        // Určení, který plakát je zrovna aktivní
+        const isRetro = document.getElementById('tplSelect').value === 'retro';
+        const activePosterId = isRetro ? 'livePosterRetro' : 'livePosterKapka';
+        const element = document.getElementById(activePosterId);
+
+        // html2canvas překreslí DOM do Canvasu
+        html2canvas(element, {
+            scale: 2, // Dvojnásobné rozlišení pro hezčí kvalitu
+            useCORS: true, // Nutné pro načtení obrázků z asociaceprsi.cz
+            allowTaint: true
+        }).then(canvas => {
+            // Převod canvasu na Data URL ve formátu JPEG s kvalitou 90%
+            const imgData = canvas.toDataURL('image/jpeg', 0.9);
+            
+            // Virtuální kliknutí na odkaz pro stažení
+            const link = document.createElement('a');
+            const dateStr = new Date().toISOString().slice(0,10);
+            link.download = `pozvanka-${isRetro ? 'retro' : 'kapka'}-${dateStr}.jpg`;
+            link.href = imgData;
+            link.click();
+            
+            // Návrat do normálního stavu
+            overlay.style.display = 'none';
+            overlay.innerText = "Ověřuji oprávnění..."; 
+        }).catch(err => {
+            console.error("Chyba při generování obrázku: ", err);
+            alert("Nepodařilo se vygenerovat obrázek. Zkuste to prosím znovu.");
+            overlay.style.display = 'none';
+        });
+    }
+
 </script>
 </body>
 </html>
