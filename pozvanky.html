@@ -36,11 +36,11 @@
         .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
         button { background: #2f855a; color: white; border: none; padding: 0.8rem; border-radius: 6px; font-weight: bold; width: 100%; cursor: pointer; margin-top: 1rem; }
 
-        /* RETRO ŠABLONA */
+        /* --- ABSOLUTNÍ POZICOVÁNÍ TEXTŮ PŘES BIANKO OBRÁZEK --- */
+        
+        /* 1. RETRO ŠABLONA */
         .poster-retro {
             width: 595px; height: 842px; 
-            /* Výchozí nastavení na tvůj nový soubor clear.png */
-            background-image: url('https://www.asociaceprsi.cz/clear.png'); 
             background-color: #e3cca6; 
             background-size: cover;
             background-position: center;
@@ -51,19 +51,10 @@
         }
 
         .r-color-pruh {
-            position: absolute;
-            top: 48%; 
-            left: 0;
-            width: 100%;
-            height: 18%; 
-            background-color: var(--theme-color); 
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            text-align: center;
+            position: absolute; top: 48%; left: 0; width: 100%; height: 18%; 
+            background-color: var(--theme-color); z-index: 10;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            color: white; text-align: center;
         }
 
         .r-rocnik-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 5px; }
@@ -86,9 +77,10 @@
         
         .r-footer { position: absolute; bottom: 30px; left: 0; width: 100%; display: flex; justify-content: space-around; font-family: 'Arial', sans-serif; font-size: 14px; font-weight: bold; color: #1a202c; }
 
-        /* KAPKA ŠABLONA */
+
+        /* 2. KAPKA ŠABLONA */
         .poster-kapka {
-            width: 900px; height: 350px; 
+            width: 900px; height: 368px; /* Upraven poměr stran, aby to sedělo na tvůj soubor */
             background-color: #fcfbf6;
             background-size: cover;
             background-position: center;
@@ -100,12 +92,27 @@
             color: #2d3748;
         }
 
-        .k-rocnik-title { position: absolute; top: 25%; left: 240px; width: 460px; text-align: center; font-size: 40px; color: #8b7355; }
-        .k-date-time { position: absolute; top: 48%; left: 240px; width: 460px; text-align: center; font-size: 22px; font-family: 'Arial Black', sans-serif;}
-        .k-time-sub { position: absolute; top: 62%; left: 240px; width: 460px; text-align: center; font-size: 18px; font-weight: bold;}
-        .k-fee { position: absolute; bottom: 15px; left: 15px; font-size: 14px; font-weight: bold;}
-        .k-rsvp { position: absolute; bottom: 25px; left: 350px; font-size: 14px; font-weight: bold;}
-        .k-phone { position: absolute; bottom: 20px; right: 20px; font-size: 20px; font-weight: bold;}
+        /* Trefování souřadnic (px odshora, px zleva) */
+        .k-rocnik { position: absolute; top: 100px; left: 305px; font-size: 38px; color: #8b7355; font-weight: bold; text-align: right; width: 60px; }
+        
+        .k-date { position: absolute; top: 161px; left: 395px; font-size: 20px; font-family: 'Arial Black', sans-serif; color: #2d3748; }
+        .k-time { position: absolute; top: 161px; left: 630px; font-size: 20px; font-family: 'Arial Black', sans-serif; color: #2d3748; }
+        
+        .k-loc { position: absolute; top: 198px; left: 240px; width: 440px; text-align: center; font-size: 18px; font-weight: bold; color: #2d3748; }
+
+        /* Maska, která překryje původní text dole v obrázku a napíše nový */
+        .k-bottom-mask {
+            position: absolute; top: 260px; left: 260px; width: 400px; height: 100px;
+            background-color: #efe6d1; /* Barva, co vymaže starý text z pozadí */
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-family: 'Georgia', serif; color: #2d3748; line-height: 1.2;
+            padding: 5px;
+        }
+        
+        .k-fee-row { font-size: 16px; font-weight: bold; margin-bottom: 2px;}
+        .k-small { font-weight: normal; font-size: 13px; }
+        .k-rsvp-row { font-size: 14px; margin-top: 5px; }
+        .k-phone-row { font-size: 18px; font-weight: bold; margin-top: 3px; }
 
         #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--white); z-index: 1000; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: var(--primary); font-weight: bold; font-family: 'Inter', sans-serif; }
         
@@ -131,13 +138,13 @@
         <div class="form-group">
             <select id="tplSelect" onchange="toggleTemplate()">
                 <option value="retro">Série RETRO (Základ clear.png)</option>
-                <option value="kapka">Ostatní (Formát Kapka)</option>
+                <option value="kapka">BUKOVENSKÁ KAPKA</option>
             </select>
         </div>
 
         <div id="retroSettings">
             <div class="form-group">
-                <label style="color: #c53030;">Odkaz na bianko obrázek (URL)</label>
+                <label style="color: #c53030;">Odkaz na bianko obrázek RETRO (URL)</label>
                 <input type="text" id="inRetroBgUrl" value="https://www.asociaceprsi.cz/clear.png" placeholder="https://...">
             </div>
 
@@ -175,8 +182,20 @@
         <div id="kapkaSettings" style="display: none;">
             <div class="form-group">
                 <label style="color: #c53030;">Odkaz na bianko obrázek KAPKY (URL)</label>
-                <input type="text" id="inKapkaBgUrl" value="" placeholder="https://...">
+                <input type="text" id="inKapkaBgUrl" value="https://www.asociaceprsi.cz/bukovnoclear.png" placeholder="https://...">
             </div>
+            
+            <div class="form-group"><label>Ročník</label><input type="text" id="inKapkaRocnik" value="4."></div>
+            <div class="form-group"><label>Datum turnaje</label><input type="text" id="inKapkaDate" value="18. dubna 2026"></div>
+            <div class="form-group"><label>Čas začátku</label><input type="text" id="inKapkaTime" value="od 11:00 hodin"></div>
+            <div class="form-group"><label>Místo konání</label><input type="text" id="inKapkaLoc" value="NAŠE HOSPODA BUKOVENSKO - LÍNSKÁ"></div>
+            
+            <div class="row-2">
+                <div class="form-group"><label>Zápisné Dospělí (Kč)</label><input type="text" id="inKapkaFee" value="200"></div>
+                <div class="form-group"><label>Zápisné Děti (Kč)</label><input type="text" id="inKapkaFeeKids" value="100"></div>
+            </div>
+            <div class="form-group"><label>RSVP (Potvrdit do data)</label><input type="text" id="inKapkaRsvp" value="10.04.2026"></div>
+            <div class="form-group"><label>Telefon</label><input type="text" id="inKapkaPhone" value="605 938 458"></div>
         </div>
 
         <button type="button" onclick="window.print()" style="margin-top: 1rem; background: #2f855a;">🖨️ Tisk / Uložit PDF</button>
@@ -185,7 +204,6 @@
     <div class="panel-right">
         
         <div id="livePosterRetro" class="poster-retro">
-            
             <div class="r-color-pruh" id="retroBannerStyle">
                 <div class="r-rocnik-row">
                     <div class="r-rocnik-box" id="outRetroRocnik">26</div>
@@ -217,12 +235,27 @@
         </div>
 
         <div id="livePosterKapka" class="poster-kapka">
-            <div class="k-rocnik-title">4. HASIČSKÁ KAPKA</div>
-            <div class="k-date-time">📅 18. dubna 2026 🕒</div>
-            <div class="k-time-sub">od 11:00 hodin</div>
-            <div class="k-fee">Zápisné: 200,- Kč</div>
-            <div class="k-rsvp">RSVP do 10.04.2026</div>
-            <div class="k-phone">📞 605 938 458</div>
+            <div class="k-rocnik" id="outKapkaRocnik">4.</div>
+            
+            <div class="k-date" id="outKapkaDate">18. dubna 2026</div>
+            <div class="k-time" id="outKapkaTime">od 11:00 hodin</div>
+            
+            <div class="k-loc" id="outKapkaLoc">NAŠE HOSPODA BUKOVENSKO - LÍNSKÁ</div>
+
+            <div class="k-bottom-mask">
+                <div class="k-fee-row">
+                    🏷️ Zápisné: <span id="outKapkaFee">200</span>,- Kč <span class="k-small">(platba na místě – včetně oběda)</span>
+                </div>
+                <div class="k-fee-row">
+                    <span id="outKapkaFeeKids">100</span>,- Kč <span class="k-small">(děti do 18 let)</span>
+                </div>
+                <div class="k-rsvp-row">
+                    Pro účast, prosím, potvrďte do <span id="outKapkaRsvp">10.04.2026</span>
+                </div>
+                <div class="k-phone-row">
+                    📞 tel.: <span id="outKapkaPhone">605 938 458</span>
+                </div>
+            </div>
         </div>
 
     </div>
@@ -263,8 +296,8 @@
 
     function updateContent() {
         // --- RETRO ---
-        const bgUrl = document.getElementById('inRetroBgUrl').value;
-        document.getElementById('livePosterRetro').style.backgroundImage = bgUrl ? `url('${bgUrl}')` : 'none';
+        const retroBgUrl = document.getElementById('inRetroBgUrl').value;
+        document.getElementById('livePosterRetro').style.backgroundImage = retroBgUrl ? `url('${retroBgUrl}')` : 'none';
 
         const themeColor = document.getElementById('retroColorSelect').value;
         document.documentElement.style.setProperty('--theme-color', themeColor);
@@ -287,8 +320,17 @@
         document.querySelector('.r-cat-title').style.color = themeColor;
 
         // --- KAPKA ---
-        const kapkaUrl = document.getElementById('inKapkaBgUrl').value;
-        document.getElementById('livePosterKapka').style.backgroundImage = kapkaUrl ? `url('${kapkaUrl}')` : 'none';
+        const kapkaBgUrl = document.getElementById('inKapkaBgUrl').value;
+        document.getElementById('livePosterKapka').style.backgroundImage = kapkaBgUrl ? `url('${kapkaBgUrl}')` : 'none';
+
+        document.getElementById('outKapkaRocnik').innerText = document.getElementById('inKapkaRocnik').value;
+        document.getElementById('outKapkaDate').innerText = document.getElementById('inKapkaDate').value;
+        document.getElementById('outKapkaTime').innerText = document.getElementById('inKapkaTime').value;
+        document.getElementById('outKapkaLoc').innerText = document.getElementById('inKapkaLoc').value;
+        document.getElementById('outKapkaFee').innerText = document.getElementById('inKapkaFee').value;
+        document.getElementById('outKapkaFeeKids').innerText = document.getElementById('inKapkaFeeKids').value;
+        document.getElementById('outKapkaRsvp').innerText = document.getElementById('inKapkaRsvp').value;
+        document.getElementById('outKapkaPhone').innerText = document.getElementById('inKapkaPhone').value;
     }
 
     document.querySelectorAll('input, select').forEach(input => {
