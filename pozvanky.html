@@ -7,6 +7,10 @@
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
+    <style id="printPageStyle">
+        @page { margin: 0; }
+    </style>
+
     <style>
         :root { 
             --primary: #1a365d; 
@@ -56,8 +60,13 @@
         .poster-retro {
             width: 595px; height: 842px; 
             background-color: #e3cca6; 
-            background-size: cover; background-position: center; position: relative;
+            background-size: 100% 100%; /* Nezkracovat, perfektní fit */
+            background-position: center; 
+            background-repeat: no-repeat;
+            position: relative;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3); font-family: 'Arial Black', 'Impact', sans-serif; overflow: hidden;
+            -webkit-print-color-adjust: exact !important; /* Vynutí barvy při tisku */
+            print-color-adjust: exact !important;
         }
 
         .r-color-pruh { position: absolute; top: 48%; left: 0; width: 100%; height: 18%; background-color: var(--theme-color); z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; text-align: center; }
@@ -81,12 +90,17 @@
         /* 2. KAPKA ŠABLONA */
         .poster-kapka {
             width: 900px; height: 368px;
-            background-color: #fcfbf6; background-size: cover; background-position: center; position: relative;
+            background-color: #fcfbf6; 
+            background-size: 100% 100%;  /* NIKDY NEOŘEZÁVAT! */
+            background-position: center; 
+            background-repeat: no-repeat;
+            position: relative;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: none; overflow: hidden;
             font-family: 'Georgia', serif; color: #2d3748;
+            -webkit-print-color-adjust: exact !important; /* Vynutí barvy a pozadí při tisku */
+            print-color-adjust: exact !important;
         }
 
-        /* U Kapky už v CSS nenastavujeme pevné souřadnice (TOP a LEFT), ty se dosadí přes JavaScript z ovládacího panelu! */
         .k-rocnik { position: absolute; font-size: 38px; color: #8b7355; font-weight: bold; text-align: right; width: 60px; }
         .k-date { position: absolute; width: 440px; text-align: center; font-size: 22px; font-family: 'Arial Black', sans-serif; color: #2d3748; }
         .k-loc { position: absolute; width: 440px; text-align: center; font-size: 18px; font-weight: bold; color: #2d3748; letter-spacing: 0.5px; }
@@ -98,10 +112,20 @@
 
         #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--white); z-index: 1000; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: var(--primary); font-weight: bold; font-family: 'Inter', sans-serif; }
         
+        /* TISKOVÝ REŽIM */
         @media print {
-            body * { visibility: hidden; }
+            body { background: white; margin: 0; padding: 0; }
+            body * { visibility: hidden; } /* Skryje všechno kromě plakátu */
             #livePosterRetro, #livePosterRetro *, #livePosterKapka, #livePosterKapka * { visibility: visible; }
-            .poster-retro, .poster-kapka { position: absolute; left: 0; top: 0; margin: 0; box-shadow: none; border: none;}
+            
+            .poster-retro, .poster-kapka { 
+                position: absolute; 
+                left: 0; 
+                top: 0; 
+                margin: 0; 
+                box-shadow: none; 
+                border: none;
+            }
         }
     </style>
 </head>
@@ -189,14 +213,14 @@
                 <h3>⚙️ Jemné ladění pozice textů (Pixely)</h3>
                 <p style="font-size: 0.75rem; color: #4a5568; margin-bottom: 10px;">Pokud text nesedí v mezeře, uprav jeho pozici pomocí malých šipek (nahoru/dolů) přímo u políčka.</p>
                 
-                <div class="tune-row"><label>Ročník "4."</label><div class="tune-inputs">X: <input type="number" id="t_kapka_rocnik_x" value="215"> Y: <input type="number" id="t_kapka_rocnik_y" value="72"></div></div>
-                <div class="tune-row"><label>Datum</label><div class="tune-inputs">X: <input type="number" id="t_kapka_date_x" value="240"> Y: <input type="number" id="t_kapka_date_y" value="135"></div></div>
+                <div class="tune-row"><label>Ročník "4."</label><div class="tune-inputs">X: <input type="number" id="t_kapka_rocnik_x" value="217"> Y: <input type="number" id="t_kapka_rocnik_y" value="51"></div></div>
+                <div class="tune-row"><label>Datum</label><div class="tune-inputs">X: <input type="number" id="t_kapka_date_x" value="226"> Y: <input type="number" id="t_kapka_date_y" value="135"></div></div>
                 <div class="tune-row"><label>Místo</label><div class="tune-inputs">X: <input type="number" id="t_kapka_loc_x" value="240"> Y: <input type="number" id="t_kapka_loc_y" value="168"></div></div>
-                <div class="tune-row"><label>Čas</label><div class="tune-inputs">X: <input type="number" id="t_kapka_time_x" value="240"> Y: <input type="number" id="t_kapka_time_y" value="198"></div></div>
-                <div class="tune-row"><label>Zápisné Dospělí</label><div class="tune-inputs">X: <input type="number" id="t_kapka_fee_x" value="450"> Y: <input type="number" id="t_kapka_fee_y" value="273"></div></div>
+                <div class="tune-row"><label>Čas</label><div class="tune-inputs">X: <input type="number" id="t_kapka_time_x" value="225"> Y: <input type="number" id="t_kapka_time_y" value="195"></div></div>
+                <div class="tune-row"><label>Zápisné Dospělí</label><div class="tune-inputs">X: <input type="number" id="t_kapka_fee_x" value="450"> Y: <input type="number" id="t_kapka_fee_y" value="278"></div></div>
                 <div class="tune-row"><label>Zápisné Děti</label><div class="tune-inputs">X: <input type="number" id="t_kapka_feekids_x" value="465"> Y: <input type="number" id="t_kapka_feekids_y" value="293"></div></div>
                 <div class="tune-row"><label>Datum RSVP</label><div class="tune-inputs">X: <input type="number" id="t_kapka_rsvp_x" value="690"> Y: <input type="number" id="t_kapka_rsvp_y" value="314"></div></div>
-                <div class="tune-row"><label>Telefon</label><div class="tune-inputs">X: <input type="number" id="t_kapka_phone_x" value="610"> Y: <input type="number" id="t_kapka_phone_y" value="340"></div></div>
+                <div class="tune-row"><label>Telefon</label><div class="tune-inputs">X: <input type="number" id="t_kapka_phone_x" value="376"> Y: <input type="number" id="t_kapka_phone_y" value="335"></div></div>
             </div>
 
         </div>
@@ -238,17 +262,14 @@
         </div>
 
         <div id="livePosterKapka" class="poster-kapka" style="display: block;">
-            
             <div class="k-rocnik" id="outKapkaRocnik">4.</div>
             <div class="k-date" id="outKapkaDate">18. dubna 2026</div>
             <div class="k-loc" id="outKapkaLoc">NAŠE HOSPODA BUKOVENSKO - LÍNSKÁ</div>
             <div class="k-time" id="outKapkaTime">od 11:00 hodin</div>
-
             <div class="k-val-fee" id="outKapkaFee">200</div>
             <div class="k-val-kids" id="outKapkaFeeKids">100</div>
             <div class="k-val-rsvp" id="outKapkaRsvp">10.04.2026</div>
             <div class="k-val-phone" id="outKapkaPhone">605 938 458</div>
-            
         </div>
 
     </div>
@@ -326,16 +347,20 @@
 
     function toggleTemplate() {
         const val = document.getElementById('tplSelect').value;
+        const pageStyle = document.getElementById('printPageStyle'); // Dynamické nastavení tisku
+        
         if(val === 'retro') {
             document.getElementById('retroSettings').style.display = 'block';
             document.getElementById('kapkaSettings').style.display = 'none';
             document.getElementById('livePosterRetro').style.display = 'block';
             document.getElementById('livePosterKapka').style.display = 'none';
+            pageStyle.innerHTML = "@page { size: A4 portrait; margin: 0; }"; // Tisk na výšku
         } else {
             document.getElementById('retroSettings').style.display = 'none';
             document.getElementById('kapkaSettings').style.display = 'block';
             document.getElementById('livePosterRetro').style.display = 'none';
             document.getElementById('livePosterKapka').style.display = 'block';
+            pageStyle.innerHTML = "@page { size: A4 landscape; margin: 0; }"; // Tisk na šířku
         }
         updateContent();
     }
@@ -378,7 +403,7 @@
         document.getElementById('outKapkaRsvp').innerText = document.getElementById('inKapkaRsvp').value;
         document.getElementById('outKapkaPhone').innerText = document.getElementById('inKapkaPhone').value;
 
-        // Aplikace jemného ladění pozic (načtení z políček a dosazení do CSS top/left)
+        // Aplikace jemného ladění pozic
         const kapkaIds = ['Rocnik', 'Date', 'Loc', 'Time', 'Fee', 'FeeKids', 'Rsvp', 'Phone'];
         kapkaIds.forEach(id => {
             const el = document.getElementById('outKapka' + id);
@@ -391,7 +416,6 @@
         });
     }
 
-    // Posluchače změn pro všechna políčka včetně ladících šipek
     document.querySelectorAll('input, select').forEach(input => {
         if(input.id !== 'inRetroPenzion') { 
             input.addEventListener('input', updateContent);
