@@ -92,21 +92,19 @@
             color: #2d3748;
         }
 
-        /* OPRAVENÉ SOUŘADNICE PRO KAPKU (ČISTÁ DATA) */
+        /* OPRAVENÉ SOUŘADNICE PRO KAPKU (ČISTÁ DATA) - Mírně posunuto na základě screenshotu */
         
-        /* Ročník (posunuto nahoru a doleva před "HASIČSKÁ") */
         .k-rocnik { position: absolute; top: 72px; left: 215px; font-size: 38px; color: #8b7355; font-weight: bold; text-align: right; width: 60px; }
         
-        /* Obsah středového rámečku (vycentrováno do jeho šířky) */
         .k-date { position: absolute; top: 133px; left: 240px; width: 440px; text-align: center; font-size: 22px; font-family: 'Arial Black', sans-serif; color: #2d3748; }
         .k-loc { position: absolute; top: 165px; left: 240px; width: 440px; text-align: center; font-size: 18px; font-weight: bold; color: #2d3748; letter-spacing: 0.5px; }
         .k-time { position: absolute; top: 195px; left: 240px; width: 440px; text-align: center; font-size: 18px; font-weight: bold; color: #2d3748; }
 
-        /* Trefování do spodních mezer (už žádné HTML texty, jen hodnoty z formuláře) */
-        .k-val-fee { position: absolute; top: 274px; left: 340px; font-size: 16px; font-weight: bold; color: #2d3748; }
-        .k-val-kids { position: absolute; top: 294px; left: 388px; font-size: 16px; font-weight: bold; color: #2d3748; }
-        .k-val-rsvp { position: absolute; top: 314px; left: 550px; font-size: 14px; color: #2d3748; }
-        .k-val-phone { position: absolute; top: 337px; left: 450px; font-size: 18px; font-weight: bold; color: #2d3748; }
+        /* Vyladěné souřadnice spodních čísel, aby se strefily přesně do vymazaných děr */
+        .k-val-fee { position: absolute; top: 271px; left: 350px; font-size: 16px; font-weight: bold; color: #2d3748; }
+        .k-val-kids { position: absolute; top: 295px; left: 375px; font-size: 16px; font-weight: bold; color: #2d3748; }
+        .k-val-rsvp { position: absolute; top: 316px; left: 575px; font-size: 14px; color: #2d3748; }
+        .k-val-phone { position: absolute; top: 340px; left: 495px; font-size: 18px; font-weight: bold; color: #2d3748; }
 
         #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--white); z-index: 1000; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: var(--primary); font-weight: bold; font-family: 'Inter', sans-serif; }
         
@@ -185,8 +183,8 @@
             <div class="form-group"><label>Čas začátku</label><input type="text" id="inKapkaTime" value="od 11:00 hodin"></div>
             
             <div class="row-2">
-                <div class="form-group"><label>Zápisné Dospělí (Kč)</label><input type="text" id="inKapkaFee" value="200"></div>
-                <div class="form-group"><label>Zápisné Děti (Kč)</label><input type="text" id="inKapkaFeeKids" value="100"></div>
+                <div class="form-group"><label>Zápisné Dospělí</label><input type="text" id="inKapkaFee" value="200"></div>
+                <div class="form-group"><label>Zápisné Děti</label><input type="text" id="inKapkaFeeKids" value="100"></div>
             </div>
             <div class="form-group"><label>RSVP (Potvrdit do data)</label><input type="text" id="inKapkaRsvp" value="10.04.2026"></div>
             <div class="form-group"><label>Telefon</label><input type="text" id="inKapkaPhone" value="605 938 458"></div>
