@@ -177,15 +177,20 @@
         return `${pad(d.getDate())}. ${pad(d.getMonth()+1)}. ${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
-    // Načtení turnajů PŘÍMO Z TVÉ DATABÁZE
+    // Načtení turnajů PŘÍMO Z TVÉ DATABÁZE (Pouze budoucí)
     async function loadTurnaje() {
         const grid = document.getElementById('tournamentGrid');
         grid.innerHTML = '<div class="empty-state">Načítám turnaje z databáze...</div>';
 
-        const { data: tourns, error } = await db.from('tournaments').select('*').order('event_date', { ascending: true });
+        // TADY JE OPRAVA: Získáme dnešní datum a vyfiltrujeme staré turnaje (.gte = greater than or equal)
+        const today = new Date().toISOString();
+        const { data: tourns, error } = await db.from('tournaments')
+            .select('*')
+            .gte('event_date', today)
+            .order('event_date', { ascending: true });
 
         if (error || !tourns || tourns.length === 0) {
-            grid.innerHTML = `<div class="empty-state">Aktuálně nejsou vypsané žádné turnaje.</div>`;
+            grid.innerHTML = `<div class="empty-state">Aktuálně nejsou vypsané žádné nadcházející turnaje.</div>`;
             return;
         }
 
@@ -209,7 +214,7 @@
                 actionBtn = `<button class="btn-reg available" onclick="registrovatHrace('${t.id}')">Registrovat se na turnaj</button>`;
             }
 
-            // Pokud budeme mít v DB sloupec image_url a kraj, použijeme ho. Jinak dáme placeholder logo.
+            // Očekává, že v tabulce tournaments existuje sloupeček image_url.
             const imgUrl = t.image_url || 'logo.png';
             const krajBadge = t.kraj ? t.kraj.toUpperCase() : 'Asociace Prší';
 
@@ -253,7 +258,7 @@
         if (!currentUser) return;
         
         // Zde pak proběhne logika, která je teď v gigantovi (výběr sebe/rodiny)
-        // Toto tlačítko ho může jen přesměrovat na Úvod do záložky "Turnaje", kde už to máš naprogramované:
+        // Toto tlačítko ho zatím jen přesměruje na Úvod do záložky "Turnaje", kde se tvoje registrace reálně nachází:
         sessionStorage.setItem('activeTab', 'tournaments');
         window.location.href = 'index.html';
     }
