@@ -92,7 +92,7 @@
             color: #2d3748;
         }
 
-        /* OPRAVENÉ SOUŘADNICE PRO KAPKU (ČISTÁ DATA) - Mírně posunuto na základě screenshotu */
+        /* OPRAVENÉ SOUŘADNICE PRO KAPKU (ČISTÁ DATA) - Přesně do děr */
         
         .k-rocnik { position: absolute; top: 72px; left: 215px; font-size: 38px; color: #8b7355; font-weight: bold; text-align: right; width: 60px; }
         
@@ -100,11 +100,11 @@
         .k-loc { position: absolute; top: 165px; left: 240px; width: 440px; text-align: center; font-size: 18px; font-weight: bold; color: #2d3748; letter-spacing: 0.5px; }
         .k-time { position: absolute; top: 195px; left: 240px; width: 440px; text-align: center; font-size: 18px; font-weight: bold; color: #2d3748; }
 
-        /* Vyladěné souřadnice spodních čísel, aby se strefily přesně do vymazaných děr */
-        .k-val-fee { position: absolute; top: 271px; left: 350px; font-size: 16px; font-weight: bold; color: #2d3748; }
-        .k-val-kids { position: absolute; top: 295px; left: 375px; font-size: 16px; font-weight: bold; color: #2d3748; }
-        .k-val-rsvp { position: absolute; top: 316px; left: 575px; font-size: 14px; color: #2d3748; }
-        .k-val-phone { position: absolute; top: 340px; left: 495px; font-size: 18px; font-weight: bold; color: #2d3748; }
+        /* Trefování do spodních mezer (Posunuto přesněji doprava a nahoru) */
+        .k-val-fee { position: absolute; top: 268px; left: 375px; font-size: 16px; font-weight: bold; color: #2d3748; }
+        .k-val-kids { position: absolute; top: 291px; left: 405px; font-size: 16px; font-weight: bold; color: #2d3748; }
+        .k-val-rsvp { position: absolute; top: 314px; left: 615px; font-size: 14px; color: #2d3748; }
+        .k-val-phone { position: absolute; top: 336px; left: 520px; font-size: 18px; font-weight: bold; color: #2d3748; }
 
         #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--white); z-index: 1000; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: var(--primary); font-weight: bold; font-family: 'Inter', sans-serif; }
         
@@ -153,7 +153,16 @@
             </div>
             
             <div class="form-group"><label>Ročník</label><input type="text" id="inRetroRocnik" value="26"></div>
-            <div class="form-group"><label>Podnik</label><input type="text" id="inRetroPenzion" value="PENZIÓN SLUNEČNO"></div>
+            
+            <div class="form-group">
+                <label>Podnik</label>
+                <input type="text" id="inRetroPenzion" value="PENZIÓN SLUNEČNO" list="podnikyList">
+                <datalist id="podnikyList">
+                    <option value="PENZIÓN SLUNEČNO">
+                    <option value="HOSPŮDKA NA KŘIŽOVATCE">
+                </datalist>
+            </div>
+
             <div class="row-2">
                 <div class="form-group"><label>Startovné (Kč)</label><input type="text" id="inRetroFee" value="250"></div>
                 <div class="form-group"><label>Datum</label><input type="text" id="inRetroDate" value="22.02.2026"></div>
@@ -249,6 +258,19 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
 
+    // --- DATABÁZE PODNIKŮ (pro automatické doplňování města a GPS) ---
+    const databazePodniku = {
+        "PENZIÓN SLUNEČNO": {
+            obec: "KAMENICE U DOLNÍHO BOUSOVA",
+            gps: "50.4896889N, 15.1113025E"
+        },
+        "HOSPŮDKA NA KŘIŽOVATCE": {
+            obec: "NOVÁ TELIB",
+            gps: "50.3664053N, 14.9818817E"
+        }
+        // Tady můžeme snadno přidávat další hospody
+    };
+
     async function checkAuth() {
         const { data: { session } } = await db.auth.getSession();
         if (!session) { window.location.href = 'index.html'; return; }
@@ -276,6 +298,15 @@
         }
         updateContent();
     }
+
+    // Automatické vyplnění GPS a Obce po napsání Podniku
+    document.getElementById('inRetroPenzion').addEventListener('input', function(e) {
+        const zadanyPodnik = e.target.value.trim().toUpperCase();
+        if (databazePodniku[zadanyPodnik]) {
+            document.getElementById('inRetroCity').value = databazePodniku[zadanyPodnik].obec;
+            document.getElementById('inRetroGps').value = databazePodniku[zadanyPodnik].gps;
+        }
+    });
 
     function updateContent() {
         // --- RETRO ---
