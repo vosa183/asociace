@@ -30,11 +30,16 @@
         .panel-right { flex-grow: 1; display: flex; justify-content: center; background: #cbd5e0; padding: 2rem; border-radius: 12px; overflow: auto; }
 
         h2 { font-size: 1.2rem; color: var(--primary); border-bottom: 2px solid var(--secondary); padding-bottom: 0.5rem; margin-bottom: 1rem; }
-        .form-group { margin-bottom: 1rem; }
+        .form-group { margin-bottom: 1rem; position: relative; }
         label { display: block; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.2rem; color: #4a5568; }
         input, select { width: 100%; padding: 0.6rem; border: 1px solid #cbd5e0; border-radius: 6px; font-family: inherit; background: #f7fafc;}
         .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
         button { background: #2f855a; color: white; border: none; padding: 0.8rem; border-radius: 6px; font-weight: bold; width: 100%; cursor: pointer; margin-top: 1rem; }
+
+        /* Našeptávač styl */
+        #autocompleteList { position: absolute; z-index: 100; background: white; width: 100%; border: 1px solid #cbd5e0; border-top: none; max-height: 150px; overflow-y: auto; border-radius: 0 0 6px 6px; display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .ac-item { padding: 8px; cursor: pointer; font-size: 0.85rem; border-bottom: 1px solid #f0f4f8; }
+        .ac-item:hover { background-color: #e2e8f0; }
 
         /* --- ABSOLUTNÍ POZICOVÁNÍ TEXTŮ PŘES BIANKO OBRÁZEK --- */
         
@@ -50,13 +55,7 @@
             overflow: hidden;
         }
 
-        .r-color-pruh {
-            position: absolute; top: 48%; left: 0; width: 100%; height: 18%; 
-            background-color: var(--theme-color); z-index: 10;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            color: white; text-align: center;
-        }
-
+        .r-color-pruh { position: absolute; top: 48%; left: 0; width: 100%; height: 18%; background-color: var(--theme-color); z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; text-align: center; }
         .r-rocnik-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 5px; }
         .r-rocnik-box { background: white; color: var(--theme-color); padding: 0 15px; font-size: 45px; line-height: 50px; }
         .r-rocnik-text { font-size: 45px; letter-spacing: 1px; color: white; }
@@ -64,17 +63,13 @@
         .r-loc-fee { font-family: 'Arial', sans-serif; font-weight: 900; color: #1a202c; font-size: 18px; text-transform: uppercase; letter-spacing: 1px; border-top: 1px solid rgba(255,255,255,0.3); border-bottom: 1px solid rgba(255,255,255,0.3); padding: 5px 20px;}
 
         .r-bottom { position: absolute; top: 68%; left: 0; width: 100%; height: 32%; z-index: 11; background: transparent; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 15px; }
-        
         .r-date-city { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 18px; margin-bottom: 5px; text-transform: uppercase; }
         .r-date-box { border: 2px solid var(--theme-color); color: var(--theme-color); padding: 2px 10px; }
         .r-city { color: var(--theme-color); }
-        
         .r-gps { font-family: 'Arial', sans-serif; font-weight: bold; font-size: 16px; color: #1a202c; margin-bottom: 30px; }
         .r-sep { margin: 0 10px; color: #a0aec0; font-weight: normal; }
-        
         .r-cat-title { font-size: 28px; color: var(--theme-color); letter-spacing: 1px; }
         .r-cat-sub { font-family: 'Arial', sans-serif; font-size: 15px; color: #4a5568; margin-top: 5px; font-weight: bold; }
-        
         .r-footer { position: absolute; bottom: 30px; left: 0; width: 100%; display: flex; justify-content: space-around; font-family: 'Arial', sans-serif; font-size: 14px; font-weight: bold; color: #1a202c; }
 
 
@@ -92,19 +87,18 @@
             color: #2d3748;
         }
 
-        /* OPRAVENÉ SOUŘADNICE PRO KAPKU (ČISTÁ DATA) - Přesně do děr */
+        /* OPRAVENÉ SOUŘADNICE PRO KAPKU (Posunuto podle tvého screenshotu) */
         
-        .k-rocnik { position: absolute; top: 72px; left: 215px; font-size: 38px; color: #8b7355; font-weight: bold; text-align: right; width: 60px; }
-        
+        .k-rocnik { position: absolute; top: 92px; left: 180px; font-size: 38px; color: #8b7355; font-weight: bold; text-align: right; width: 60px; }
         .k-date { position: absolute; top: 133px; left: 240px; width: 440px; text-align: center; font-size: 22px; font-family: 'Arial Black', sans-serif; color: #2d3748; }
         .k-loc { position: absolute; top: 165px; left: 240px; width: 440px; text-align: center; font-size: 18px; font-weight: bold; color: #2d3748; letter-spacing: 0.5px; }
         .k-time { position: absolute; top: 195px; left: 240px; width: 440px; text-align: center; font-size: 18px; font-weight: bold; color: #2d3748; }
 
-        /* Trefování do spodních mezer (Posunuto přesněji doprava a nahoru) */
-        .k-val-fee { position: absolute; top: 268px; left: 375px; font-size: 16px; font-weight: bold; color: #2d3748; }
-        .k-val-kids { position: absolute; top: 291px; left: 405px; font-size: 16px; font-weight: bold; color: #2d3748; }
-        .k-val-rsvp { position: absolute; top: 314px; left: 615px; font-size: 14px; color: #2d3748; }
-        .k-val-phone { position: absolute; top: 336px; left: 520px; font-size: 18px; font-weight: bold; color: #2d3748; }
+        /* Detailně trefené spodní mezery */
+        .k-val-fee { position: absolute; top: 271px; left: 395px; font-size: 16px; font-weight: bold; color: #2d3748; }
+        .k-val-kids { position: absolute; top: 291px; left: 425px; font-size: 16px; font-weight: bold; color: #2d3748; }
+        .k-val-rsvp { position: absolute; top: 313px; left: 650px; font-size: 14px; color: #2d3748; font-family: 'Inter', sans-serif;}
+        .k-val-phone { position: absolute; top: 339px; left: 555px; font-size: 18px; font-weight: bold; color: #2d3748; }
 
         #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--white); z-index: 1000; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: var(--primary); font-weight: bold; font-family: 'Inter', sans-serif; }
         
@@ -155,12 +149,9 @@
             <div class="form-group"><label>Ročník</label><input type="text" id="inRetroRocnik" value="26"></div>
             
             <div class="form-group">
-                <label>Podnik</label>
-                <input type="text" id="inRetroPenzion" value="PENZIÓN SLUNEČNO" list="podnikyList">
-                <datalist id="podnikyList">
-                    <option value="PENZIÓN SLUNEČNO">
-                    <option value="HOSPŮDKA NA KŘIŽOVATCE">
-                </datalist>
+                <label>Podnik (Napiš název - najde GPS a Město)</label>
+                <input type="text" id="inRetroPenzion" value="PENZIÓN SLUNEČNO" autocomplete="off">
+                <div id="autocompleteList"></div>
             </div>
 
             <div class="row-2">
@@ -172,7 +163,7 @@
                 <div class="form-group"><label>Čas začátku</label><input type="text" id="inRetroTime" value="10:00"></div>
                 <div class="form-group"><label>Prezentace do</label><input type="text" id="inRetroPrez" value="9:45"></div>
             </div>
-            <div class="form-group"><label>GPS Souřadnice</label><input type="text" id="inRetroGps" value="50.4896889N, 15.1113025E"></div>
+            <div class="form-group"><label>GPS Souřadnice</label><input type="text" id="inRetroGps" value="50.489688N, 15.111302E"></div>
             <div class="form-group"><label>E-mail</label><input type="text" id="inRetroEmail" value="prsi@libosovice.cz"></div>
             <div class="row-2">
                 <div class="form-group"><label>Web</label><input type="text" id="inRetroWeb" value="www.libosovice.cz"></div>
@@ -192,8 +183,8 @@
             <div class="form-group"><label>Čas začátku</label><input type="text" id="inKapkaTime" value="od 11:00 hodin"></div>
             
             <div class="row-2">
-                <div class="form-group"><label>Zápisné Dospělí</label><input type="text" id="inKapkaFee" value="200"></div>
-                <div class="form-group"><label>Zápisné Děti</label><input type="text" id="inKapkaFeeKids" value="100"></div>
+                <div class="form-group"><label>Zápisné Dospělí (Kč)</label><input type="text" id="inKapkaFee" value="200"></div>
+                <div class="form-group"><label>Zápisné Děti (Kč)</label><input type="text" id="inKapkaFeeKids" value="100"></div>
             </div>
             <div class="form-group"><label>RSVP (Potvrdit do data)</label><input type="text" id="inKapkaRsvp" value="10.04.2026"></div>
             <div class="form-group"><label>Telefon</label><input type="text" id="inKapkaPhone" value="605 938 458"></div>
@@ -221,7 +212,7 @@
                     <div class="r-date-box" id="outRetroDate">22.02.2026</div> <span class="r-sep">-</span> <div class="r-city" id="outRetroCity">KAMENICE U DOLNÍHO BOUSOVA</div>
                 </div>
                 <div class="r-gps">
-                    <span id="outRetroTime">10:00</span> <span class="r-sep">|</span> <span id="outRetroGps">50.4896889N, 15.1113025E</span> <span class="r-sep">|</span> Věcné ceny
+                    <span id="outRetroTime">10:00</span> <span class="r-sep">|</span> <span id="outRetroGps">50.489688N, 15.111302E</span> <span class="r-sep">|</span> Věcné ceny
                 </div>
                 
                 <div class="r-cat-title">KATEGORIE OPEN</div>
@@ -238,7 +229,6 @@
         <div id="livePosterKapka" class="poster-kapka" style="display: block;">
             
             <div class="k-rocnik" id="outKapkaRocnik">4.</div>
-            
             <div class="k-date" id="outKapkaDate">18. dubna 2026</div>
             <div class="k-loc" id="outKapkaLoc">NAŠE HOSPODA BUKOVENSKO - LÍNSKÁ</div>
             <div class="k-time" id="outKapkaTime">od 11:00 hodin</div>
@@ -258,19 +248,6 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-    // --- DATABÁZE PODNIKŮ (pro automatické doplňování města a GPS) ---
-    const databazePodniku = {
-        "PENZIÓN SLUNEČNO": {
-            obec: "KAMENICE U DOLNÍHO BOUSOVA",
-            gps: "50.4896889N, 15.1113025E"
-        },
-        "HOSPŮDKA NA KŘIŽOVATCE": {
-            obec: "NOVÁ TELIB",
-            gps: "50.3664053N, 14.9818817E"
-        }
-        // Tady můžeme snadno přidávat další hospody
-    };
-
     async function checkAuth() {
         const { data: { session } } = await db.auth.getSession();
         if (!session) { window.location.href = 'index.html'; return; }
@@ -282,6 +259,66 @@
         updateContent();
     }
     checkAuth();
+
+    // --- LOGIKA PRO ŽIVÉ VYHLEDÁVÁNÍ NA MAPĚ ---
+    let mapTimeout;
+    const searchInput = document.getElementById('inRetroPenzion');
+    const acList = document.getElementById('autocompleteList');
+
+    searchInput.addEventListener('input', function(e) {
+        clearTimeout(mapTimeout);
+        const query = e.target.value.trim();
+        acList.style.display = 'none';
+        
+        if (query.length < 3) return;
+
+        // Prodleva 500ms aby to nehledalo po každém písmenku
+        mapTimeout = setTimeout(() => {
+            // Použijeme bezplatné OpenStreetMap API (nevyžaduje klíč)
+            fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=5&countrycodes=cz,sk`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.length === 0) return;
+                    
+                    acList.innerHTML = '';
+                    acList.style.display = 'block';
+                    
+                    data.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'ac-item';
+                        // Zobrazený text
+                        div.innerText = item.display_name;
+                        
+                        div.addEventListener('click', function() {
+                            // Po kliknutí vyplníme hodnoty
+                            searchInput.value = item.name || query; // Název podniku
+                            
+                            // Vytažení města z adresy
+                            const addr = item.address;
+                            let mesto = addr.city || addr.town || addr.village || addr.municipality || '';
+                            document.getElementById('inRetroCity').value = mesto.toUpperCase();
+                            
+                            // Naformátování GPS
+                            let lat = parseFloat(item.lat).toFixed(6) + "N";
+                            let lon = parseFloat(item.lon).toFixed(6) + "E";
+                            document.getElementById('inRetroGps').value = lat + ", " + lon;
+                            
+                            acList.style.display = 'none';
+                            updateContent();
+                        });
+                        acList.appendChild(div);
+                    });
+                })
+                .catch(err => console.error("Chyba hledání map:", err));
+        }, 500);
+    });
+
+    // Skrytí našeptávače při kliknutí vedle
+    document.addEventListener('click', function (e) {
+        if (e.target !== searchInput && e.target !== acList) {
+            acList.style.display = 'none';
+        }
+    });
 
     function toggleTemplate() {
         const val = document.getElementById('tplSelect').value;
@@ -298,15 +335,6 @@
         }
         updateContent();
     }
-
-    // Automatické vyplnění GPS a Obce po napsání Podniku
-    document.getElementById('inRetroPenzion').addEventListener('input', function(e) {
-        const zadanyPodnik = e.target.value.trim().toUpperCase();
-        if (databazePodniku[zadanyPodnik]) {
-            document.getElementById('inRetroCity').value = databazePodniku[zadanyPodnik].obec;
-            document.getElementById('inRetroGps').value = databazePodniku[zadanyPodnik].gps;
-        }
-    });
 
     function updateContent() {
         // --- RETRO ---
@@ -348,7 +376,9 @@
     }
 
     document.querySelectorAll('input, select').forEach(input => {
-        input.addEventListener('input', updateContent);
+        if(input.id !== 'inRetroPenzion') { // Penzion řešíme zvlášť kvůli našeptávači
+            input.addEventListener('input', updateContent);
+        }
     });
 
 </script>
