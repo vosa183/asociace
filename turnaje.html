@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Turnaje | Česká asociace prší</title>
+    <title>Plánované turnaje | Česká asociace prší</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
@@ -11,52 +11,43 @@
     <style>
         :root { 
             --primary: #1a365d; 
-            --secondary: #c53030; /* Červená pro aktivní odkazy a odhlášení */
+            --secondary: #c53030; 
             --bg: #f4f7f6; 
             --text: #2d3748; 
             --white: #ffffff; 
+            --gray: #e2e8f0; 
+            --orange: #dd6b20; 
+            --blue: #3182ce;   
+            --green: #2f855a;
+            --gold: #d69e2e;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; line-height: 1.6; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg); color: var(--text); line-height: 1.6; }
 
-        /* --- HLAVIČKA A MENU PODLE SCREENSHOTU --- */
-        .main-header { 
-            background: var(--white); 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between; 
-            padding: 1rem 2rem; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            position: sticky;
-            top: 0;
-            z-index: 1000;
+        /* --- HLAVIČKA A MENU (Přesně podle tvého giganta) --- */
+        header { background: var(--white); padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .logo-container { display: flex; align-items: center; gap: 1rem; cursor: pointer; text-decoration: none; }
+        .logo-container img { height: 50px; }
+        .logo-container h1 { font-size: 1.2rem; color: var(--primary); text-transform: uppercase; }
+        
+        .menu-toggle { display: none; font-size: 2rem; cursor: pointer; color: var(--primary); user-select: none; }
+        nav ul { display: flex; list-style: none; gap: 1rem; flex-wrap: wrap; margin: 0; padding: 0;}
+        nav a { text-decoration: none; color: var(--primary); font-weight: 600; cursor: pointer; padding: 0.5rem 1rem; border-radius: 6px; transition: 0.2s; display: block; }
+        nav a:hover, nav a.active { background: var(--gray); color: var(--secondary); }
+        
+        @media (max-width: 768px) {
+            .menu-toggle { display: block; }
+            nav { display: none; width: 100%; order: 3; margin-top: 1rem; }
+            nav.mobile-active { display: block; }
+            nav ul { flex-direction: column; gap: 0.5rem; }
+            nav a { padding: 1rem; text-align: center; background: #f8fafc; }
         }
-        
-        .logo-area { display: flex; align-items: center; gap: 15px; text-decoration: none; }
-        .logo-img { height: 40px; width: 40px; object-fit: contain; } /* Pokud máš logo.png, načte se */
-        .logo-text { font-weight: 800; color: var(--primary); font-size: 1.3rem; letter-spacing: 0.5px; text-transform: uppercase; }
-
-        .main-nav { display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap; }
-        .main-nav a { 
-            text-decoration: none; 
-            color: var(--primary); 
-            font-weight: 600; 
-            font-size: 0.95rem; 
-            transition: color 0.2s; 
-        }
-        .main-nav a:hover { color: var(--secondary); }
-        .main-nav a.active { color: var(--secondary); }
-        
-        .nav-logout { color: var(--secondary) !important; } /* Červené tlačítko odhlásit */
-        
-        /* Třídy pro skrývání podle přihlášení */
-        .auth-only { display: none; }
-        .admin-only { display: none; }
 
         /* --- OBSAH STRÁNKY --- */
-        .container { max-width: 1200px; margin: 3rem auto; padding: 0 1rem; }
+        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; min-height: 60vh; }
 
+        /* Dynamické Filtry */
         .filters { display: flex; justify-content: center; gap: 10px; margin-bottom: 3rem; flex-wrap: wrap; }
         .filter-btn { background: white; border: 2px solid var(--primary); color: var(--primary); padding: 0.6rem 1.5rem; border-radius: 50px; cursor: pointer; font-weight: bold; transition: all 0.3s; }
         .filter-btn.active, .filter-btn:hover { background: var(--primary); color: white; }
@@ -65,66 +56,63 @@
         .tournament-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 30px; }
 
         /* Karta turnaje */
-        .t-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 20px rgba(0,0,0,0.05); transition: transform 0.3s; display: flex; flex-direction: column; }
-        .t-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.1); }
+        .t-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.03); transition: transform 0.3s; display: flex; flex-direction: column; border: 1px solid #e2e8f0; }
+        .t-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
         
-        .t-img-wrapper { position: relative; width: 100%; padding-top: 56.25%; background: #e2e8f0; overflow: hidden; }
-        .t-img-wrapper img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+        .t-img-wrapper { position: relative; width: 100%; padding-top: 56.25%; background: #edf2f7; overflow: hidden; border-bottom: 1px solid #e2e8f0; }
+        .t-img-wrapper img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; padding: 10px;}
         
         .t-content { padding: 1.5rem; flex-grow: 1; display: flex; flex-direction: column; }
-        .t-badge { display: inline-block; background: #ebf8ff; color: #2b6cb0; font-size: 0.75rem; font-weight: 800; padding: 3px 10px; border-radius: 4px; text-transform: uppercase; margin-bottom: 0.8rem; width: fit-content; }
-        .t-title { font-size: 1.3rem; color: var(--primary); margin-bottom: 0.5rem; line-height: 1.2; }
+        .t-badge { display: inline-block; background: var(--primary); color: white; font-size: 0.75rem; font-weight: bold; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; margin-bottom: 0.8rem; width: fit-content; }
+        .t-title { font-size: 1.3rem; color: var(--primary); margin-bottom: 0.5rem; line-height: 1.2; border-bottom: none; padding-bottom: 0;}
         .t-info { font-size: 0.95rem; color: #4a5568; margin-bottom: 1.5rem; font-weight: 600; }
 
         .btn-reg { margin-top: auto; width: 100%; padding: 0.8rem; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; text-align: center; text-decoration: none; display: block; font-size: 0.95rem; }
-        .btn-reg.available { background: var(--primary); color: white; }
-        .btn-reg.available:hover { background: #2c5282; }
-        .btn-reg.signed { background: #38a169; color: white; cursor: default; }
-        .btn-reg.locked { background: #edf2f7; color: #718096; cursor: pointer; }
+        .btn-reg.available { background: var(--green); color: white; }
+        .btn-reg.available:hover { background: #276749; }
+        .btn-reg.locked { background: #edf2f7; color: var(--primary); cursor: pointer; border: 1px solid #cbd5e0; }
+        .btn-reg.locked:hover { background: #e2e8f0; }
 
-        .empty-state { text-align: center; padding: 4rem; grid-column: 1 / -1; color: #a0aec0; font-weight: bold;}
+        .empty-state { text-align: center; padding: 4rem; grid-column: 1 / -1; color: #718096; font-size: 1.1rem; background: white; border-radius: 12px; border: 1px dashed #cbd5e0;}
 
-        @media (max-width: 900px) {
-            .main-header { flex-direction: column; gap: 15px; }
-            .main-nav { justify-content: center; }
-        }
+        footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 2rem; }
     </style>
 </head>
 <body>
 
-<header class="main-header">
-    <a href="index.html" class="logo-area">
-        <img src="logo.png" alt="" class="logo-img" onerror="this.style.display='none'">
-        <span class="logo-text">Česká asociace prší</span>
+<header class="no-print">
+    <a href="index.html" class="logo-container">
+        <img src="logo.png" alt="Logo" onerror="this.style.display='none';">
+        <h1>Česká asociace prší</h1>
     </a>
-    
-    <nav class="main-nav">
-        <a href="index.html">Úvod</a>
-        <a href="#">Pravidla</a>
-        <a href="#">Pořádejte turnaj</a>
-        <a href="turnaje.html" class="active">Turnaje</a>
-        <a href="#">Statistiky</a>
-        <a href="#">Hlasování a Návrhy</a>
-        
-        <a href="#" class="auth-only">Můj profil</a>
-        <a href="pozvanky.html" class="admin-only">Administrace</a>
-        
-        <a href="index.html" id="navLoginBtn">Přihlásit</a>
-        <a href="#" id="navLogoutBtn" class="nav-logout auth-only" onclick="logout()">Odhlásit</a>
+    <div class="menu-toggle" onclick="toggleMobileMenu()">☰</div>
+    <nav id="mainNav">
+        <ul>
+            <li><a href="index.html">Úvod</a></li>
+            <li><a href="index.html">Pravidla</a></li>
+            <li><a href="index.html">Pořádejte turnaj</a></li>
+            <li id="menu-tournaments"><a href="turnaje.html" class="active">Turnaje</a></li>
+            <li id="menu-stats" style="display:none;"><a href="index.html">Statistiky</a></li>
+            <li id="menu-voting" style="display:none; color:var(--gold);"><a href="index.html">Hlasování a Návrhy</a></li>
+            <li id="menu-auth"><a href="index.html">Pro členy</a></li>
+            <li id="menu-profile" style="display:none;"><a href="index.html">Můj profil</a></li>
+            <li id="menu-admin" style="display:none; color:var(--gold);"><a href="pozvanky.html">Administrace</a></li>
+            <li id="menu-logout" style="display:none;"><a onclick="logout()" style="cursor:pointer; color: var(--secondary);">Odhlásit</a></li>
+        </ul>
     </nav>
 </header>
 
-<div class="container">
-    <div class="filters">
-        <button class="filter-btn active" onclick="filterTurnaje('vse')">Všechny kraje</button>
-        <button class="filter-btn" onclick="filterTurnaje('mb')">Mladoboleslavsko</button>
-        <button class="filter-btn" onclick="filterTurnaje('zl')">Zlínsko</button>
-    </div>
+<main class="container">
+    <div class="filters" id="dynamicFilters"></div>
 
     <div id="tournamentGrid" class="tournament-grid">
-        <div class="empty-state">Načítám turnaje...</div>
+        <div class="empty-state">Načítám turnaje z databáze...</div>
     </div>
-</div>
+</main>
+
+<footer>
+    <p>&copy; Česká asociace prší z. s.</p>
+</footer>
 
 <script>
     const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
@@ -134,22 +122,37 @@
     let currentUser = null;
     let turnajeData = [];
 
-    // Inicializace a kontrola přihlášení
+    function toggleMobileMenu() { 
+        document.getElementById('mainNav').classList.toggle('mobile-active'); 
+    }
+
+    // Inicializace a kontrola přihlášení (přesně podle giganta)
     async function init() {
         const { data: { session } } = await db.auth.getSession();
         
         if (session) {
             currentUser = session.user;
             
-            // Skrýt tlačítko "Přihlásit" a zobrazit "Odhlásit" a "Můj profil"
-            document.getElementById('navLoginBtn').style.display = 'none';
-            document.querySelectorAll('.auth-only').forEach(el => el.style.display = 'inline-block');
+            // Odkrýt prvky pro přihlášené
+            document.getElementById('menu-auth').style.display = 'none';
+            document.getElementById('menu-stats').style.display = 'block';
+            document.getElementById('menu-voting').style.display = 'block';
+            document.getElementById('menu-profile').style.display = 'block';
+            document.getElementById('menu-logout').style.display = 'block';
 
-            // Kontrola role pro zobrazení Administrace
+            // Zjistit roli pro Administraci
             const { data: profile } = await db.from('profiles').select('role').eq('id', currentUser.id).single();
             if (profile && ['pc', 'zc', 'zcp', 'superadmin'].includes(profile.role)) {
-                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'inline-block');
+                document.getElementById('menu-admin').style.display = 'block';
             }
+        } else {
+            // Skrýt vše pro nepřihlášené
+            document.getElementById('menu-auth').style.display = 'block';
+            document.getElementById('menu-stats').style.display = 'none';
+            document.getElementById('menu-voting').style.display = 'none';
+            document.getElementById('menu-profile').style.display = 'none';
+            document.getElementById('menu-admin').style.display = 'none';
+            document.getElementById('menu-logout').style.display = 'none';
         }
 
         loadTurnaje();
@@ -161,36 +164,67 @@
         window.location.href = 'index.html';
     }
 
-    async function loadTurnaje() {
-        // Zatím simulujeme data pro ukázku (později napojíme na databázi)
-        turnajeData = [
-            {
-                id: 1,
-                title: "4. Hasičská Kapka v Bukovnu",
-                date: "18. dubna 2026",
-                loc: "Naše hospoda Bukovensko",
-                img: "https://www.asociaceprsi.cz/Bukovnoclear.png", // Demo obrázek
-                kraj: "mb",
-                kraj_label: "Mladoboleslavsko"
-            },
-            {
-                id: 2,
-                title: "Jarní turnaj Slunečno",
-                date: "22. února 2026",
-                loc: "Penzión Slunečno",
-                img: "https://www.asociaceprsi.cz/clear.png", // Demo obrázek
-                kraj: "mb",
-                kraj_label: "Mladoboleslavsko"
-            }
-        ];
+    function formatDateTime(dtStr) {
+        if (!dtStr) return '';
+        const d = new Date(dtStr);
+        if (isNaN(d)) return dtStr;
+        const pad = n => n < 10 ? '0' + n : n;
+        return `${pad(d.getDate())}. ${pad(d.getMonth()+1)}. ${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
 
+    // Načtení turnajů ČISTĚ Z DATABÁZE (Pouze budoucí)
+    async function loadTurnaje() {
+        const grid = document.getElementById('tournamentGrid');
+        grid.innerHTML = '<div class="empty-state">Načítám turnaje z databáze...</div>';
+
+        // Stáhne pouze turnaje od dnešního data do budoucna
+        const today = new Date().toISOString();
+        const { data: tourns, error } = await db.from('tournaments')
+            .select('*')
+            .gte('event_date', today)
+            .order('event_date', { ascending: true });
+
+        if (error || !tourns || tourns.length === 0) {
+            grid.innerHTML = `<div class="empty-state">Aktuálně nejsou vypsané žádné nadcházející turnaje.</div>`;
+            document.getElementById('dynamicFilters').innerHTML = '';
+            return;
+        }
+
+        turnajeData = tourns;
+        renderFilters(turnajeData);
         renderTurnaje(turnajeData);
+    }
+
+    // Dynamické generování filtrů podle toho, co je reálně v DB
+    function renderFilters(data) {
+        const filtersContainer = document.getElementById('dynamicFilters');
+        
+        // Vytáhne všechny unikátní okresy z dostupných turnajů
+        const kraje = [...new Set(data.map(t => t.kraj).filter(k => k && k.trim() !== ''))];
+        
+        if (kraje.length === 0) {
+            filtersContainer.innerHTML = '';
+            return;
+        }
+
+        let html = `<button class="filter-btn active" onclick="filterTurnaje('vse', this)">Všechny kraje</button>`;
+        
+        kraje.forEach(k => {
+            // Hezké názvy pro známé zkratky, jinak to vypíše to, co je v DB
+            let label = k.toUpperCase();
+            if(k.toLowerCase() === 'mb') label = 'Mladoboleslavsko';
+            if(k.toLowerCase() === 'zl') label = 'Zlínsko';
+            
+            html += `<button class="filter-btn" onclick="filterTurnaje('${k}', this)">${label}</button>`;
+        });
+        
+        filtersContainer.innerHTML = html;
     }
 
     function renderTurnaje(data) {
         const grid = document.getElementById('tournamentGrid');
         if (data.length === 0) {
-            grid.innerHTML = `<div class="empty-state">Aktuálně nejsou plánovány žádné turnaje v této oblasti.</div>`;
+            grid.innerHTML = `<div class="empty-state">V této kategorii aktuálně nejsou žádné turnaje.</div>`;
             return;
         }
 
@@ -199,20 +233,24 @@
             if (!currentUser) {
                 actionBtn = `<a href="index.html" class="btn-reg locked">Pro registraci se přihlaste</a>`;
             } else {
-                actionBtn = `<button class="btn-reg available" onclick="registrovatHrace(${t.id})">Registrovat se na turnaj</button>`;
+                actionBtn = `<button class="btn-reg available" onclick="registrovatHrace('${t.id}')">Přejít k registraci</button>`;
             }
+
+            // Očekává sloupeček image_url. Pokud ho ZČ nevyplní, ukáže se logo.
+            const imgUrl = t.image_url || 'logo.png';
+            const krajBadge = t.kraj ? t.kraj.toUpperCase() : 'ASOCIACE PRŠÍ';
 
             return `
                 <div class="t-card">
                     <div class="t-img-wrapper">
-                        <img src="${t.img}" alt="${t.title}">
+                        <img src="${imgUrl}" alt="${t.title}" onerror="this.src='logo.png'">
                     </div>
                     <div class="t-content">
-                        <span class="t-badge">${t.kraj_label}</span>
+                        <span class="t-badge">${krajBadge}</span>
                         <h2 class="t-title">${t.title}</h2>
                         <p class="t-info">
-                            📅 ${t.date}<br>
-                            📍 ${t.loc}
+                            📅 ${formatDateTime(t.event_date)}<br>
+                            🏷️ Zápisné: ${t.fee || 'Dle rozpisu'} Kč
                         </p>
                         ${actionBtn}
                     </div>
@@ -221,13 +259,9 @@
         }).join('');
     }
 
-    function filterTurnaje(kraj) {
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.classList.remove('active');
-            if (btn.innerText.toLowerCase().includes(kraj) || (kraj === 'vse' && btn.innerText.includes('Všechny'))) {
-                btn.classList.add('active');
-            }
-        });
+    function filterTurnaje(kraj, btnElement) {
+        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+        if(btnElement) btnElement.classList.add('active');
 
         if (kraj === 'vse') {
             renderTurnaje(turnajeData);
@@ -239,10 +273,12 @@
 
     async function registrovatHrace(tournamentId) {
         if (!currentUser) return;
-        alert("Skvělé! Právě jsi se registroval na turnaj. (Toto brzy napojíme na ostrou databázi)");
+        
+        // Přesměruje do giganta do záložky "Turnaje", kde probíhá ostrá registrace
+        sessionStorage.setItem('activeTab', 'tournaments');
+        window.location.href = 'index.html';
     }
 
-    // Spuštění
     init();
 </script>
 
