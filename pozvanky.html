@@ -30,7 +30,7 @@
         .back-btn { background: var(--gray); color: var(--primary); padding: 0.5rem 1rem; text-decoration: none; border-radius: 6px; font-weight: bold; }
         
         main { display: flex; gap: 2rem; padding: 2rem; max-width: 1600px; margin: 0 auto; width: 100%; align-items: flex-start; }
-        .panel-left { width: 450px; background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); flex-shrink: 0; max-height: 85vh; overflow-y: auto; }
+        .panel-left { width: 480px; background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); flex-shrink: 0; max-height: 85vh; overflow-y: auto; }
         .panel-right { flex-grow: 1; display: flex; justify-content: center; background: #cbd5e0; padding: 2rem; border-radius: 12px; overflow: auto; }
 
         h2 { font-size: 1.2rem; color: var(--primary); border-bottom: 2px solid var(--secondary); padding-bottom: 0.5rem; margin-bottom: 1rem; }
@@ -50,23 +50,20 @@
         .tuning-box h3 { font-size: 0.95rem; color: #2b6cb0; margin-bottom: 10px; border-bottom: 1px solid #cbd5e0; padding-bottom: 5px;}
         .tune-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px dashed #e2e8f0; }
         .tune-row:last-child { border-bottom: none; }
-        .tune-row label { margin: 0; width: 120px; font-size: 0.75rem; color: #2d3748; }
-        .tune-inputs { display: flex; gap: 10px; align-items: center; font-size: 0.75rem; font-weight: bold; color: #4a5568;}
-        .tune-inputs input { width: 65px; height: 26px; padding: 2px 5px; font-size: 0.8rem; margin: 0; background: white; border: 1px solid #a0aec0;}
+        .tune-row label { margin: 0; width: 100px; font-size: 0.75rem; color: #2d3748; }
+        .tune-inputs { display: flex; gap: 8px; align-items: center; font-size: 0.7rem; font-weight: bold; color: #4a5568;}
+        .tune-inputs input { width: 55px; height: 26px; padding: 2px 4px; font-size: 0.75rem; margin: 0; background: white; border: 1px solid #a0aec0;}
 
-        /* --- ABSOLUTNÍ POZICOVÁNÍ TEXTŮ PŘES BIANKO OBRÁZEK --- */
+        /* --- ABSOLUTNÍ POZICOVÁNÍ TEXTŮ --- */
         
         /* 1. RETRO ŠABLONA */
         .poster-retro {
             width: 595px; height: 842px; 
             background-color: #e3cca6; 
-            background-size: 100% 100%; /* Nezkracovat, perfektní fit */
-            background-position: center; 
-            background-repeat: no-repeat;
-            position: relative;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3); font-family: 'Arial Black', 'Impact', sans-serif; overflow: hidden;
-            -webkit-print-color-adjust: exact !important; /* Vynutí barvy při tisku */
-            print-color-adjust: exact !important;
+            background-size: 100% 100%; 
+            background-position: center; background-repeat: no-repeat;
+            position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.3); font-family: 'Arial Black', 'Impact', sans-serif; overflow: hidden;
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
         }
 
         .r-color-pruh { position: absolute; top: 48%; left: 0; width: 100%; height: 18%; background-color: var(--theme-color); z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; text-align: center; }
@@ -90,42 +87,28 @@
         /* 2. KAPKA ŠABLONA */
         .poster-kapka {
             width: 900px; height: 368px;
-            background-color: #fcfbf6; 
-            background-size: 100% 100%;  /* NIKDY NEOŘEZÁVAT! */
-            background-position: center; 
-            background-repeat: no-repeat;
-            position: relative;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: none; overflow: hidden;
+            background-color: #fcfbf6; background-size: 100% 100%; background-position: center; background-repeat: no-repeat;
+            position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: none; overflow: hidden;
             font-family: 'Georgia', serif; color: #2d3748;
-            -webkit-print-color-adjust: exact !important; /* Vynutí barvy a pozadí při tisku */
-            print-color-adjust: exact !important;
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
         }
 
-        .k-rocnik { position: absolute; font-size: 38px; color: #8b7355; font-weight: bold; text-align: right; width: 60px; }
-        .k-date { position: absolute; width: 440px; text-align: center; font-size: 22px; font-family: 'Arial Black', sans-serif; color: #2d3748; }
-        .k-loc { position: absolute; width: 440px; text-align: center; font-size: 18px; font-weight: bold; color: #2d3748; letter-spacing: 0.5px; }
-        .k-time { position: absolute; width: 440px; text-align: center; font-size: 18px; font-weight: bold; color: #2d3748; }
-        .k-val-fee { position: absolute; font-size: 17px; font-weight: bold; color: #2d3748; width: 50px; text-align: center; }
-        .k-val-kids { position: absolute; font-size: 17px; font-weight: bold; color: #2d3748; width: 50px; text-align: center; }
-        .k-val-rsvp { position: absolute; font-size: 14px; color: #2d3748; font-family: 'Inter', sans-serif; white-space: nowrap;}
-        .k-val-phone { position: absolute; font-size: 20px; font-weight: bold; color: #2d3748; white-space: nowrap;}
+        .k-rocnik { position: absolute; color: #8b7355; font-weight: bold; text-align: right; width: 50px; }
+        .k-date { position: absolute; width: 440px; text-align: center; font-family: 'Arial Black', sans-serif; color: #2d3748; }
+        .k-loc { position: absolute; width: 440px; text-align: center; font-weight: bold; color: #2d3748; letter-spacing: 0.5px; }
+        .k-time { position: absolute; width: 440px; text-align: center; font-weight: bold; color: #2d3748; }
+        .k-val-fee { position: absolute; font-weight: bold; color: #2d3748; width: 50px; text-align: center; }
+        .k-val-kids { position: absolute; font-weight: bold; color: #2d3748; width: 50px; text-align: center; }
+        .k-val-rsvp { position: absolute; color: #2d3748; font-family: 'Inter', sans-serif; white-space: nowrap;}
+        .k-val-phone { position: absolute; font-weight: bold; color: #2d3748; white-space: nowrap;}
 
         #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--white); z-index: 1000; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: var(--primary); font-weight: bold; font-family: 'Inter', sans-serif; }
         
-        /* TISKOVÝ REŽIM */
         @media print {
             body { background: white; margin: 0; padding: 0; }
-            body * { visibility: hidden; } /* Skryje všechno kromě plakátu */
+            body * { visibility: hidden; }
             #livePosterRetro, #livePosterRetro *, #livePosterKapka, #livePosterKapka * { visibility: visible; }
-            
-            .poster-retro, .poster-kapka { 
-                position: absolute; 
-                left: 0; 
-                top: 0; 
-                margin: 0; 
-                box-shadow: none; 
-                border: none;
-            }
+            .poster-retro, .poster-kapka { position: absolute; left: 0; top: 0; margin: 0; box-shadow: none; border: none;}
         }
     </style>
 </head>
@@ -134,7 +117,7 @@
 <div id="loadingOverlay">Ověřuji oprávnění...</div>
 
 <header>
-    <div class="logo-container"><h1>Generátor Pozvánek (1:1 Text)</h1></div>
+    <div class="logo-container"><h1>Generátor Pozvánek (Verze Písmo)</h1></div>
     <a href="index.html" class="back-btn">Zpět na web</a>
 </header>
 
@@ -151,7 +134,7 @@
         <div id="retroSettings" style="display: none;">
             <div class="form-group">
                 <label style="color: #c53030;">Odkaz na bianko obrázek RETRO (URL)</label>
-                <input type="text" id="inRetroBgUrl" value="https://www.asociaceprsi.cz/clear.png" placeholder="https://...">
+                <input type="text" id="inRetroBgUrl" value="https://www.asociaceprsi.cz/clear.png">
             </div>
 
             <div class="form-group">
@@ -169,7 +152,7 @@
             <div class="form-group"><label>Ročník</label><input type="text" id="inRetroRocnik" value="26"></div>
             
             <div class="form-group">
-                <label>Podnik (Napiš název - najde GPS a Město)</label>
+                <label>Podnik (Mapy - najde GPS a Město)</label>
                 <input type="text" id="inRetroPenzion" value="PENZIÓN SLUNEČNO" autocomplete="off">
                 <div id="autocompleteList"></div>
             </div>
@@ -194,7 +177,7 @@
         <div id="kapkaSettings" style="display: block;">
             <div class="form-group">
                 <label style="color: #c53030;">Odkaz na bianko obrázek KAPKY (URL)</label>
-                <input type="text" id="inKapkaBgUrl" value="https://www.asociaceprsi.cz/Bukovnoclear.png" placeholder="https://...">
+                <input type="text" id="inKapkaBgUrl" value="https://www.asociaceprsi.cz/Bukovnoclear.png">
             </div>
             
             <div class="form-group"><label>Ročník</label><input type="text" id="inKapkaRocnik" value="4."></div>
@@ -203,24 +186,22 @@
             <div class="form-group"><label>Čas začátku</label><input type="text" id="inKapkaTime" value="od 11:00 hodin"></div>
             
             <div class="row-2">
-                <div class="form-group"><label>Zápisné Dospělí (Kč)</label><input type="text" id="inKapkaFee" value="200"></div>
-                <div class="form-group"><label>Zápisné Děti (Kč)</label><input type="text" id="inKapkaFeeKids" value="100"></div>
+                <div class="form-group"><label>Zápisné Dospělí</label><input type="text" id="inKapkaFee" value="200"></div>
+                <div class="form-group"><label>Zápisné Děti</label><input type="text" id="inKapkaFeeKids" value="100"></div>
             </div>
             <div class="form-group"><label>RSVP (Potvrdit do data)</label><input type="text" id="inKapkaRsvp" value="10.04.2026"></div>
             <div class="form-group"><label>Telefon</label><input type="text" id="inKapkaPhone" value="605 938 458"></div>
 
             <div class="tuning-box">
-                <h3>⚙️ Jemné ladění pozice textů (Pixely)</h3>
-                <p style="font-size: 0.75rem; color: #4a5568; margin-bottom: 10px;">Pokud text nesedí v mezeře, uprav jeho pozici pomocí malých šipek (nahoru/dolů) přímo u políčka.</p>
-                
-                <div class="tune-row"><label>Ročník "4."</label><div class="tune-inputs">X: <input type="number" id="t_kapka_rocnik_x" value="217"> Y: <input type="number" id="t_kapka_rocnik_y" value="51"></div></div>
-                <div class="tune-row"><label>Datum</label><div class="tune-inputs">X: <input type="number" id="t_kapka_date_x" value="226"> Y: <input type="number" id="t_kapka_date_y" value="135"></div></div>
-                <div class="tune-row"><label>Místo</label><div class="tune-inputs">X: <input type="number" id="t_kapka_loc_x" value="240"> Y: <input type="number" id="t_kapka_loc_y" value="168"></div></div>
-                <div class="tune-row"><label>Čas</label><div class="tune-inputs">X: <input type="number" id="t_kapka_time_x" value="225"> Y: <input type="number" id="t_kapka_time_y" value="195"></div></div>
-                <div class="tune-row"><label>Zápisné Dospělí</label><div class="tune-inputs">X: <input type="number" id="t_kapka_fee_x" value="450"> Y: <input type="number" id="t_kapka_fee_y" value="278"></div></div>
-                <div class="tune-row"><label>Zápisné Děti</label><div class="tune-inputs">X: <input type="number" id="t_kapka_feekids_x" value="465"> Y: <input type="number" id="t_kapka_feekids_y" value="293"></div></div>
-                <div class="tune-row"><label>Datum RSVP</label><div class="tune-inputs">X: <input type="number" id="t_kapka_rsvp_x" value="690"> Y: <input type="number" id="t_kapka_rsvp_y" value="314"></div></div>
-                <div class="tune-row"><label>Telefon</label><div class="tune-inputs">X: <input type="number" id="t_kapka_phone_x" value="376"> Y: <input type="number" id="t_kapka_phone_y" value="335"></div></div>
+                <h3>⚙️ Ladění polohy a velikosti písma (S)</h3>
+                <div class="tune-row"><label>Ročník "4."</label><div class="tune-inputs">X: <input type="number" id="t_kapka_rocnik_x" value="285"> Y: <input type="number" id="t_kapka_rocnik_y" value="102"> S: <input type="number" id="t_kapka_rocnik_s" value="38"></div></div>
+                <div class="tune-row"><label>Datum</label><div class="tune-inputs">X: <input type="number" id="t_kapka_date_x" value="240"> Y: <input type="number" id="t_kapka_date_y" value="135"> S: <input type="number" id="t_kapka_date_s" value="22"></div></div>
+                <div class="tune-row"><label>Místo</label><div class="tune-inputs">X: <input type="number" id="t_kapka_loc_x" value="240"> Y: <input type="number" id="t_kapka_loc_y" value="168"> S: <input type="number" id="t_kapka_loc_s" value="18"></div></div>
+                <div class="tune-row"><label>Čas</label><div class="tune-inputs">X: <input type="number" id="t_kapka_time_x" value="240"> Y: <input type="number" id="t_kapka_time_y" value="198"> S: <input type="number" id="t_kapka_time_s" value="18"></div></div>
+                <div class="tune-row"><label>Cena Dospělí</label><div class="tune-inputs">X: <input type="number" id="t_kapka_fee_x" value="450"> Y: <input type="number" id="t_kapka_fee_y" value="273"> S: <input type="number" id="t_kapka_fee_s" value="17"></div></div>
+                <div class="tune-row"><label>Cena Děti</label><div class="tune-inputs">X: <input type="number" id="t_kapka_feekids_x" value="465"> Y: <input type="number" id="t_kapka_feekids_y" value="293"> S: <input type="number" id="t_kapka_feekids_s" value="17"></div></div>
+                <div class="tune-row"><label>Datum RSVP</label><div class="tune-inputs">X: <input type="number" id="t_kapka_rsvp_x" value="690"> Y: <input type="number" id="t_kapka_rsvp_y" value="314"> S: <input type="number" id="t_kapka_rsvp_s" value="14"></div></div>
+                <div class="tune-row"><label>Telefon</label><div class="tune-inputs">X: <input type="number" id="t_kapka_phone_x" value="610"> Y: <input type="number" id="t_kapka_phone_y" value="340"> S: <input type="number" id="t_kapka_phone_s" value="20"></div></div>
             </div>
 
         </div>
@@ -249,7 +230,6 @@
                 <div class="r-gps">
                     <span id="outRetroTime">10:00</span> <span class="r-sep">|</span> <span id="outRetroGps">50.489688N, 15.111302E</span> <span class="r-sep">|</span> Věcné ceny
                 </div>
-                
                 <div class="r-cat-title">KATEGORIE OPEN</div>
                 <div class="r-cat-sub">BEZ OHLEDU NA POHLAVÍ A VĚK <span class="r-sep">|</span> PREZENTACE <span id="outRetroPrez">9:45</span></div>
             </div>
@@ -301,66 +281,50 @@
         clearTimeout(mapTimeout);
         const query = e.target.value.trim();
         acList.style.display = 'none';
-        
         if (query.length < 3) return;
-
         mapTimeout = setTimeout(() => {
             fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=5&countrycodes=cz,sk`)
                 .then(res => res.json())
                 .then(data => {
                     if (data.length === 0) return;
-                    
                     acList.innerHTML = '';
                     acList.style.display = 'block';
-                    
                     data.forEach(item => {
                         const div = document.createElement('div');
                         div.className = 'ac-item';
                         div.innerText = item.display_name;
-                        
                         div.addEventListener('click', function() {
                             searchInput.value = item.name || query; 
-                            
                             const addr = item.address;
                             let mesto = addr.city || addr.town || addr.village || addr.municipality || '';
                             document.getElementById('inRetroCity').value = mesto.toUpperCase();
-                            
                             let lat = parseFloat(item.lat).toFixed(6) + "N";
                             let lon = parseFloat(item.lon).toFixed(6) + "E";
                             document.getElementById('inRetroGps').value = lat + ", " + lon;
-                            
                             acList.style.display = 'none';
                             updateContent();
                         });
                         acList.appendChild(div);
                     });
-                })
-                .catch(err => console.error("Chyba hledání map:", err));
+                }).catch(err => console.error(err));
         }, 500);
-    });
-
-    document.addEventListener('click', function (e) {
-        if (e.target !== searchInput && e.target !== acList) {
-            acList.style.display = 'none';
-        }
     });
 
     function toggleTemplate() {
         const val = document.getElementById('tplSelect').value;
-        const pageStyle = document.getElementById('printPageStyle'); // Dynamické nastavení tisku
-        
+        const pageStyle = document.getElementById('printPageStyle');
         if(val === 'retro') {
             document.getElementById('retroSettings').style.display = 'block';
             document.getElementById('kapkaSettings').style.display = 'none';
             document.getElementById('livePosterRetro').style.display = 'block';
             document.getElementById('livePosterKapka').style.display = 'none';
-            pageStyle.innerHTML = "@page { size: A4 portrait; margin: 0; }"; // Tisk na výšku
+            pageStyle.innerHTML = "@page { size: A4 portrait; margin: 0; }";
         } else {
             document.getElementById('retroSettings').style.display = 'none';
             document.getElementById('kapkaSettings').style.display = 'block';
             document.getElementById('livePosterRetro').style.display = 'none';
             document.getElementById('livePosterKapka').style.display = 'block';
-            pageStyle.innerHTML = "@page { size: A4 landscape; margin: 0; }"; // Tisk na šířku
+            pageStyle.innerHTML = "@page { size: A4 landscape; margin: 0; }";
         }
         updateContent();
     }
@@ -369,10 +333,8 @@
         // --- RETRO ---
         const retroBgUrl = document.getElementById('inRetroBgUrl').value;
         document.getElementById('livePosterRetro').style.backgroundImage = retroBgUrl ? `url('${retroBgUrl}')` : 'none';
-
         const themeColor = document.getElementById('retroColorSelect').value;
         document.documentElement.style.setProperty('--theme-color', themeColor);
-        
         document.getElementById('outRetroRocnik').innerText = document.getElementById('inRetroRocnik').value;
         document.getElementById('outRetroPenzion').innerText = document.getElementById('inRetroPenzion').value.toUpperCase();
         document.getElementById('outRetroFee').innerText = document.getElementById('inRetroFee').value;
@@ -384,7 +346,6 @@
         document.getElementById('outRetroEmail').innerText = document.getElementById('inRetroEmail').value;
         document.getElementById('outRetroWeb').innerText = document.getElementById('inRetroWeb').value;
         document.getElementById('outRetroPhone').innerText = document.getElementById('inRetroPhone').value;
-
         document.getElementById('outRetroDate').style.color = themeColor;
         document.getElementById('outRetroDate').style.borderColor = themeColor;
         document.getElementById('outRetroCity').style.color = themeColor;
@@ -393,7 +354,6 @@
         // --- KAPKA ---
         const kapkaBgUrl = document.getElementById('inKapkaBgUrl').value;
         document.getElementById('livePosterKapka').style.backgroundImage = kapkaBgUrl ? `url('${kapkaBgUrl}')` : 'none';
-
         document.getElementById('outKapkaRocnik').innerText = document.getElementById('inKapkaRocnik').value;
         document.getElementById('outKapkaDate').innerText = document.getElementById('inKapkaDate').value;
         document.getElementById('outKapkaTime').innerText = document.getElementById('inKapkaTime').value;
@@ -403,25 +363,24 @@
         document.getElementById('outKapkaRsvp').innerText = document.getElementById('inKapkaRsvp').value;
         document.getElementById('outKapkaPhone').innerText = document.getElementById('inKapkaPhone').value;
 
-        // Aplikace jemného ladění pozic
+        // Aplikace ladění (X, Y, S - Size)
         const kapkaIds = ['Rocnik', 'Date', 'Loc', 'Time', 'Fee', 'FeeKids', 'Rsvp', 'Phone'];
         kapkaIds.forEach(id => {
             const el = document.getElementById('outKapka' + id);
-            const inputX = document.getElementById('t_kapka_' + id.toLowerCase() + '_x');
-            const inputY = document.getElementById('t_kapka_' + id.toLowerCase() + '_y');
-            if(el && inputX && inputY) {
-                el.style.left = inputX.value + 'px';
-                el.style.top = inputY.value + 'px';
+            const inX = document.getElementById('t_kapka_' + id.toLowerCase() + '_x');
+            const inY = document.getElementById('t_kapka_' + id.toLowerCase() + '_y');
+            const inS = document.getElementById('t_kapka_' + id.toLowerCase() + '_s');
+            if(el && inX && inY && inS) {
+                el.style.left = inX.value + 'px';
+                el.style.top = inY.value + 'px';
+                el.style.fontSize = inS.value + 'px';
             }
         });
     }
 
     document.querySelectorAll('input, select').forEach(input => {
-        if(input.id !== 'inRetroPenzion') { 
-            input.addEventListener('input', updateContent);
-        }
+        if(input.id !== 'inRetroPenzion') input.addEventListener('input', updateContent);
     });
-
 </script>
 </body>
 </html>
