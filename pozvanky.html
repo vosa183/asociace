@@ -3,9 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generátor pozvánek a turnajů | Česká asociace prší</title>
     
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <title>Generátor pozvánek a turnajů | Česká asociace prší</title>
+
+    <meta name="robots" content="noindex, nofollow">
+    
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style id="printPageStyle">
@@ -290,7 +300,6 @@
     }
     checkAuth();
 
-    // Mapy našeptávač
     let mapTimeout;
     const searchInput = document.getElementById('inRetroPenzion');
     const acList = document.getElementById('autocompleteList');
@@ -418,7 +427,6 @@
         });
     }
 
-    // HLAVNÍ MAGIE: ULOŽENÍ DO DB A ODESLÁNÍ
     async function publishTournament() {
         const title = document.getElementById('dbTitle').value.trim();
         const date = document.getElementById('dbDate').value;
@@ -441,25 +449,21 @@
         overlay.style.display = 'flex';
 
         try {
-            // 1. Vyfotit aktivní plakát
             const isRetro = document.getElementById('tplSelect').value === 'retro';
             const element = document.getElementById(isRetro ? 'livePosterRetro' : 'livePosterKapka');
             
             const canvas = await html2canvas(element, { scale: 2, useCORS: true, allowTaint: true });
             const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
 
-            // 2. Nahrát do Supabase Storage
             overlay.innerHTML = "☁️ Nahrávám plakát do cloudu...";
             const fileName = `poster_${Date.now()}.jpg`;
             const { data: uploadData, error: uploadError } = await db.storage.from('posters').upload(fileName, blob);
             
             if (uploadError) throw new Error("Nelze nahrát plakát do cloudu. Zkontrolujte, zda máte v Supabase vytvořený public bucket 'posters'. Detail: " + uploadError.message);
 
-            // Získání veřejné URL vygenerovaného obrázku
             const { data: urlData } = db.storage.from('posters').getPublicUrl(fileName);
             const imageUrl = urlData.publicUrl;
 
-            // 3. Zápis do databáze (tabulka tournaments)
             overlay.innerHTML = "💾 Ukládám turnaj do databáze...";
             const { error: dbError } = await db.from('tournaments').insert({
                 title: title,
@@ -472,12 +476,10 @@
 
             if (dbError) throw new Error("Nepodařilo se vytvořit turnaj v databázi: " + dbError.message);
 
-            // 4. Simulace rozeslání e-mailů (přes gigantí logiku)
             overlay.innerHTML = "📧 Připravuji rozeslání e-mailů...";
             
             alert(`🎉 ÚSPĚCH!\n\nTurnaj "${title}" byl úspěšně vypsán.\nPlakát je nahrán v cloudu a turnaj se ihned objeví na stránce /turnaje.\n\nE-maily budou v další fázi automaticky rozeslány hráčům.`);
             
-            // Vyčistíme formulář
             document.getElementById('dbTitle').value = "";
             document.getElementById('dbDate').value = "";
             
@@ -490,7 +492,6 @@
             overlay.innerHTML = "Ověřuji oprávnění...";
         }
     }
-
 </script>
 </body>
 </html>
