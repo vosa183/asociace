@@ -16,6 +16,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     
+    <script src="font.js"></script>
+    
     <style>
         :root { 
             --primary: #1a365d; 
@@ -90,11 +92,6 @@
         .vote-card-orange { border-top: 5px solid var(--orange); }
         .question-box { background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid var(--gray); }
         
-        .poster-wrapper { background: linear-gradient(135deg, #1a365d, #0f2038); border: 4px solid var(--gold); border-radius: 12px; padding: 3rem 2rem; text-align: center; color: white; position: relative; overflow: hidden; }
-        .poster-wrapper h4 { color: var(--gold); font-size: 2.5rem; margin: 1rem 0; text-transform: uppercase; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
-        .poster-wrapper .date { font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem; }
-        .poster-wrapper .fee { background: rgba(214, 158, 46, 0.2); display: inline-block; padding: 0.5rem 1.5rem; border: 1px solid var(--gold); border-radius: 8px; font-size: 1.2rem; }
-        
         .print-modal { background: white; border: 1px solid #cbd5e0; border-radius: 8px; overflow: hidden; margin-bottom: 1.5rem; display: flex; flex-direction: column; }
         .print-header { background: #f7fafc; padding: 1rem; border-bottom: 1px solid #cbd5e0; }
         .print-header input { margin-bottom: 0; }
@@ -119,14 +116,6 @@
         .modal-close { position: absolute; top: 15px; right: 15px; background: transparent; color: var(--secondary); border: none; font-size: 1.5rem; cursor: pointer; width: auto; padding: 0; }
 
         footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 2rem; }
-
-        @media print {
-            body * { visibility: hidden; }
-            #posterPreview, #posterPreview * { visibility: visible; }
-            #posterPreview { position: absolute; left: 0; top: 0; width: 100%; border: none !important; margin: 0 !important; padding: 2rem !important; }
-            .poster-wrapper { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background: #1a365d !important; }
-            .no-print { display: none !important; }
-        }
     </style>
 </head>
 <body>
@@ -981,7 +970,7 @@
     // --- 3. AUTENTIZACE A PŘÍSTUPY ---
     // ==========================================
     
-    // ZMĚNA CHIRURGA (Zvací odkazy): Pokud je v URL ?reg=XX, otevře se registrace a vybere se daný okres.
+    // Zvací odkazy (Pokud je v URL ?reg=XX, otevře se registrace a vybere se daný okres)
     window.addEventListener('load', () => { 
         const urlParams = new URLSearchParams(window.location.search);
         const regOkres = urlParams.get('reg');
@@ -1499,10 +1488,14 @@
     // --- 9. HLASOVÁNÍ, DEBATY A AUTO-UZAVŘENÍ ---
     // ==========================================
     
-    // Pomocná funkce pro generování PDF protokolu
+    // ZMĚNA CHIRURGA: Přidán custom font Roboto pro správné zobrazení háčků a čárek v PDF
     window.generatePDFProtocol = async function(vid, title, resultsData, isManual = false) {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
+        
+        // Inicializace českého fontu
+        doc.setFont("Roboto");
+
         const { data: profs } = await db.from('profiles').select('id, full_name, player_id_card'); 
         const pMap = {}; profs?.forEach(p => pMap[p.id] = { name: p.full_name, id: p.player_id_card });
 
@@ -1511,21 +1504,23 @@
         doc.rect(0, 0, 210, 40, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(22);
+        doc.setFont("Roboto", "bold");
         doc.text("OFICIÁLNÍ PROTOKOL HLASOVÁNÍ", 105, 20, { align: 'center' });
         doc.setFontSize(12);
+        doc.setFont("Roboto", "normal");
         doc.text("Česká asociace prší z. s.", 105, 30, { align: 'center' });
 
         // Vodoznak
         doc.setTextColor(240, 240, 240);
         doc.setFontSize(60);
+        doc.setFont("Roboto", "bold");
         doc.text("ASOCIACE PRŠÍ", 105, 150, { align: 'center', angle: 45 });
 
         // Informace o hlasování
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
         doc.text(`Téma: ${title.replace('[OSTRÉ]', '')}`, 20, 55);
-        doc.setFont(undefined, 'normal');
+        doc.setFont("Roboto", "normal");
         doc.setFontSize(10);
         doc.text(`Datum uzavření: ${new Date().toLocaleString('cs-CZ')}`, 20, 62);
         doc.text(`Identifikátor (UID): ${vid}`, 20, 67);
@@ -1544,7 +1539,8 @@
             head: [['Jméno člena', 'ID hráče', 'Hlas', 'Kontrolní Hash', 'Čas']],
             body: tableRows,
             theme: 'striped',
-            headStyles: { fillStyle: [26, 54, 93] }
+            headStyles: { fillStyle: [26, 54, 93], font: 'Roboto' },
+            styles: { font: 'Roboto' } // NUTNÉ PRO ČEŠTINU V TABULCE
         });
 
         // Patička s verifikací
