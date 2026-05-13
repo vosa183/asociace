@@ -9,6 +9,7 @@
     <meta http-equiv="Expires" content="0">
     
     <title>Česká asociace prší z. s.</title>
+    <meta name="description" content="Oficiální stránky České asociace prší. Přidejte se k nám, hrajte turnaje v této legendární karetní hře na profesionální úrovni a zapište se do celorepublikového žebříčku!">
     
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -112,7 +113,6 @@
         .audit-log-box { max-height: 300px; overflow-y: auto; background: #fff; padding: 1rem; border: 1px solid #ccc; border-radius: 8px; font-size: 0.85rem; }
         .audit-log-item { border-bottom: 1px dashed #e2e8f0; padding: 0.5rem 0; }
 
-        /* Styly pro evidenci majetku a modální okna */
         .asset-alert { background: #fff5f5; border: 2px solid #feb2b2; padding: 1rem; border-radius: 8px; color: #c53030; font-weight: bold; margin-bottom: 1.5rem; display: none; }
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
         .modal-box { background: white; padding: 2rem; border-radius: 12px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; position: relative; }
@@ -156,11 +156,33 @@
 <main>
     <section id="home" class="page-section active">
         <div class="card" style="background: linear-gradient(135deg, var(--primary), #2a4365); color: white;">
-            <h2 style="color: white; border: none;">Tradiční česká hra na profesionální úrovni</h2>
-            <p style="margin-bottom: 1rem; font-size: 1.1rem;">Vítejte na oficiálních stránkách České asociace prší! Naším cílem je sdružovat nadšence této legendární karetní hry z celé republiky.</p>
-            <p style="margin-bottom: 1rem;">Zvedáme prší z hospodských stolů a dáváme mu pevnou turnajovou strukturu. Staráme se o precizní dodržování pravidel, organizaci prestižních klání a pečlivé vedení historických statistik všech našich účastníků.</p>
-            <p>Ať už jste ostřílený matador, nebo sbíráte své první turnajové zkušenosti, u nás najdete skvělou komunitu a spravedlivou hru. Přidejte se k naší rozrůstající se rodině a zapište své jméno nesmazatelně do síně slávy!</p>
-        </div>
+           <div>
+    <h3 style="margin-bottom: 1rem; font-size: 1.5rem; color: #cc0000;">Vítejte na oficiálních stránkách České asociace prší! ♠️♥️♣️♦️</h3>
+    
+    <p style="margin-bottom: 1rem; font-size: 1.1rem;"><strong>Prší je pro nás víc než jen hra.</strong> Naším cílem je sdružovat nadšence této legendární české karetní klasiky z celé republiky a posunout ji na úplně novou úroveň. Naší největší vizí je totiž uspořádat historicky první celorepublikový turnaj v Prší!</p>
+    
+    <p style="margin-bottom: 1rem;">Navazujeme na silnou tradici, kterou odstartoval Miroslav Vaněk. Všechno to začalo dnes již legendárním Turnajem Českého ráje a postupně jsme tuto myšlenku rozvinuli do dnešní podoby. Zvedáme prší z hospodských stolů a dáváme mu pevnou turnajovou strukturu. Ať už jste ostřílený matador s tisíci odehranými partiemi, nebo zrovna sbíráte své první turnajové zkušenosti, u nás máte dveře otevřené. A pro ty, kteří milují naprostou klasiku, aktuálně připravujeme i večerní hospodské turnaje, které nabídnou uvolněnější atmosféru a pravý návrat ke kořenům.</p>
+    
+    <p style="margin-bottom: 1rem;"><strong>Už 16 let tvoříme historii Prší!</strong><br>
+    Ano, čtete správně. Pečlivě vedeme historické statistiky všech našich hráčů už úctyhodných 16 let. Každý, kdo s námi za tu dlouhou dobu odehrál byť jen jediný turnaj, má u nás své pevné místo. Stačí se přihlásit do svého osobního profilu přímo zde na webu a okamžitě uvidíte, jak si vedete, kompletní historii svých výsledků a vaše aktuální postavení v žebříčku.</p>
+    
+    <p style="margin-bottom: 0.5rem;"><strong>Co vám Česká asociace prší přináší?</strong></p>
+    <ul style="margin-bottom: 1rem; padding-left: 20px;">
+        <li style="margin-bottom: 0.5rem;">🏆 <strong>Prestižní turnaje:</strong> Organizujeme pravidelná klání s jedinečnou atmosférou o poháry a věcné ceny.</li>
+        <li style="margin-bottom: 0.5rem;">⚖️ <strong>Spravedlivou hru:</strong> Staráme se o precizní dodržování sjednocených pravidel, takže vždy víte, na čem jste.</li>
+        <li style="margin-bottom: 0.5rem;">👤 <strong>Vlastní hráčský profil:</strong> Vaše osobní síň slávy. Sledujte svůj postup a porovnejte své síly s těmi nejlepšími!</li>
+    </ul>
+    
+    <p style="margin-bottom: 0.5rem;"><strong>Staňte se součástí naší rodiny!</strong><br>
+    Naše komunita neustále roste a rádi mezi sebou přivítáme nové tváře. Můžete se zapojit přesně tak, jak vám to vyhovuje:</p>
+    <ul style="margin-bottom: 1rem; padding-left: 20px;">
+        <li style="margin-bottom: 0.5rem;"><strong>Základní člen:</strong> Ideální startovní pozice pro každého, kdo se chce účastnit turnajů, sbírat body do svých osobních statistik a užívat si s námi skvělou karetní atmosféru.</li>
+        <li style="margin-bottom: 0.5rem;"><strong>Přidružený člen:</strong> Pro hráče, kteří chtějí naše sdružení podpořit a být s námi v užším kontaktu. Za symbolický roční příspěvek 200 Kč na fungování asociace se stáváte součástí užšího kruhu naší komunity.</li>
+        <li style="margin-bottom: 0.5rem;"><strong>Zakládající člen:</strong> Ti největší srdcaři s hlasovacím právem, kteří se přímo podílejí na organizaci a rozhodují o tom, kam bude naše sdružení dál směřovat.</li>
+    </ul>
+    
+    <p>Ať už si vyberete jakoukoliv cestu, u našich stolů vládne napětí, ale i smích a přátelství. Vyzkoušejte si pravou turnajovou atmosféru, ukažte své karetní umění a zapište své jméno nesmazatelně do naší šestnáctileté historie!</p>
+</div>
     </section>
 
     <section id="rules" class="page-section">
@@ -426,8 +448,8 @@
             <div id="myRegistrationsList" style="margin-bottom: 3rem;">Načítám vaše přihlášky...</div>
 
             <h2>Vypsané turnaje</h2>
-            <p style="margin-bottom: 1.5rem;">Zápisné se hradí bankovním převodem na účet asociace.</p>
-            <div id="tournamentsList">Načítám vypsané turnaje...</div>
+            <p style="margin-bottom: 1.5rem;">Kompletní seznam aktuálně vypsaných turnajů s možností se registrovat je nyní umístěn na novém portálu.</p>
+            <a href="turnaje.html" class="btn-green" style="text-align:center; display:block; text-decoration:none; padding:1rem; font-size:1.1rem; width: 100%; border-radius: 8px;">📅 Přejít na veřejný seznam turnajů</a>
         </div>
     </section>
 
@@ -497,6 +519,7 @@
             </div>
         </div>
     </section>
+
     <section id="admin" class="page-section">
         <div class="card" style="border-top: 4px solid var(--primary);">
             <h2>Administrace systému</h2>
@@ -673,30 +696,10 @@
                     </form>
                 </div>
 
-                <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center;">
                     <h3>Turnajový Kombajn (Vypsání turnaje a Plakát)</h3>
-                    <div class="grid-2">
-                        <form id="createTournamentForm">
-                            <label>Název turnaje</label>
-                            <input type="text" id="tName" required>
-                            <label>Datum a čas konání</label>
-                            <input type="datetime-local" id="tDate" required>
-                            <label>Zápisné (Kč)</label>
-                            <input type="number" id="tFee" required>
-                            <label>Kapacita hráčů</label>
-                            <input type="number" id="tCap" required>
-                            <button type="submit" class="btn-green">Uložit turnaj do systému</button>
-                        </form>
-                        
-                        <div id="posterPreview" class="poster-wrapper printable" style="display:none;">
-                            <div class="header-text">Oficiální turnaj v karetní hře Prší</div>
-                            <h4 id="pTitle">NÁZEV TURNAJE</h4>
-                            <div id="pDate" class="date">DATUM A ČAS</div>
-                            <div id="pFee" class="fee">ZÁPISNÉ</div>
-                            <div class="footer-text" style="color: #a0aec0; margin-top: 2rem;">Registrace předem na webu asociace</div>
-                            <button type="button" class="btn-small btn-orange no-print" style="margin-top: 1.5rem;" onclick="window.print()">🖨️ Vytisknout / Uložit PDF plakát</button>
-                        </div>
-                    </div>
+                    <p style="margin-bottom: 1.5rem;">Kompletní správa turnajů a generování pozvánek byla přesunuta do externího modulu.</p>
+                    <a href="pozvanky.html" class="btn-orange" style="text-align:center; display:block; text-decoration:none; padding:1rem; font-size:1.1rem; width: 100%; border-radius: 8px;">🚀 Otevřít Generátor a Správce turnajů</a>
                 </div>
 
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
@@ -825,7 +828,6 @@
     // --- 2. POMOCNÉ FUNKCE A NAVIGACE ---
     // ==========================================
 
-    // --- KOMPLETNÍ ČÍSELNÍK OKRESŮ ---
     const okresyList = [
         { id: 0, zkratka: 'MB' }, { id: 1, zkratka: 'PR' }, { id: 2, zkratka: 'BM' }, { id: 3, zkratka: 'OS' },
         { id: 4, zkratka: 'PM' }, { id: 5, zkratka: 'CB' }, { id: 6, zkratka: 'HK' }, { id: 7, zkratka: 'UL' },
@@ -849,7 +851,6 @@
         { id: 76, zkratka: 'NJ' }
     ];
 
-    // --- PŘEVODNÍKY (Čisté ID <-> SPZ Formát) ---
     function formatSPZ(pureId) {
         const num = parseInt(pureId);
         if (isNaN(num)) return pureId;
@@ -877,7 +878,6 @@
         return spzStr; 
     }
 
-    // --- GENERÁTOR PRVOČÍSEL ---
     function isPrime(num) {
         if (num <= 1) return false;
         if (num <= 3) return true;
@@ -909,7 +909,6 @@
         }
         return startNum.toString();
     }
-
 
     function toggleMobileMenu() { 
         document.getElementById('mainNav').classList.toggle('mobile-active'); 
@@ -969,7 +968,7 @@
         
         sessionStorage.setItem('activeTab', tabId);
 
-        if (tabId === 'tournaments') { loadTournaments(); if(currentUser) loadMyRegistrations(); }
+        if (tabId === 'tournaments') { if(currentUser) loadMyRegistrations(); }
         if (tabId === 'stats') loadHistoricalData();
         if (tabId === 'voting') loadVotes();
         if (currentUser && myProfileData) {
@@ -981,6 +980,31 @@
     // ==========================================
     // --- 3. AUTENTIZACE A PŘÍSTUPY ---
     // ==========================================
+    
+    // ZMĚNA CHIRURGA (Zvací odkazy): Pokud je v URL ?reg=XX, otevře se registrace a vybere se daný okres.
+    window.addEventListener('load', () => { 
+        const urlParams = new URLSearchParams(window.location.search);
+        const regOkres = urlParams.get('reg');
+        if (regOkres) {
+            switchTab('auth');
+            document.querySelector('input[name="idChoice"][value="newId"]').checked = true;
+            toggleIdMode();
+            setTimeout(() => {
+                const selectEl = document.getElementById('profOkres');
+                for (let i = 0; i < selectEl.options.length; i++) {
+                    if (selectEl.options[i].text.includes(`(${regOkres.toUpperCase()})`)) {
+                        selectEl.selectedIndex = i;
+                        break;
+                    }
+                }
+            }, 500);
+        }
+        
+        if (window.location.search.includes('unsubscribe')) {
+            document.getElementById('unsubscribeBox').style.display = 'block'; 
+        }
+    });
+
     async function checkAuthState(user) {
         currentUser = user;
         if (user) {
@@ -1064,7 +1088,6 @@
         if(error) { alert('Chyba: ' + error.message); } else { alert('Heslo bezpečně změněno'); await logAction('Změna hesla', 'Změna hesla'); document.getElementById('changePasswordForm').reset(); }
     });
 
-    // PŘEPÍNAČ PRO VOLBU ID
     window.toggleIdMode = function() {
         const mode = document.querySelector('input[name="idChoice"]:checked').value;
         if (mode === 'haveId') {
@@ -1076,7 +1099,6 @@
         }
     };
 
-    // FORMULÁŘ PRO ULOŽENÍ A VYTVOŘENÍ PROFILU (aktualizováno pro prvočísla a SPZ)
     document.getElementById('profileForm').addEventListener('submit', async (e) => {
         e.preventDefault(); 
         const msg = document.getElementById('profMsg'); 
@@ -1092,7 +1114,6 @@
             const enteredSPZ = document.getElementById('profIdCard').value.trim();
             if (!enteredSPZ) { msg.className = 'msg error'; msg.innerText = 'Zadejte své ID.'; return; }
             
-            // Převedeme SPZ formát zpět na čisté číslo do databáze
             finalId = parseSPZ(enteredSPZ);
             
             const { data: profCheck } = await db.from('profiles').select('id').eq('player_id_card', finalId).neq('id', currentUser.id);
@@ -1110,7 +1131,6 @@
             
             if (!newName || !newCity) { msg.className = 'msg error'; msg.innerText = 'Zadejte své jméno a město.'; return; }
             
-            // Generování nového ID podle přísných pravidel (Prvočísla)
             finalId = await generateNewPrimeId(selectedOkres);
             
             const { error: dbErr } = await db.from('player_database').insert({
@@ -1176,7 +1196,7 @@
     window.removeFamily = async function(id) { if (confirm('Odebrat člena rodiny?')) { await db.from('players').delete().eq('id', id); const { data } = await db.from('players').select('*').eq('owner_id', currentUser.id); myFamily = data || []; renderDashboard(); } };
 
     // ==========================================
-    // --- 5. TISK PRŮKAZŮ A PLAKÁTŮ ---
+    // --- 5. TISK PRŮKAZŮ ---
     // ==========================================
     function generateMultipleCardsHTML(players) {
         let cardsHtml = players.map(p => `<div class="card"><div class="header">Průkaz Hráče</div><div class="content"><img class="qr" src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(p.id)}" /><div class="info"><label>Jméno a příjmení</label><div>${p.name}</div><label>Bydliště</label><div>${p.city || '-'}</div><label>Identifikátor (ID)</label><div class="id-box">${p.spz || p.id}</div></div></div></div>`).join('');
@@ -1191,43 +1211,15 @@
         cbs.forEach(cb => cb.checked = false); if(document.getElementById('printSelectionCount')) document.getElementById('printSelectionCount').innerText = 0;
     };
     document.addEventListener('change', function(e) { if(e.target && e.target.classList.contains('print-check')) { if(document.getElementById('printSelectionCount')) document.getElementById('printSelectionCount').innerText = document.querySelectorAll('.print-check:checked').length; } });
-    window.printTournamentPoster = function(title, datetime, fee) {
-        document.getElementById('pTitle').innerText = title.toUpperCase(); document.getElementById('pDate').innerText = formatDateTime(datetime); document.getElementById('pFee').innerText = 'Zápisné: ' + fee + ' Kč';
-        const preview = document.getElementById('posterPreview'); preview.style.display = 'block'; window.print();
-        if (document.getElementById('tName') && document.getElementById('tName').value === '') preview.style.display = 'none';
-    };
 
     // ==========================================
-    // --- 6. TURNAJE A REGISTRACE ---
+    // --- 6. REGISTRACE NA TURNAJ (Pro MOJE Přihlášky) ---
     // ==========================================
-    document.getElementById('createTournamentForm').addEventListener('input', () => {
-        const tName = document.getElementById('tName').value, tDate = document.getElementById('tDate').value, tFee = document.getElementById('tFee').value;
-        const prv = document.getElementById('posterPreview');
-        if (tName || tDate || tFee) prv.style.display = 'block'; else prv.style.display = 'none';
-        document.getElementById('pTitle').innerText = tName.toUpperCase() || 'NÁZEV TURNAJE'; document.getElementById('pDate').innerText = tDate ? formatDateTime(tDate) : 'Vyberte datum'; document.getElementById('pFee').innerText = `Zápisné: ${tFee || 100} Kč`;
-    });
-    document.getElementById('createTournamentForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const { error } = await db.from('tournaments').insert({ title: document.getElementById('tName').value, event_date: document.getElementById('tDate').value, capacity: document.getElementById('tCap').value, fee: document.getElementById('tFee').value });
-        if (error) alert('Chyba: ' + error.message); else { alert('Turnaj přidán!'); document.getElementById('createTournamentForm').reset(); document.getElementById('posterPreview').style.display = 'none'; }
-    });
-
-    async function loadTournaments() {
-        const { data: tourns } = await db.from('tournaments').select('*').order('created_at', { ascending: false });
-        const list = document.getElementById('tournamentsList'); list.innerHTML = '';
-        if (!tourns || tourns.length === 0) { list.innerHTML = '<p>Zatím nejsou vypsané turnaje.</p>'; return; }
-        for (let t of tourns) {
-            const { count } = await db.from('registrations').select('*', { count: 'exact', head: true }).eq('tournament_id', t.id);
-            let isFull = count >= t.capacity, btnText = isFull ? 'Přihlásit NÁHRADNÍKA' : 'Přihlásit SEBE', btnColor = isFull ? '#ed8936' : 'var(--primary)';
-            let famOpts = myFamily.map(f => `<option value="${f.player_id_card}">${f.full_name}</option>`).join('');
-            list.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:start;"><h4>${t.title} <span style="font-weight:normal;color:#4a5568;">(${formatDateTime(t.event_date)})</span></h4><p>Obsazeno: ${count||0} / ${t.capacity}</p><div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;"><button class="btn-small" style="background:${btnColor}" onclick="joinTournament('${t.id}')">${btnText}</button>${myFamily.length > 0 ? `<select id="famSel_${t.id}" style="margin:0;width:auto;">${famOpts}</select><button class="btn-small" onclick="joinFamilyTournament('${t.id}')">Přihlásit rodinu</button>` : ''}<button class="btn-small btn-orange" onclick="printTournamentPoster('${t.title.replace(/'/g, "\\'")}', '${t.event_date}', '${t.fee}')">Stáhnout leták</button></div></div>`;
-        }
-    }
-
+    
     async function loadMyRegistrations() {
         const { data: myRegs } = await db.from('registrations').select(`id, player_id_card, payment_status, tournaments ( id, title, event_date, fee )`).eq('registered_by', currentUser.id);
         const list = document.getElementById('myRegistrationsList'); list.innerHTML = '';
-        if (!myRegs || myRegs.length === 0) { list.innerHTML = '<p>Žádné přihlášky.</p>'; return; }
+        if (!myRegs || myRegs.length === 0) { list.innerHTML = '<p>Zatím nejste přihlášeni na žádný turnaj.</p>'; return; }
         myRegs.forEach(reg => {
             const t = reg.tournaments; let pName = reg.player_id_card === myProfileData?.player_id_card ? 'VY' : (myFamily.find(f => f.player_id_card === reg.player_id_card)?.full_name + ' (Rodina)' || reg.player_id_card);
             let payUI = reg.payment_status ? `<span class="badge" style="background:#38a169;">Uhrazeno</span>` : `<button class="btn-small" style="background:#2b6cb0;" onclick="toggleQR('qr_${reg.id}', '${t.fee}', '${reg.player_id_card}')">Kód k platbě</button>`;
@@ -1237,9 +1229,9 @@
 
     window.toggleQR = function(cid, fee, vs) { const c = document.getElementById(cid), i = document.getElementById('img_' + cid); if (c.style.display === 'block') c.style.display = 'none'; else { i.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`SPD*1.0*ACC:${globalBankAccount}*AM:${fee}.00*CC:CZK*X-VS:${vs}`)}`; c.style.display = 'block'; } };
     window.downloadCalendar = function(t, dStr) { const d = new Date(dStr); if(isNaN(d)) return; const pad=n=>n<10?'0'+n:n; const sD = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`; const b = new Blob([`BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${sD}\nDTEND:${sD}\nSUMMARY:${t}\nEND:VEVENT\nEND:VCALENDAR`], { type: 'text/calendar' }); const url = URL.createObjectURL(b); const a = document.createElement('a'); a.href = url; a.download = `Turnaj.ics`; a.click(); };
-    window.joinTournament = async function(tId) { if (!myProfileData) return; const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: myProfileData.player_id_card, registered_by: currentUser.id }); if (!error) { alert('Přihlášeno!'); loadTournaments(); loadMyRegistrations(); } else alert('Chyba (nebo už jste přihlášeni).'); };
-    window.joinFamilyTournament = async function(tId) { const fId = document.getElementById('famSel_' + tId).value; const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: fId, registered_by: currentUser.id }); if (!error) { alert('Člen přihlášen.'); loadTournaments(); loadMyRegistrations(); } else alert('Chyba.'); };
-    window.cancelRegistration = async function(regId) { if(confirm("Zrušit přihlášku?")) { await db.from('registrations').delete().eq('id', regId); loadTournaments(); loadMyRegistrations(); } };
+    window.joinTournament = async function(tId) { if (!myProfileData) return; const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: myProfileData.player_id_card, registered_by: currentUser.id }); if (!error) { alert('Přihlášeno!'); loadMyRegistrations(); } else alert('Chyba (nebo už jste přihlášeni).'); };
+    window.joinFamilyTournament = async function(tId) { const fId = document.getElementById('famSel_' + tId).value; const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: fId, registered_by: currentUser.id }); if (!error) { alert('Člen přihlášen.'); loadMyRegistrations(); } else alert('Chyba.'); };
+    window.cancelRegistration = async function(regId) { if(confirm("Zrušit přihlášku?")) { await db.from('registrations').delete().eq('id', regId); loadMyRegistrations(); } };
     
     // ==========================================
     // --- 7. STATISTIKY A KOMENTÁŘE ---
@@ -1376,7 +1368,7 @@
         document.getElementById('tournamentCommentBox').style.display = 'block';
     };
 
-// ==========================================
+    // ==========================================
     // --- 8. PC EXCEL NAHRÁVÁNÍ (HROMADNÉ) ---
     // ==========================================
     document.getElementById('uploadResultsForm').addEventListener('submit', async (e) => {
@@ -1502,6 +1494,7 @@
         historicalData = []; 
         loadHistoricalData();
     });
+
     // ==========================================
     // --- 9. HLASOVÁNÍ, DEBATY A AUTO-UZAVŘENÍ ---
     // ==========================================
@@ -2014,12 +2007,10 @@
                     let diffDays = Math.ceil((new Date(a.next_inspection) - today) / 86400000); let textColor = diffDays < 0 ? 'red' : (diffDays <= 30 ? 'orange' : 'green');
                     if (diffDays <= 30) alertsHtml += `⚠️ Zařízení <b>${a.asset_name}</b> (Inv: ${a.inventory_number}) vyprší revize za ${diffDays} dní!<br>`;
                     
-                    // OPRAVA DATA: Použijeme toLocaleDateString pro správný český formát bez useknutí
                     let datumRevize = new Date(a.next_inspection).toLocaleDateString('cs-CZ');
                     revizeInfo = `<span style="color:${textColor};font-weight:bold;">${datumRevize}</span>${a.pdf_url ? ` <br><a href="${a.pdf_url}" target="_blank" style="font-size:0.8rem; color:var(--blue);">[Zobrazit PDF]</a>` : ''}`;
                 }
                 
-                // PŘIDÁNO: Tlačítko pro nahrání nové revize
                 let renewBtn = a.is_electrical ? `<button class="btn-small btn-blue" onclick="openRenewModal('${a.id}','${a.asset_name.replace(/'/g, "\\'")}')">Nová revize</button>` : '';
                 
                 activeHtml += `<tr><td>${a.inventory_number}</td><td>${a.asset_name}</td><td>${a.location}</td><td>${revizeInfo}</td><td style="display:flex; gap:5px; flex-wrap:wrap;">${renewBtn}<button class="btn-small btn-danger" onclick="openRetireModal('${a.id}','${a.asset_name.replace(/'/g, "\\'")}','${a.inventory_number}')">Vyřadit</button></td></tr>`;
@@ -2029,7 +2020,6 @@
         document.getElementById('retiredAssetsList').innerHTML = hasRetired ? retiredHtml + '</table>' : '<p style="color:#718096; font-style:italic;">Archiv je prázdný.</p>';
         const alertBox = document.getElementById('assetAlertBox'); if (alertsHtml) { alertBox.innerHTML = alertsHtml; alertBox.style.display = 'block'; } else alertBox.style.display = 'none';
 
-        // PŘIDÁNO: Dynamické generování okna pro obnovu revize, abys nemusel sahat do HTML
         if (!document.getElementById('renewAssetModal')) {
             document.body.insertAdjacentHTML('beforeend', `
                 <div id="renewAssetModal" class="modal-overlay">
@@ -2080,7 +2070,6 @@
         }
     }
 
-    // Funkce pro otevírání a zavírání nového okna pro revizi
     window.openRenewModal = function(id, name) { 
         document.getElementById('renewAssetId').value = id; 
         document.getElementById('renewAssetName').innerText = name; 
@@ -2107,6 +2096,7 @@
         data.forEach(a => csv += `${a.inventory_number};${a.asset_name};${a.location};${a.is_electrical?'ANO':'NE'};${a.next_inspection||'-'};${a.status};${a.retirement_reason||'-'};${a.retirement_method||'-'};${a.retired_by||'-'}\n`); 
         const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' })); a.download = `Soupis_Majetku_${new Date().toISOString().slice(0,10)}.csv`; a.click(); 
     };
+
     // ==========================================
     // --- 12. KONTROLA BANKY ---
     // ==========================================
@@ -2117,5 +2107,3 @@
     setInterval(() => { if (actualUserRole === 'zcp' || actualUserRole === 'superadmin') checkBankPayments(); }, 43200000);
 
 </script>
-</body>
-</html>
