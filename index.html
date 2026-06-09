@@ -119,6 +119,7 @@
         .modal-close { position: absolute; top: 15px; right: 15px; background: transparent; color: var(--secondary); border: none; font-size: 1.5rem; cursor: pointer; width: auto; padding: 0; }
 
         footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 2rem; }
+        footer p { margin-bottom: 0.3rem; }
 
         @media print {
             body * { visibility: hidden; }
@@ -792,7 +793,8 @@
 
 </main>
 <footer>
-    <p>&copy; Česká asociace prší z. s.</p>
+    <p><strong>Česká asociace v karetní hře prší z.s.</strong><br>
+    Sídlo: Kurzova 2222/16, Stodůlky, 155 00 Praha 5 | IČO: 29650186</p>
 </footer>
 <script>
     // ==========================================
@@ -981,7 +983,6 @@
     // --- 3. AUTENTIZACE A PŘÍSTUPY ---
     // ==========================================
     
-    // ZMĚNA CHIRURGA (Zvací odkazy): Pokud je v URL ?reg=XX, otevře se registrace a vybere se daný okres.
     window.addEventListener('load', () => { 
         const urlParams = new URLSearchParams(window.location.search);
         const regOkres = urlParams.get('reg');
@@ -1499,10 +1500,14 @@
     // --- 9. HLASOVÁNÍ, DEBATY A AUTO-UZAVŘENÍ ---
     // ==========================================
     
-    // Pomocná funkce pro generování PDF protokolu
+    // Generování PDF protokolu s plnou podporou češtiny (font Roboto)
     window.generatePDFProtocol = async function(vid, title, resultsData, isManual = false) {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
+        
+        // Inicializace českého fontu
+        doc.setFont("Roboto");
+
         const { data: profs } = await db.from('profiles').select('id, full_name, player_id_card'); 
         const pMap = {}; profs?.forEach(p => pMap[p.id] = { name: p.full_name, id: p.player_id_card });
 
@@ -1511,21 +1516,23 @@
         doc.rect(0, 0, 210, 40, 'F');
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(22);
+        doc.setFont("Roboto", "bold");
         doc.text("OFICIÁLNÍ PROTOKOL HLASOVÁNÍ", 105, 20, { align: 'center' });
         doc.setFontSize(12);
-        doc.text("Česká asociace prší z. s.", 105, 30, { align: 'center' });
+        doc.setFont("Roboto", "normal");
+        doc.text("Česká asociace v karetní hře prší z.s.", 105, 30, { align: 'center' });
 
         // Vodoznak
         doc.setTextColor(240, 240, 240);
         doc.setFontSize(60);
+        doc.setFont("Roboto", "bold");
         doc.text("ASOCIACE PRŠÍ", 105, 150, { align: 'center', angle: 45 });
 
         // Informace o hlasování
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
         doc.text(`Téma: ${title.replace('[OSTRÉ]', '')}`, 20, 55);
-        doc.setFont(undefined, 'normal');
+        doc.setFont("Roboto", "normal");
         doc.setFontSize(10);
         doc.text(`Datum uzavření: ${new Date().toLocaleString('cs-CZ')}`, 20, 62);
         doc.text(`Identifikátor (UID): ${vid}`, 20, 67);
@@ -1544,7 +1551,8 @@
             head: [['Jméno člena', 'ID hráče', 'Hlas', 'Kontrolní Hash', 'Čas']],
             body: tableRows,
             theme: 'striped',
-            headStyles: { fillStyle: [26, 54, 93] }
+            headStyles: { fillStyle: [26, 54, 93], font: 'Roboto' },
+            styles: { font: 'Roboto' } // NUTNÉ PRO ČEŠTINU V TABULCE
         });
 
         // Patička s verifikací
@@ -1557,7 +1565,6 @@
         if (isManual) {
             doc.save(`Protokol_${vid}.pdf`);
         } else {
-            // Nahrání na Supabase Storage
             const pdfBlob = doc.output('blob');
             const fileName = `protokol_${vid}_${Date.now()}.pdf`;
             const { error: uploadError } = await db.storage.from('revisions').upload(`protocols/${fileName}`, pdfBlob);
@@ -1668,19 +1675,16 @@
                 return; 
             }
 
-            // Odeslání potvrzovacího e-mailu hlasujícímu
             const { data: vInfo } = await db.from('votes').select('title').eq('id', vid).single();
             const personalMsg = `Dobrý den,\n\npotvrzujeme přijetí Vašeho hlasu v hlasování: "${vInfo.title.replace('[OSTRÉ]', '')}"\n\nOtázka č. ${qIdx + 1}\nVaše volba: ${val.toUpperCase()}\nKontrolní Hash: ${hash}\n\nDěkujeme za účast.`;
             await sendEmailNotification('Potvrzení odevzdání hlasu', personalMsg, myProfileData.email);
             
-            // Kontrola účasti pro automatické uzavření
             const { data: allVotes } = await db.from('voting_records').select('voter_id, choice, created_at, vote_hash').eq('vote_id', vid);
             const uniqueVoters = new Set(allVotes.map(r => r.voter_id)).size;
             
             if (uniqueVoters >= reqV && allVotes.length >= (reqV * totalQ)) { 
                 await db.from('votes').update({ is_closed: true }).eq('id', vid);
                 
-                // Odeslání konečných výsledků všem ZČ a generování PDF
                 const pdfLink = await generatePDFProtocol(vid, vInfo.title, allVotes);
                 let resultsSummary = `KONEČNÉ VÝSLEDKY HLASOVÁNÍ: ${vInfo.title.replace('[OSTRÉ]', '')}\n\n`;
                 const { data: voteData } = await db.from('votes').select('answers').eq('id', vid).single();
@@ -1934,6 +1938,65 @@
     window.deleteEmail = async function(e) { if(confirm('Skutečně smazat e-mail ' + e + '?')) { await db.from('newsletter_subscribers').delete().eq('email', e); loadNewsletterStats(); } };
     window.clearEmailDb = async function() { if(confirm('Vymazat kompletně celou databázi e-mailů?')) { await db.from('newsletter_subscribers').delete().neq('email', 'dummy_email'); loadNewsletterStats(); } };
     window.filterEmailList = function() { const term = document.getElementById('searchEmailInput').value.toLowerCase(); document.querySelectorAll('.email-list-item').forEach(i => i.style.display = i.innerText.toLowerCase().includes(term) ? 'flex' : 'none'); };
+
+    // NOVINKA: Chytrý import Excelu s kontrolou duplicit pro Newsletter
+    document.getElementById('uploadEmailsForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fileInput = document.getElementById('emailsFile');
+        if (!fileInput.files.length) return;
+        const file = fileInput.files[0];
+        
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const workbook = XLSX.read(new Uint8Array(arrayBuffer), {type: 'array'});
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            
+            let extractedEmails = new Set();
+            json.forEach(row => {
+                Object.values(row).forEach(val => {
+                    if (typeof val === 'string' && val.includes('@')) {
+                        extractedEmails.add(val.trim().toLowerCase());
+                    }
+                });
+            });
+
+            if (extractedEmails.size === 0) {
+                alert('V Excelu se nepodařilo najít žádné e-mailové adresy. Zkontrolujte, zda obsahují znak zavináče (@).');
+                return;
+            }
+
+            const { data: existingData } = await db.from('newsletter_subscribers').select('email');
+            const existingEmails = new Set((existingData || []).map(row => row.email.toLowerCase()));
+
+            let newEmails = [];
+            let duplicates = 0;
+
+            extractedEmails.forEach(email => {
+                if (existingEmails.has(email)) {
+                    duplicates++;
+                } else {
+                    newEmails.push({ email: email });
+                }
+            });
+
+            if (newEmails.length > 0) {
+                for (let i = 0; i < newEmails.length; i += 100) {
+                    await db.from('newsletter_subscribers').upsert(newEmails.slice(i, i + 100));
+                }
+                loadNewsletterStats();
+                alert(`Úspěšně nahráno ${newEmails.length} nových kontaktů.\nPřeskočeno ${duplicates} duplicit (již existují).`);
+            } else {
+                alert(`Nebyly nalezeny žádné nové kontakty.\nVšech ${duplicates} nalezených e-mailů z Excelu již v databázi existuje.`);
+            }
+            document.getElementById('uploadEmailsForm').reset();
+            
+        } catch (err) {
+            console.error(err);
+            alert('Chyba při zpracování Excelu: ' + err.message);
+        }
+    });
 
     document.getElementById('sendNewsletterForm')?.addEventListener('submit', async (e) => {
         e.preventDefault(); const subj = document.getElementById('nlSubject').value, msgText = document.getElementById('nlMessage').value, msgBox = document.getElementById('nlSendMsg'), btn = document.getElementById('sendNlBtn');
