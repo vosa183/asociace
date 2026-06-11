@@ -37,9 +37,10 @@
     <div class="card">
         <h2>Přehled účtu asociace</h2>
         <div class="warning-box">
-            <strong>⚠️ PRAVIDLO 60 SEKUND:</strong> Mezi každým načtením této stránky musíte počkat minimálně 1 minutu, jinak Fio banka spojení odřízne.
+            <strong>⚠️ PRAVIDLO 60 SEKUND:</strong> Fio banka přísně blokuje časté dotazy. 
+            Mezi každým načtením této stránky musíte <strong>počkat minimálně 1 minutu</strong>, jinak banka spojení odřízne.
         </div>
-        <div id="bankContent" class="loading">Ověřuji oprávnění a stahuji data přes zabezpečený tunel... ⏳</div>
+        <div id="bankContent" class="loading">Ověřuji oprávnění a stahuji data přes Google tunel... ⏳</div>
     </div>
 </main>
 
@@ -68,7 +69,6 @@
         fetchAndRenderBankData(settings.fio_token);
     });
 
-    // Funkce pro správné lokální české datum (vyhne se UTC posunu)
     function getLocalDateString(d) {
         var year = d.getFullYear();
         var month = ('0' + (d.getMonth() + 1)).slice(-2);
@@ -79,10 +79,13 @@
     async function fetchAndRenderBankData(token) {
         let diagnostika = "START DIAGNOSTIKY\n=================\n";
         try {
+            
+            // Vložená URL z Google Apps Scriptu
+            var googleProxyUrl = "https://script.google.com/macros/s/AKfycbwYuOc7afBuHlHqODVSzGSNg6MG95iJ9gGaZ2kuXsf1g9zzLo5BGjYS1dHvj1paarqu/exec";
+            
             var cleanToken = token.trim(); 
-            diagnostika += "1. Token vyčištěn (Délka: " + cleanToken.length + " znaků)\n";
+            diagnostika += "1. Token připraven.\n";
 
-            // Opravený výpočet data pomocí lokálního času
             var toDate = new Date();
             var fromDate = new Date();
             fromDate.setDate(toDate.getDate() - 14);
@@ -91,37 +94,24 @@
             var tStr = getLocalDateString(toDate);
             diagnostika += "2. Časové okno (Lokální CZ čas): " + fStr + " až " + tStr + "\n";
 
-            var fioUrl = 'https://www.fio.cz/ib_api/rest/periods/' + cleanToken + '/' + fStr + '/' + tStr + '/transactions.json';
-            
-            // Měníme typ proxy volání - obalujeme to do JSONP formátu, to by banku mohlo zmást méně
-            var proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(fioUrl);
-            diagnostika += "3. Volám přes JSONP Proxy tunel...\n";
+            var fullUrl = googleProxyUrl + "?token=" + encodeURIComponent(cleanToken) + "&from=" + encodeURIComponent(fStr) + "&to=" + encodeURIComponent(tStr);
+            diagnostika += "3. Volám vlastní Google Apps Script tunel...\n";
 
-            var response = await fetch(proxyUrl);
-            diagnostika += "4. Server odpověděl. HTTP Status: " + response.status + " " + response.statusText + "\n";
+            var response = await fetch(fullUrl);
+            diagnostika += "4. Google server odpověděl. HTTP Status: " + response.status + " " + response.statusText + "\n";
             
-            var proxyData = await response.json();
+            var data = await response.json();
             
-            if (!proxyData.contents) {
-                throw new Error("Proxy tunel vrátil prázdný obsah. Banka nás pravděpodobně blokuje.");
-            }
-            
-            var rawText = proxyData.contents;
-            diagnostika += "5. Surová data z banky obdržena.\n";
-
-            var data;
-            try {
-                data = JSON.parse(rawText);
-            } catch(e) {
-                diagnostika += "OBSAH CHYBY:\n" + rawText.substring(0, 500) + "\n";
-                throw new Error("Banka vrátila chybovou stránku místo dat.");
+            if (data.error) {
+                diagnostika += "5. Chyba vrácena z Google tunelu: " + data.error + "\n";
+                throw new Error("Banka (nebo klíč) vrátila chybu: " + data.error);
             }
 
-            if (!data || !data.accountStatement) {
-                throw new Error("Objekt accountStatement nenalezen.");
+            if (!data.accountStatement) {
+                throw new Error("Objekt accountStatement chybí v datech.");
             }
 
-            diagnostika += "6. Data platná, vykresluji HTML tabulku...\n";
+            diagnostika += "5. Data jsou platná, vykresluji...\n";
             var info = data.accountStatement.info;
             var trans = data.accountStatement.transactionList.transaction || [];
 
