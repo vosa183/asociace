@@ -799,6 +799,7 @@
     Sídlo: Kurzova 2222/16, Stodůlky, 155 00 Praha 5 | IČO: 29650186</p>
 </footer>
 <script>
+<script>
     // ==========================================
     // --- 1. INICIALIZACE A GLOBÁLNÍ PROMĚNNÉ ---
     // ==========================================
@@ -1230,7 +1231,6 @@
         });
     }
 
-    // NOVINKA: "Drtička" na správný formát QR platby (SPAYD)
     window.toggleQR = function(cid, fee, vs) { 
         const c = document.getElementById(cid), i = document.getElementById('img_' + cid); 
         if (c.style.display === 'block') {
@@ -1905,91 +1905,6 @@
         }
     };
 
-    // Funkce pro načítání a online správu vypsaných turnajů
-    async function loadAdminTournaments() {
-        if (!['zc', 'zcp', 'superadmin'].includes(simulatedRole)) return;
-        const { data: tours, error } = await db.from('tournaments').select('*').order('event_date', { ascending: false });
-        
-        const linkEl = document.querySelector('a[href="pozvanky.html"]');
-        if (!linkEl) return;
-        
-        let parentDiv = linkEl.parentNode;
-        let existingList = document.getElementById('dynamicTournamentsList');
-        if (!existingList) {
-            existingList = document.createElement('div');
-            existingList.id = 'dynamicTournamentsList';
-            existingList.style.marginTop = '20px';
-            existingList.style.textAlign = 'left';
-            existingList.style.background = 'white';
-            existingList.style.padding = '15px';
-            existingList.style.borderRadius = '8px';
-            existingList.style.border = '1px solid #cbd5e0';
-            parentDiv.appendChild(existingList);
-        }
-        
-        if (error || !tours || tours.length === 0) {
-            existingList.innerHTML = '<h4>Aktuální vypsané turnaje:</h4><p style="color:#718096;font-style:italic;margin-top:5px;">Žádné vypsané turnaje v DB.</p>';
-            return;
-        }
-        
-        let html = '<h4 style="color:var(--primary);border-bottom:1px solid #cbd5e0;padding-bottom:5px;">📋 Správa aktivních turnajů na webu:</h4>';
-        html += '<table class="stats-table" style="margin-top:10px;"><tr><th>Turnaj</th><th>Akce</th></tr>';
-        tours.forEach(t => {
-            html += `<tr>
-                <td>
-                    <strong style="color:var(--primary); font-size:0.95rem;">${t.title}</strong><br>
-                    <span style="font-size:0.8rem;color:#4a5568;">📅 ${formatDateTime(t.event_date)} | 💰 ${t.fee} Kč | 👥 Kapacita: ${t.capacity}</span>
-                </td>
-                <td>
-                    <div style="display:flex; gap:5px;">
-                        <button class="btn-small btn-blue" onclick="editTournamentInline('${t.id}', '${t.title.replace(/'/g, "\\'")}', ${t.capacity}, ${t.fee})">✏️ Upravit</button>
-                        <button class="btn-small btn-danger" onclick="deleteTournament('${t.id}', '${t.title.replace(/'/g, "\\'")}')">❌ Smazat</button>
-                    </div>
-                </td>
-            </tr>`;
-        });
-        html += '</table>';
-        existingList.innerHTML = html;
-    }
-
-    window.editTournamentInline = async function(id, currentTitle, currentCap, currentFee) {
-        const newTitle = prompt("Zadejte nový oficiální název turnaje:", currentTitle);
-        if (newTitle === null) return;
-        
-        const newCap = prompt("Zadejte novou maximální kapacitu hráčů:", currentCap);
-        if (newCap === null) return;
-        
-        const newFee = prompt("Zadejte nové zápisné (Kč):", currentFee);
-        if (newFee === null) return;
-        
-        const { error } = await db.from('tournaments').update({
-            title: newTitle.trim(),
-            capacity: parseInt(newCap) || currentCap,
-            fee: parseInt(newFee) || currentFee
-        }).eq('id', id);
-        
-        if (!error) {
-            alert('Turnaj byl úspěšně upraven a aktualizován na webu.');
-            logAction('Úprava turnaje', `Upraven turnaj: ${newTitle}`);
-            loadAdminTournaments();
-        } else {
-            alert('Chyba při úpravě turnaje: ' + error.message);
-        }
-    };
-
-    window.deleteTournament = async function(id, title) {
-        if (confirm(`Opravdu chcete turnaj "${title}" kompletně vymazat z webu i z databáze?`)) {
-            const { error } = await db.from('tournaments').delete().eq('id', id);
-            if (!error) {
-                alert('Turnaj byl permanentně smazán.');
-                logAction('Smazání turnaje', `Smazán turnaj: ${title}`);
-                loadAdminTournaments();
-            } else {
-                alert('Chyba při mazání: ' + error.message);
-            }
-        }
-    };
-
     async function loadAdminData() {
         const { count } = await db.from('profiles').select('*', { count: 'exact', head: true });
         if(document.getElementById('totalUsersCount')) document.getElementById('totalUsersCount').innerText = count || 0;
@@ -2265,6 +2180,17 @@
         if (!globalFioToken) return; 
         console.log("Kontrola Fio banky je aktivní (Simulační režim pro napojení)."); 
     }
-    setInterval(() => { if (actualUserRole === 'zcp' || actualUserRole === 'superadmin') checkBankPayments(); }, 43200000);
+    
+    // Spuštění přesně každou celou hodinu nezávisle na tom, kdo je přihlášený
+    function scheduleBankCheck() {
+        const now = new Date();
+        const msToNextHour = (60 - now.getMinutes()) * 60000 - (now.getSeconds() * 1000) - now.getMilliseconds();
+        
+        setTimeout(() => {
+            checkBankPayments();
+            setInterval(checkBankPayments, 3600000); // Pak už přesně každou hodinu
+        }, msToNextHour);
+    }
+    scheduleBankCheck();
 
 </script>
