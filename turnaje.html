@@ -8,7 +8,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     
-    <title>Vypsané turnaje | Česká asociace v karetní hře prší</title>
+    <title>Vypsané turnaje | Česká asociace prší z. s.</title>
     <meta name="description" content="Oficiální kalendář vypsaných turnajů České asociace v karetní hře prší z.s. Přihlaste se na nadcházející turnaje a změřte síly s nejlepšími hráči!">
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -55,7 +55,7 @@
         .tournament-card { background: var(--white); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid var(--gray); display: flex; flex-direction: column; transition: transform 0.2s, box-shadow 0.2s; }
         .tournament-card:hover { transform: translateY(-4px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
         
-        .poster-container { width: 100%; height: 220px; background: linear-gradient(135deg, #1a365d, #2a4365); relative; overflow: hidden; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; text-align: center; padding: 1rem; }
+        .poster-container { width: 100%; height: 220px; background: linear-gradient(135deg, #1a365d, #2a4365); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; text-align: center; padding: 1rem; }
         .poster-container img { width: 100%; height: 100%; object-fit: cover; }
         .poster-placeholder { text-transform: uppercase; font-size: 1.2rem; letter-spacing: 1px; color: var(--gold); text-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
 
@@ -107,14 +107,12 @@
         <p>Zde najdete přehled všech oficiálně vypsaných turnajů s možností online registrace.</p>
     </div>
 
-    <!-- Uživatelská lišta indikující stav přihlášení -->
     <div id="userStatusBar" class="user-status-bar">
         <div class="user-info">
             🔍 Ověřuji stav přihlášení...
         </div>
     </div>
 
-    <!-- Výpis turnajů -->
     <div id="loadingText" class="loading-text">Načítám aktuální turnaje z cloudu...</div>
     <div id="tournamentsGrid" class="tournaments-grid" style="display: none;"></div>
 </main>
@@ -236,7 +234,7 @@
     // --- 3. NAČTENÍ A VYKRESLENÍ TURNAJŮ ---
     // ==========================================
     async function loadAndRenderTournaments() {
-        const { data: tours, error } = await db.from('tournaments').select('*').order('event_date', { ascending: true });
+        const { data: rawTours, error } = await db.from('tournaments').select('*').order('event_date', { ascending: true });
         
         const loadingText = document.getElementById('loadingText');
         const grid = document.getElementById('tournamentsGrid');
@@ -246,7 +244,18 @@
             return;
         }
 
-        if (!tours || tours.length === 0) {
+        // -----------------------------------------------------------------
+        // NOVÉ: Filtr pro odfiltrování starých (proběhlých) turnajů
+        // -----------------------------------------------------------------
+        const now = new Date();
+        now.setHours(0, 0, 0, 0); // Ořízneme čas na půlnoc, aby dnešní turnaje ještě zůstaly vidět
+
+        const tours = (rawTours || []).filter(t => {
+            if (!t.event_date) return false; // Pokud turnaj nemá datum, nezobrazíme ho
+            return new Date(t.event_date) >= now; // Povolíme pouze dnešní a budoucí turnaje
+        });
+
+        if (tours.length === 0) {
             loadingText.innerHTML = '<p style="color:#718096; font-style:italic;">Aktuálně nejsou vypsané žádné nadcházející turnaje.</p>';
             return;
         }
@@ -296,7 +305,7 @@
                     <select id="voter_select_${t.id}">
                         ${optionsHtml}
                     </select>
-                    <button class="${buttonClass}" onclick="processRegistration('${t.id}', '${t.title.replace(/'/g, "\'")}')">${buttonText}</button>
+                    <button class="${buttonClass}" onclick="processRegistration('${t.id}', '${t.title.replace(/'/g, "\\'")}')">${buttonText}</button>
                 `;
             }
 
@@ -339,7 +348,7 @@
     }
 
     // ==========================================
-    // --- 4. ZPRACOVÁNÍ REGISTRACE (OPRAVA CHYBY) ---
+    // --- 4. ZPRACOVÁNÍ REGISTRACE ---
     // ==========================================
     window.processRegistration = async function(tournamentId, tournamentTitle) {
         if (!loggedInUser || !myProfileData) {
@@ -357,20 +366,18 @@
             if (famMember) selectedPlayerName = famMember.full_name;
         }
 
-        // 1. KONTROLA DUPLICIT (Předchází tichému pádu a chybám v DB)
+        // 1. KONTROLA DUPLICIT 
         const isAlreadyRegistered = allRegistrations.some(r => 
             r.tournament_id === tournamentId && 
             r.player_id_card === selectedPlayerCard
         );
 
         if (isAlreadyRegistered) {
-            alert(`Hráč ${selectedPlayerName} už je na turnaj "${tournamentTitle}" bezpečně zaregistrován!
-Průkaz k platbě najde ve svém profilu.`);
+            alert(`Hráč ${selectedPlayerName} už je na turnaj "${tournamentTitle}" bezpečně zaregistrován!\nPrůkaz k platbě najde ve svém profilu.`);
             return;
         }
 
         // 2. ODESLÁNÍ DO DATABÁZE SUPABASE
-        // Zde chirurgicky předáváme registered_by (ID přihlášeného usera), tournament_id a konkrétní player_id_card
         const { error } = await db.from('registrations').insert({
             tournament_id: tournamentId,
             player_id_card: selectedPlayerCard,
@@ -381,9 +388,7 @@ Průkaz k platbě najde ve svém profilu.`);
         if (error) {
             alert('Chyba při komunikaci s databází: ' + error.message);
         } else {
-            alert(`Skvělé! Hráč ${selectedPlayerName} byl úspěšně zaregistrován na turnaj "${tournamentTitle}".
-
-Podklady k platbě a QR kód byly bleskově vygenerovány a najdete je po návratu v sekci "Můj Profil -> Moje přihlášky". Těšíme se u karetního stolu! ♠️`);
+            alert(`Skvělé! Hráč ${selectedPlayerName} byl úspěšně zaregistrován na turnaj "${tournamentTitle}".\n\nPodklady k platbě a QR kód byly bleskově vygenerovány a najdete je po návratu v sekci "Můj Profil -> Moje přihlášky". Těšíme se u karetního stolu! ♠️`);
             
             // Znovu načteme celou stránku, aby se aktualizoval kapacitní ukazatel
             window.location.reload();
