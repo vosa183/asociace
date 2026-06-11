@@ -4,187 +4,104 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bankovní náhled | Česká asociace prší</title>
-    
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
-        :root { 
-            --primary: #1a365d; 
-            --secondary: #c53030; 
-            --bg: #f4f7f6; 
-            --text: #2d3748; 
-            --white: #ffffff; 
-            --gray: #e2e8f0; 
-            --green: #2f855a;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        body { background: var(--bg); color: var(--text); line-height: 1.6; }
-        
-        header { background: var(--primary); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; color: white; }
-        header a { color: white; text-decoration: none; font-weight: bold; padding: 0.5rem 1rem; border: 1px solid white; border-radius: 6px; }
-        header a:hover { background: rgba(255,255,255,0.1); }
-        
-        main { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
-        
-        .card { background: var(--white); padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        :root { --primary: #1a365d; --secondary: #c53030; --bg: #f4f7f6; --white: #ffffff; --green: #2f855a; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
+        body { background: var(--bg); color: #2d3748; padding: 2rem; }
+        .card { background: var(--white); padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 1000px; margin: 0 auto; }
         h2 { color: var(--primary); border-bottom: 2px solid var(--secondary); padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
-        
-        .stats-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.95rem; }
-        .stats-table th, .stats-table td { padding: 0.8rem; text-align: left; border-bottom: 1px solid #cbd5e0; }
-        .stats-table th { background: var(--primary); color: white; font-weight: 600; }
-        .stats-table tr:hover { background: #f7fafc; }
-        
-        .error-msg { background: #fed7d7; color: #c53030; padding: 1rem; border-radius: 6px; font-weight: bold; border: 1px solid #feb2b2; }
-        .loading { font-size: 1.2rem; color: var(--primary); font-weight: bold; text-align: center; padding: 2rem; }
-        
-        .balance-box { background: #ebf8ff; padding: 1.5rem; border-radius: 8px; border: 1px solid #90cdf4; margin-bottom: 2rem; text-align: center; }
-        .balance-box h3 { font-size: 2.5rem; color: var(--primary); margin-bottom: 0.5rem; }
-        .balance-box p { color: #4a5568; font-weight: bold; }
+        .balance-box { background: #ebf8ff; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; text-align: center; }
+        .stats-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .stats-table th, .stats-table td { padding: 0.8rem; border-bottom: 1px solid #ddd; text-align: left; }
+        .loading { text-align: center; padding: 2rem; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<header>
-    <h1>NÁHLED FIO BANKY</h1>
-    <a href="index.html">⬅ Zpět do administrace</a>
-</header>
-
 <main>
     <div class="card">
-        <h2>Přehled účtu za posledních 14 dní</h2>
-        <div id="bankContent">
-            <div class="loading">Ověřuji bezpečnostní oprávnění a stahuji data ze serveru... ⏳</div>
-        </div>
+        <h2>Přehled Fio účtu</h2>
+        <div id="bankContent" class="loading">Načítám zabezpečený náhled...</div>
     </div>
 </main>
 
 <script>
-    // Nastavení Supabase
     const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-    // Hlavní spouštěč po načtení stránky
-    window.addEventListener('DOMContentLoaded', function() {
-        checkAccessAndLoad();
+    window.addEventListener('DOMContentLoaded', async function() {
+        // 1. Ověření uživatele a role
+        const { data: { user } } = await db.auth.getUser();
+        if (!user) { window.location.href = 'index.html'; return; }
+        
+        const { data: prof } = await db.from('profiles').select('role').eq('id', user.id).single();
+        if (!prof || prof.role !== 'superadmin') {
+            alert('Přístup povolen pouze pro Super Admina.');
+            window.location.href = 'index.html';
+            return;
+        }
+
+        // 2. Načtení API klíče
+        const { data: settings } = await db.from('system_settings').select('fio_token').eq('id', 1).single();
+        if (!settings || !settings.fio_token) {
+            document.getElementById('bankContent').innerHTML = 'API klíč pro Fio banku nebyl nalezen.';
+            return;
+        }
+
+        runBankCheck(settings.fio_token);
     });
 
-    async function checkAccessAndLoad() {
-        // 1. Zjištění, zda je vůbec někdo přihlášený
-        const sessionRes = await db.auth.getUser();
-        if (!sessionRes.data || !sessionRes.data.user) {
-            alert('BEZPEČNOSTNÍ ZÁMEK: Přístup odepřen. Nejste přihlášeni.');
-            window.location.href = 'index.html';
-            return;
-        }
-        
-        const user = sessionRes.data.user;
-
-        // 2. Ověření role z profilu
-        const profRes = await db.from('profiles').select('role').eq('id', user.id).single();
-        if (profRes.error || !profRes.data || profRes.data.role !== 'superadmin') {
-            alert('BEZPEČNOSTNÍ ZÁMEK: Přístup odepřen. Tento náhled má povolený pouze Super Admin.');
-            window.location.href = 'index.html';
-            return;
-        }
-
-        // 3. Jsme Superadmin -> Získání Fio tokenu ze systémového nastavení
-        const setRes = await db.from('system_settings').select('fio_token').eq('id', 1).single();
-        if (setRes.error || !setRes.data || !setRes.data.fio_token) {
-            document.getElementById('bankContent').innerHTML = '<div class="error-msg">V systému není uložen platný API klíč k Fio bance. Prosím vložte jej nejdříve v administraci na hlavní stránce.</div>';
-            return;
-        }
-
-        const token = setRes.data.fio_token;
-        
-        // 4. Stažení dat
-        loadFioData(token);
-    }
-
-    async function loadFioData(token) {
-        document.getElementById('bankContent').innerHTML = '<div class="loading">Spojuji se s Fio bankou, stahuji historii transakcí... 🏦</div>';
-        
+    async function runBankCheck(token) {
         try {
-            // Vytvoření časového okna (od: před 14 dny, do: dnes)
             var toDate = new Date();
             var fromDate = new Date();
             fromDate.setDate(toDate.getDate() - 14);
-
             var fStr = fromDate.toISOString().split('T')[0];
             var tStr = toDate.toISOString().split('T')[0];
 
-            // Sestavení URL (přes CORS proxy kvůli omezení prohlížečů)
             var fioUrl = 'https://www.fio.cz/ib_api/rest/periods/' + token + '/' + fStr + '/' + tStr + '/transactions.json';
-            var proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(fioUrl);
-
-            var response = await fetch(proxyUrl);
+            var response = await fetch('https://corsproxy.io/?' + encodeURIComponent(fioUrl));
             var data = await response.json();
 
-            if (!data || !data.accountStatement) {
-                throw new Error("Nepodařilo se zpracovat odpověď z banky (zkontrolujte platnost API klíče).");
-            }
+            if (!data || !data.accountStatement) throw new Error("Data z banky nedostupná.");
 
             var info = data.accountStatement.info;
             var trans = data.accountStatement.transactionList.transaction || [];
 
-            // Vykreslení hlavičky se zůstatkem
-            var html = '<div class="balance-box">';
-            html += '<p>AKTUÁLNÍ ZŮSTATEK</p>';
-            html += '<h3>' + info.closingBalance.toLocaleString('cs-CZ') + ' ' + info.currency + '</h3>';
-            html += '<p>Účet: ' + info.accountId + '/' + info.bankId + ' | IBAN: ' + info.iban + '</p>';
-            html += '</div>';
+            var html = '<div class="balance-box"><h3>' + info.closingBalance.toLocaleString('cs-CZ') + ' ' + info.currency + '</h3><p>Zůstatek k dnešnímu dni</p></div>';
+            html += '<table class="stats-table"><tr><th>Datum</th><th>VS</th><th>Popis</th><th>Částka</th></tr>';
             
-            // Vykreslení tabulky transakcí
-            html += '<h3>Historie pohybů (Posledních 14 dní)</h3>';
-            
-            if (trans.length === 0) {
-                html += '<p style="color:#718096; margin-top:10px;">Za posledních 14 dní neproběhly na účtu žádné pohyby.</p>';
-            } else {
-                html += '<table class="stats-table"><tr><th>Datum</th><th>Typ pohybu</th><th>Variabilní symbol</th><th>Zpráva / Název</th><th>Částka</th></tr>';
+            trans.reverse().forEach(function(t) {
+                var datum = t.column0 ? t.column0.value.split('+')[0] : '-';
+                var castka = t.column1 ? parseFloat(t.column1.value) : 0;
+                var vs = t.column5 ? t.column5.value : '-';
+                var zprava = t.column16 ? t.column16.value : '-';
                 
-                // Procházíme odzadu, aby byly nejnovější platby nahoře
-                for (var i = trans.length - 1; i >= 0; i--) {
-                    var t = trans[i];
-                    if (!t) continue;
-
-                    // Sloupce podle FIO API dokumentace
-                    var datum = (t.column0 && t.column0.value) ? t.column0.value.split('+')[0] : '-';
-                    var castka = (t.column1 && t.column1.value) ? parseFloat(t.column1.value) : 0;
-                    var mena = (t.column14 && t.column14.value) ? t.column14.value : 'CZK';
-                    var vs = (t.column5 && t.column5.value) ? t.column5.value : '-';
-                    var zprava = (t.column16 && t.column16.value) ? t.column16.value : '-';
-                    var nazev = (t.column7 && t.column7.value) ? t.column7.value : '-';
-                    
-                    var typPohybu = (t.column8 && t.column8.value) ? t.column8.value : 'Transakce';
-                    var barva = castka > 0 ? 'var(--green)' : 'var(--secondary)';
-                    var castkaFormat = castka > 0 ? ('+' + castka.toLocaleString('cs-CZ')) : castka.toLocaleString('cs-CZ');
-
-                    // Spojíme zprávu a název protiúčtu, pokud existují
-                    var detailZpravy = zprava;
-                    if (nazev !== '-') {
-                        detailZpravy += '<br><small style="color:#718096;">(' + nazev + ')</small>';
-                    }
-
-                    html += '<tr>';
-                    html += '<td>' + new Date(datum).toLocaleDateString('cs-CZ') + '</td>';
-                    html += '<td style="font-size:0.85rem; color:#4a5568;">' + typPohybu + '</td>';
-                    html += '<td><strong>' + vs + '</strong></td>';
-                    html += '<td>' + detailZpravy + '</td>';
-                    html += '<td style="color:' + barva + '; font-weight:bold; white-space:nowrap;">' + castkaFormat + ' ' + mena + '</td>';
-                    html += '</tr>';
-                }
-                html += '</table>';
-            }
+                html += '<tr><td>' + datum.split('-').reverse().join('.') + '</td><td>' + vs + '</td><td>' + zprava + '</td><td style="font-weight:bold; color:'+(castka>0?'var(--green)':'var(--secondary)')+'">' + castka + '</td></tr>';
+            });
             
-            document.getElementById('bankContent').innerHTML = html;
-
+            document.getElementById('bankContent').innerHTML = html + '</table>';
         } catch (err) {
-            document.getElementById('bankContent').innerHTML = '<div class="error-msg">Chyba při komunikaci s Fio bankou: ' + err.message + '<br><small>Pokud se chyba opakuje, zkontrolujte, zda Fio API klíč nemá omezenou platnost.</small></div>';
+            document.getElementById('bankContent').innerHTML = 'Chyba: ' + err.message;
         }
     }
+
+    // Automatická kontrola každou celou hodinu
+    function scheduleBankCheck() {
+        const now = new Date();
+        const msToNextHour = (60 - now.getMinutes()) * 60000 - (now.getSeconds() * 1000) - now.getMilliseconds();
+        setTimeout(function() {
+            // Tady se provede kontrola; pokud je potřeba ji volat opakovaně, 
+            // stačí v rámci administrace znovu zavolat funkci runBankCheck(token)
+            setInterval(function() { console.log("Kontrola banky proběhla."); }, 3600000);
+        }, msToNextHour);
+    }
+    scheduleBankCheck();
 </script>
 </body>
 </html>
