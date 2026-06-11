@@ -582,8 +582,8 @@
                 <h4 style="color: #2c5282; border-top: 1px solid #90cdf4; padding-top: 1.5rem;">Globální nastavení Banky</h4>
                 <div class="grid-2" style="gap:1rem;">
                     <div>
-                        <label>Bankovní účet asociace</label>
-                        <input type="text" id="bankAccountInput" placeholder="Číslo účtu" style="margin-bottom:0;">
+                        <label>Bankovní účet asociace (ve formátu IBAN)</label>
+                        <input type="text" id="bankAccountInput" placeholder="Např. CZ12345678901234567890" style="margin-bottom:0;">
                     </div>
                     <div>
                         <label>Klíč pro banku (Fio API)</label>
@@ -1239,6 +1239,12 @@
             const cleanAccount = globalBankAccount.replace(/\s+/g, '');
             const cleanVS = String(vs).replace(/\D/g, '').substring(0, 10);
             const cleanFee = parseFloat(fee).toFixed(2);
+            
+            if (!cleanAccount.toUpperCase().startsWith('CZ')) {
+                alert('CHYBA FAKTURACE: Bankovní účet asociace ("' + cleanAccount + '") není ve správném formátu IBAN. Požádejte předsedu o nápravu v Administraci systému.');
+                return;
+            }
+            
             i.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`SPD*1.0*ACC:${cleanAccount}*AM:${cleanFee}*CC:CZK*X-VS:${cleanVS}`)}`; 
             c.style.display = 'block'; 
         } 
@@ -2262,5 +2268,3 @@
     setInterval(() => { if (actualUserRole === 'zcp' || actualUserRole === 'superadmin') checkBankPayments(); }, 43200000);
 
 </script>
-</body>
-</html>
