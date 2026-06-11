@@ -26,6 +26,7 @@
         /* Diagnostická konzole */
         .debug-log { background: #1a202c; color: #48bb78; padding: 1.5rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin-top: 1rem; text-align: left; border: 2px solid #4a5568; }
         .debug-log span { color: #f6e05e; }
+        .warning-box { background: #fffbeb; border: 1px solid #f6e05e; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; color: #b7791f; text-align: center; }
     </style>
 </head>
 <body>
@@ -38,6 +39,10 @@
 <main>
     <div class="card">
         <h2>Přehled účtu asociace</h2>
+        <div class="warning-box">
+            <strong>⚠️ PRAVIDLO 60 SEKUND:</strong> Fio banka přísně blokuje časté dotazy. 
+            Mezi každým načtením této stránky musíte <strong>počkat minimálně 1 minutu</strong>, jinak banka spojení odřízne (Chyba 408/429).
+        </div>
         <div id="bankContent" class="loading">Ověřuji oprávnění a stahuji data přes zabezpečený tunel... ⏳</div>
     </div>
 </main>
@@ -70,7 +75,6 @@
     async function fetchAndRenderBankData(token) {
         let diagnostika = "START DIAGNOSTIKY\n=================\n";
         try {
-            // 1. Čištění klíče a příprava datumů
             var cleanToken = token.trim(); 
             diagnostika += "1. Token vyčištěn (Délka: " + cleanToken.length + " znaků)\n";
 
@@ -81,37 +85,37 @@
             var tStr = toDate.toISOString().split('T')[0];
             diagnostika += "2. Časové okno: " + fStr + " až " + tStr + "\n";
 
-            // 2. Příprava URL
             var fioUrl = 'https://www.fio.cz/ib_api/rest/periods/' + cleanToken + '/' + fStr + '/' + tStr + '/transactions.json';
-            var proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(fioUrl);
-            diagnostika += "3. Volám přes Proxy tunel...\n";
+            
+            // ZMĚNA: Používáme jiný proxy tunel (CodeTabs)
+            var proxyUrl = 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(fioUrl);
+            diagnostika += "3. Volám přes nový Proxy tunel (CodeTabs)...\n";
 
-            // 3. Odeslání požadavku
             var response = await fetch(proxyUrl);
             diagnostika += "4. Server odpověděl. HTTP Status: <span>" + response.status + " " + response.statusText + "</span>\n";
             
-            // 4. Přečtení RAW odpovědi jako čistý text pro analýzu (ne hned JSON!)
             var rawText = await response.text();
             diagnostika += "5. Surová odpověď serveru (RAW TEXT):\n----------------------------------------\n" + rawText.substring(0, 800) + (rawText.length > 800 ? "\n...[text zkrácen]..." : "") + "\n----------------------------------------\n";
 
             if (!response.ok) {
+                if (response.status === 409 || response.status === 429) {
+                    throw new Error("Banka zahlásila: PŘÍLIŠ MNOHO DOTAZŮ. Porušili jste pravidlo 60 sekund. Počkejte minutu a zkuste to znovu.");
+                }
                 throw new Error("HTTP požadavek selhal se statusem " + response.status);
             }
 
-            // 5. Pokus o převod na JSON (zde to často padá, pokud přijde chyba v HTML)
             var data;
             try {
                 data = JSON.parse(rawText);
                 diagnostika += "6. Povedlo se rozkódovat JSON formát.\n";
             } catch(e) {
-                throw new Error("Server neposlal JSON data, pravděpodobně blokace proxy nebo Fio banky.");
+                throw new Error("Server neposlal JSON data. (Možná nás banka opět zablokovala).");
             }
 
             if (!data || !data.accountStatement) {
-                throw new Error("JSON sice dorazil, ale chybí v něm objekt 'accountStatement'. Banka posílá neznámou strukturu.");
+                throw new Error("JSON sice dorazil, ale chybí v něm objekt 'accountStatement'.");
             }
 
-            // 6. Zpracování úspěšných dat a vykreslení tabulky
             diagnostika += "7. Data platná, vykresluji HTML tabulku...\n";
             var info = data.accountStatement.info;
             var trans = data.accountStatement.transactionList.transaction || [];
@@ -137,10 +141,9 @@
             document.getElementById('bankContent').innerHTML = html;
 
         } catch (err) {
-            // Pokud cokoliv z výše uvedeného selže, vykreslí se tato drsná chybová obrazovka
             diagnostika += "\n>>> KRITICKÁ CHYBA: " + err.message + "\n";
             
-            var errorHtml = '<div class="error-msg">❌ Aplikaci se nepodařilo přečíst data z banky. Podívejte se do logu níže a pošlete ho administrátorovi.</div>';
+            var errorHtml = '<div class="error-msg">❌ Aplikaci se nepodařilo přečíst data z banky. Podívejte se do logu níže.</div>';
             errorHtml += '<div class="debug-log">' + diagnostika + '</div>';
             
             document.getElementById('bankContent').innerHTML = errorHtml;
