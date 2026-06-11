@@ -40,7 +40,7 @@
             <strong>⚠️ PRAVIDLO 60 SEKUND:</strong> Fio banka přísně blokuje časté dotazy. 
             Mezi každým načtením této stránky musíte <strong>počkat minimálně 1 minutu</strong>, jinak banka spojení odřízne.
         </div>
-        <div id="bankContent" class="loading">Ověřuji oprávnění a stahuji data přes Google tunel... ⏳</div>
+        <div id="bankContent" class="loading">Spojuji se přes lokální server... ⏳</div>
     </div>
 </main>
 
@@ -79,10 +79,6 @@
     async function fetchAndRenderBankData(token) {
         let diagnostika = "START DIAGNOSTIKY\n=================\n";
         try {
-            
-            // Vložená URL z Google Apps Scriptu
-            var googleProxyUrl = "https://script.google.com/macros/s/AKfycbwYuOc7afBuHlHqODVSzGSNg6MG95iJ9gGaZ2kuXsf1g9zzLo5BGjYS1dHvj1paarqu/exec";
-            
             var cleanToken = token.trim(); 
             diagnostika += "1. Token připraven.\n";
 
@@ -94,24 +90,32 @@
             var tStr = getLocalDateString(toDate);
             diagnostika += "2. Časové okno (Lokální CZ čas): " + fStr + " až " + tStr + "\n";
 
-            var fullUrl = googleProxyUrl + "?token=" + encodeURIComponent(cleanToken) + "&from=" + encodeURIComponent(fStr) + "&to=" + encodeURIComponent(tStr);
-            diagnostika += "3. Volám vlastní Google Apps Script tunel...\n";
+            // Voláme náš vlastní soubor fio.php na tvém serveru!
+            var myProxyUrl = "fio.php?token=" + encodeURIComponent(cleanToken) + "&from=" + encodeURIComponent(fStr) + "&to=" + encodeURIComponent(tStr);
+            diagnostika += "3. Volám tvůj lokální soubor (fio.php)...\n";
 
-            var response = await fetch(fullUrl);
-            diagnostika += "4. Google server odpověděl. HTTP Status: " + response.status + " " + response.statusText + "\n";
+            var response = await fetch(myProxyUrl);
+            diagnostika += "4. PHP skript odpověděl. HTTP Status: " + response.status + " " + response.statusText + "\n";
             
-            var data = await response.json();
-            
+            var rawText = await response.text();
+            diagnostika += "5. Surová data přijata. Náhled:\n" + rawText.substring(0, 200) + "...\n";
+
+            var data;
+            try {
+                data = JSON.parse(rawText);
+            } catch(e) {
+                throw new Error("Ze souboru fio.php nepřišel JSON. Přečtěte si surová data v logu.");
+            }
+
             if (data.error) {
-                diagnostika += "5. Chyba vrácena z Google tunelu: " + data.error + "\n";
-                throw new Error("Banka (nebo klíč) vrátila chybu: " + data.error);
+                throw new Error(data.error);
             }
 
             if (!data.accountStatement) {
-                throw new Error("Objekt accountStatement chybí v datech.");
+                throw new Error("Objekt accountStatement chybí v datech z banky.");
             }
 
-            diagnostika += "5. Data jsou platná, vykresluji...\n";
+            diagnostika += "6. Data jsou platná, vykresluji...\n";
             var info = data.accountStatement.info;
             var trans = data.accountStatement.transactionList.transaction || [];
 
@@ -137,10 +141,8 @@
 
         } catch (err) {
             diagnostika += "\n>>> KRITICKÁ CHYBA: " + err.message + "\n";
-            
             var errorHtml = '<div class="error-msg">❌ Aplikaci se nepodařilo přečíst data z banky.</div>';
             errorHtml += '<div class="debug-log">' + diagnostika + '</div>';
-            
             document.getElementById('bankContent').innerHTML = errorHtml;
         }
     }
