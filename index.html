@@ -16,6 +16,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     
+    <script src="font.js"></script>
+    
     <style>
         :root { 
             --primary: #1a365d; 
@@ -1224,11 +1226,24 @@
         myRegs.forEach(reg => {
             const t = reg.tournaments; let pName = reg.player_id_card === myProfileData?.player_id_card ? 'VY' : (myFamily.find(f => f.player_id_card === reg.player_id_card)?.full_name + ' (Rodina)' || reg.player_id_card);
             let payUI = reg.payment_status ? `<span class="badge" style="background:#38a169;">Uhrazeno</span>` : `<button class="btn-small" style="background:#2b6cb0;" onclick="toggleQR('qr_${reg.id}', '${t.fee}', '${reg.player_id_card}')">Kód k platbě</button>`;
-            list.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:start; background:#fff; border:1px solid #e2e8f0;"><h4 style="color:#2f855a;">${t.title}</h4><p>Hráč: ${pName} | Datum: ${formatDateTime(t.event_date)}</p><div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; align-items:center;">${payUI}<button class="btn-small" style="background:#4a5568;" onclick="downloadCalendar('${t.title}', '${t.event_date}')">Kalendář</button><button class="btn-small btn-danger" onclick="cancelRegistration('${reg.id}')">Zrušit</button></div><div id="qr_${reg.id}" class="qr-container"><p style="font-size:0.8rem;">Zápisné: ${t.fee} Kč | Značka: ${formatSPZ(reg.player_id_card)}</p><img id="img_qr_${reg.id}"></div></div>`;
+            list.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:start; background:#fff; border:1px solid #e2e8f0;"><h4 style="color:#2f855a;">${t.title}</h4><p>Hráč: ${pName} | Datum: ${formatDateTime(t.event_date)}</p><div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; align-items:center;">${payUI}<button class="btn-small" style="background:#4a5568;" onclick="downloadCalendar('${t.title}', '${t.event_date}')">Kalendář</button><button class="btn-small btn-danger" onclick="cancelRegistration('${reg.id}')">Zrušit</button></div><div id="qr_${reg.id}" class="qr-container" style="display:none; width:100%; text-align:center;"><p style="font-size:0.8rem;">Zápisné: ${t.fee} Kč | Značka: ${formatSPZ(reg.player_id_card)}</p><img id="img_qr_${reg.id}"></div></div>`;
         });
     }
 
-    window.toggleQR = function(cid, fee, vs) { const c = document.getElementById(cid), i = document.getElementById('img_' + cid); if (c.style.display === 'block') c.style.display = 'none'; else { i.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`SPD*1.0*ACC:${globalBankAccount}*AM:${fee}.00*CC:CZK*X-VS:${vs}`)}`; c.style.display = 'block'; } };
+    // NOVINKA: "Drtička" na správný formát QR platby (SPAYD)
+    window.toggleQR = function(cid, fee, vs) { 
+        const c = document.getElementById(cid), i = document.getElementById('img_' + cid); 
+        if (c.style.display === 'block') {
+            c.style.display = 'none'; 
+        } else { 
+            const cleanAccount = globalBankAccount.replace(/\s+/g, '');
+            const cleanVS = String(vs).replace(/\D/g, '').substring(0, 10);
+            const cleanFee = parseFloat(fee).toFixed(2);
+            i.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`SPD*1.0*ACC:${cleanAccount}*AM:${cleanFee}*CC:CZK*X-VS:${cleanVS}`)}`; 
+            c.style.display = 'block'; 
+        } 
+    };
+
     window.downloadCalendar = function(t, dStr) { const d = new Date(dStr); if(isNaN(d)) return; const pad=n=>n<10?'0'+n:n; const sD = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`; const b = new Blob([`BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${sD}\nDTEND:${sD}\nSUMMARY:${t}\nEND:VEVENT\nEND:VCALENDAR`], { type: 'text/calendar' }); const url = URL.createObjectURL(b); const a = document.createElement('a'); a.href = url; a.download = `Turnaj.ics`; a.click(); };
     window.joinTournament = async function(tId) { if (!myProfileData) return; const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: myProfileData.player_id_card, registered_by: currentUser.id }); if (!error) { alert('Přihlášeno!'); loadMyRegistrations(); } else alert('Chyba (nebo už jste přihlášeni).'); };
     window.joinFamilyTournament = async function(tId) { const fId = document.getElementById('famSel_' + tId).value; const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: fId, registered_by: currentUser.id }); if (!error) { alert('Člen přihlášen.'); loadMyRegistrations(); } else alert('Chyba.'); };
@@ -1500,18 +1515,15 @@
     // --- 9. HLASOVÁNÍ, DEBATY A AUTO-UZAVŘENÍ ---
     // ==========================================
     
-    // Generování PDF protokolu s plnou podporou češtiny (font Roboto)
     window.generatePDFProtocol = async function(vid, title, resultsData, isManual = false) {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         
-        // Inicializace českého fontu
         doc.setFont("Roboto");
 
         const { data: profs } = await db.from('profiles').select('id, full_name, player_id_card'); 
         const pMap = {}; profs?.forEach(p => pMap[p.id] = { name: p.full_name, id: p.player_id_card });
 
-        // Hlavička dokumentu
         doc.setFillColor(26, 54, 93); 
         doc.rect(0, 0, 210, 40, 'F');
         doc.setTextColor(255, 255, 255);
@@ -1522,13 +1534,11 @@
         doc.setFont("Roboto", "normal");
         doc.text("Česká asociace v karetní hře prší z.s.", 105, 30, { align: 'center' });
 
-        // Vodoznak
         doc.setTextColor(240, 240, 240);
         doc.setFontSize(60);
         doc.setFont("Roboto", "bold");
         doc.text("ASOCIACE PRŠÍ", 105, 150, { align: 'center', angle: 45 });
 
-        // Informace o hlasování
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(14);
         doc.text(`Téma: ${title.replace('[OSTRÉ]', '')}`, 20, 55);
@@ -1537,7 +1547,6 @@
         doc.text(`Datum uzavření: ${new Date().toLocaleString('cs-CZ')}`, 20, 62);
         doc.text(`Identifikátor (UID): ${vid}`, 20, 67);
 
-        // Tabulka výsledků
         const tableRows = resultsData.map(r => [
             pMap[r.voter_id]?.name || 'Neznámý',
             formatSPZ(pMap[r.voter_id]?.id) || '-',
@@ -1552,10 +1561,9 @@
             body: tableRows,
             theme: 'striped',
             headStyles: { fillStyle: [26, 54, 93], font: 'Roboto' },
-            styles: { font: 'Roboto' } // NUTNÉ PRO ČEŠTINU V TABULCE
+            styles: { font: 'Roboto' } 
         });
 
-        // Patička s verifikací
         const finalY = doc.lastAutoTable.finalY + 20;
         doc.setFontSize(9);
         doc.setTextColor(100, 100, 100);
@@ -1577,7 +1585,6 @@
         return null;
     };
 
-    // Vytváření hlasování
     window.addRedQuestion = function() {
         const container = document.getElementById('redQuestionsContainer');
         const count = container.getElementsByClassName('rv-question').length + 1;
@@ -1892,6 +1899,91 @@
         }
     };
 
+    // Funkce pro načítání a online správu vypsaných turnajů
+    async function loadAdminTournaments() {
+        if (!['zc', 'zcp', 'superadmin'].includes(simulatedRole)) return;
+        const { data: tours, error } = await db.from('tournaments').select('*').order('event_date', { ascending: false });
+        
+        const linkEl = document.querySelector('a[href="pozvanky.html"]');
+        if (!linkEl) return;
+        
+        let parentDiv = linkEl.parentNode;
+        let existingList = document.getElementById('dynamicTournamentsList');
+        if (!existingList) {
+            existingList = document.createElement('div');
+            existingList.id = 'dynamicTournamentsList';
+            existingList.style.marginTop = '20px';
+            existingList.style.textAlign = 'left';
+            existingList.style.background = 'white';
+            existingList.style.padding = '15px';
+            existingList.style.borderRadius = '8px';
+            existingList.style.border = '1px solid #cbd5e0';
+            parentDiv.appendChild(existingList);
+        }
+        
+        if (error || !tours || tours.length === 0) {
+            existingList.innerHTML = '<h4>Aktuální vypsané turnaje:</h4><p style="color:#718096;font-style:italic;margin-top:5px;">Žádné vypsané turnaje v DB.</p>';
+            return;
+        }
+        
+        let html = '<h4 style="color:var(--primary);border-bottom:1px solid #cbd5e0;padding-bottom:5px;">📋 Správa aktivních turnajů na webu:</h4>';
+        html += '<table class="stats-table" style="margin-top:10px;"><tr><th>Turnaj</th><th>Akce</th></tr>';
+        tours.forEach(t => {
+            html += `<tr>
+                <td>
+                    <strong style="color:var(--primary); font-size:0.95rem;">${t.title}</strong><br>
+                    <span style="font-size:0.8rem;color:#4a5568;">📅 ${formatDateTime(t.event_date)} | 💰 ${t.fee} Kč | 👥 Kapacita: ${t.capacity}</span>
+                </td>
+                <td>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn-small btn-blue" onclick="editTournamentInline('${t.id}', '${t.title.replace(/'/g, "\\'")}', ${t.capacity}, ${t.fee})">✏️ Upravit</button>
+                        <button class="btn-small btn-danger" onclick="deleteTournament('${t.id}', '${t.title.replace(/'/g, "\\'")}')">❌ Smazat</button>
+                    </div>
+                </td>
+            </tr>`;
+        });
+        html += '</table>';
+        existingList.innerHTML = html;
+    }
+
+    window.editTournamentInline = async function(id, currentTitle, currentCap, currentFee) {
+        const newTitle = prompt("Zadejte nový oficiální název turnaje:", currentTitle);
+        if (newTitle === null) return;
+        
+        const newCap = prompt("Zadejte novou maximální kapacitu hráčů:", currentCap);
+        if (newCap === null) return;
+        
+        const newFee = prompt("Zadejte nové zápisné (Kč):", currentFee);
+        if (newFee === null) return;
+        
+        const { error } = await db.from('tournaments').update({
+            title: newTitle.trim(),
+            capacity: parseInt(newCap) || currentCap,
+            fee: parseInt(newFee) || currentFee
+        }).eq('id', id);
+        
+        if (!error) {
+            alert('Turnaj byl úspěšně upraven a aktualizován na webu.');
+            logAction('Úprava turnaje', `Upraven turnaj: ${newTitle}`);
+            loadAdminTournaments();
+        } else {
+            alert('Chyba při úpravě turnaje: ' + error.message);
+        }
+    };
+
+    window.deleteTournament = async function(id, title) {
+        if (confirm(`Opravdu chcete turnaj "${title}" kompletně vymazat z webu i z databáze?`)) {
+            const { error } = await db.from('tournaments').delete().eq('id', id);
+            if (!error) {
+                alert('Turnaj byl permanentně smazán.');
+                logAction('Smazání turnaje', `Smazán turnaj: ${title}`);
+                loadAdminTournaments();
+            } else {
+                alert('Chyba při mazání: ' + error.message);
+            }
+        }
+    };
+
     async function loadAdminData() {
         const { count } = await db.from('profiles').select('*', { count: 'exact', head: true });
         if(document.getElementById('totalUsersCount')) document.getElementById('totalUsersCount').innerText = count || 0;
@@ -1916,6 +2008,7 @@
             }
             loadAssets();
             loadApiKeys();
+            loadAdminTournaments(); 
         }
         loadNewsletterStats();
     }
@@ -1939,7 +2032,6 @@
     window.clearEmailDb = async function() { if(confirm('Vymazat kompletně celou databázi e-mailů?')) { await db.from('newsletter_subscribers').delete().neq('email', 'dummy_email'); loadNewsletterStats(); } };
     window.filterEmailList = function() { const term = document.getElementById('searchEmailInput').value.toLowerCase(); document.querySelectorAll('.email-list-item').forEach(i => i.style.display = i.innerText.toLowerCase().includes(term) ? 'flex' : 'none'); };
 
-    // NOVINKA: Chytrý import Excelu s kontrolou duplicit pro Newsletter
     document.getElementById('uploadEmailsForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const fileInput = document.getElementById('emailsFile');
@@ -2037,7 +2129,7 @@
     
     window.closeUserDetail = function() { document.getElementById('userDetailModal').style.display = 'none'; };
 
-   // ==========================================
+    // ==========================================
     // --- 11. SPRÁVA A EVIDENCE MAJETKU ---
     // ==========================================
     window.toggleAssetElec = function() { const isElectrical = document.getElementById('assetIsElectrical').checked; document.getElementById('assetElecZone1').style.display = isElectrical ? 'block' : 'none'; document.getElementById('assetElecZone2').style.display = isElectrical ? 'block' : 'none'; document.getElementById('assetNextInspection').required = isElectrical; };
@@ -2052,7 +2144,7 @@
             pdfUrl = db.storage.from('revisions').getPublicUrl(safeName).data.publicUrl;
         }
         const isElectrical = document.getElementById('assetIsElectrical').checked;
-        const { error } = await db.from('assets').insert({ asset_name: document.getElementById('assetName').value.trim(), inventory_number: document.getElementById('assetInvNum').value.trim(), location: document.getElementById('assetLocation').value.trim(), is_electrical: isElectrical, next_inspection: isElectrical ? document.getElementById('assetNextInspection').value : null, pdf_url: pdfUrl, status: 'V pořádku' });
+        const { error = null } = await db.from('assets').insert({ asset_name: document.getElementById('assetName').value.trim(), inventory_number: document.getElementById('assetInvNum').value.trim(), location: document.getElementById('assetLocation').value.trim(), is_electrical: isElectrical, next_inspection: isElectrical ? document.getElementById('assetNextInspection').value : null, pdf_url: pdfUrl, status: 'V pořádku' });
         if (!error) { msg.className = 'msg success'; msg.innerText = 'Majetek byl úspěšně zaevidován.'; document.getElementById('addAssetForm').reset(); toggleAssetElec(); loadAssets(); } else { msg.className = 'msg error'; msg.innerText = error.message; }
     });
 
@@ -2170,3 +2262,5 @@
     setInterval(() => { if (actualUserRole === 'zcp' || actualUserRole === 'superadmin') checkBankPayments(); }, 43200000);
 
 </script>
+</body>
+</html>
