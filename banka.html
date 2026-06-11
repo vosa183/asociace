@@ -22,10 +22,7 @@
         .stats-table th { background: var(--primary); color: white; }
         .loading { text-align: center; padding: 2rem; font-weight: bold; }
         .error-msg { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; padding: 1.5rem; border-radius: 8px; font-weight: bold; }
-        
-        /* Diagnostická konzole */
         .debug-log { background: #1a202c; color: #48bb78; padding: 1.5rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin-top: 1rem; text-align: left; border: 2px solid #4a5568; }
-        .debug-log span { color: #f6e05e; }
         .warning-box { background: #fffbeb; border: 1px solid #f6e05e; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; color: #b7791f; text-align: center; }
     </style>
 </head>
@@ -40,8 +37,7 @@
     <div class="card">
         <h2>Přehled účtu asociace</h2>
         <div class="warning-box">
-            <strong>⚠️ PRAVIDLO 60 SEKUND:</strong> Fio banka přísně blokuje časté dotazy. 
-            Mezi každým načtením této stránky musíte <strong>počkat minimálně 1 minutu</strong>, jinak banka spojení odřízne (Chyba 408/429).
+            <strong>⚠️ PRAVIDLO 60 SEKUND:</strong> Mezi každým načtením této stránky musíte počkat minimálně 1 minutu, jinak Fio banka spojení odřízne.
         </div>
         <div id="bankContent" class="loading">Ověřuji oprávnění a stahuji data přes zabezpečený tunel... ⏳</div>
     </div>
@@ -72,51 +68,60 @@
         fetchAndRenderBankData(settings.fio_token);
     });
 
+    // Funkce pro správné lokální české datum (vyhne se UTC posunu)
+    function getLocalDateString(d) {
+        var year = d.getFullYear();
+        var month = ('0' + (d.getMonth() + 1)).slice(-2);
+        var day = ('0' + d.getDate()).slice(-2);
+        return year + '-' + month + '-' + day;
+    }
+
     async function fetchAndRenderBankData(token) {
         let diagnostika = "START DIAGNOSTIKY\n=================\n";
         try {
             var cleanToken = token.trim(); 
             diagnostika += "1. Token vyčištěn (Délka: " + cleanToken.length + " znaků)\n";
 
+            // Opravený výpočet data pomocí lokálního času
             var toDate = new Date();
             var fromDate = new Date();
             fromDate.setDate(toDate.getDate() - 14);
-            var fStr = fromDate.toISOString().split('T')[0];
-            var tStr = toDate.toISOString().split('T')[0];
-            diagnostika += "2. Časové okno: " + fStr + " až " + tStr + "\n";
+            
+            var fStr = getLocalDateString(fromDate);
+            var tStr = getLocalDateString(toDate);
+            diagnostika += "2. Časové okno (Lokální CZ čas): " + fStr + " až " + tStr + "\n";
 
             var fioUrl = 'https://www.fio.cz/ib_api/rest/periods/' + cleanToken + '/' + fStr + '/' + tStr + '/transactions.json';
             
-            // ZMĚNA: Používáme jiný proxy tunel (CodeTabs)
-            var proxyUrl = 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(fioUrl);
-            diagnostika += "3. Volám přes nový Proxy tunel (CodeTabs)...\n";
+            // Měníme typ proxy volání - obalujeme to do JSONP formátu, to by banku mohlo zmást méně
+            var proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(fioUrl);
+            diagnostika += "3. Volám přes JSONP Proxy tunel...\n";
 
             var response = await fetch(proxyUrl);
-            diagnostika += "4. Server odpověděl. HTTP Status: <span>" + response.status + " " + response.statusText + "</span>\n";
+            diagnostika += "4. Server odpověděl. HTTP Status: " + response.status + " " + response.statusText + "\n";
             
-            var rawText = await response.text();
-            diagnostika += "5. Surová odpověď serveru (RAW TEXT):\n----------------------------------------\n" + rawText.substring(0, 800) + (rawText.length > 800 ? "\n...[text zkrácen]..." : "") + "\n----------------------------------------\n";
-
-            if (!response.ok) {
-                if (response.status === 409 || response.status === 429) {
-                    throw new Error("Banka zahlásila: PŘÍLIŠ MNOHO DOTAZŮ. Porušili jste pravidlo 60 sekund. Počkejte minutu a zkuste to znovu.");
-                }
-                throw new Error("HTTP požadavek selhal se statusem " + response.status);
+            var proxyData = await response.json();
+            
+            if (!proxyData.contents) {
+                throw new Error("Proxy tunel vrátil prázdný obsah. Banka nás pravděpodobně blokuje.");
             }
+            
+            var rawText = proxyData.contents;
+            diagnostika += "5. Surová data z banky obdržena.\n";
 
             var data;
             try {
                 data = JSON.parse(rawText);
-                diagnostika += "6. Povedlo se rozkódovat JSON formát.\n";
             } catch(e) {
-                throw new Error("Server neposlal JSON data. (Možná nás banka opět zablokovala).");
+                diagnostika += "OBSAH CHYBY:\n" + rawText.substring(0, 500) + "\n";
+                throw new Error("Banka vrátila chybovou stránku místo dat.");
             }
 
             if (!data || !data.accountStatement) {
-                throw new Error("JSON sice dorazil, ale chybí v něm objekt 'accountStatement'.");
+                throw new Error("Objekt accountStatement nenalezen.");
             }
 
-            diagnostika += "7. Data platná, vykresluji HTML tabulku...\n";
+            diagnostika += "6. Data platná, vykresluji HTML tabulku...\n";
             var info = data.accountStatement.info;
             var trans = data.accountStatement.transactionList.transaction || [];
 
@@ -143,7 +148,7 @@
         } catch (err) {
             diagnostika += "\n>>> KRITICKÁ CHYBA: " + err.message + "\n";
             
-            var errorHtml = '<div class="error-msg">❌ Aplikaci se nepodařilo přečíst data z banky. Podívejte se do logu níže.</div>';
+            var errorHtml = '<div class="error-msg">❌ Aplikaci se nepodařilo přečíst data z banky.</div>';
             errorHtml += '<div class="debug-log">' + diagnostika + '</div>';
             
             document.getElementById('bankContent').innerHTML = errorHtml;
