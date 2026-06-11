@@ -22,6 +22,10 @@
         .stats-table th { background: var(--primary); color: white; }
         .loading { text-align: center; padding: 2rem; font-weight: bold; }
         .error-msg { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; padding: 1.5rem; border-radius: 8px; font-weight: bold; }
+        
+        /* Diagnostická konzole */
+        .debug-log { background: #1a202c; color: #48bb78; padding: 1.5rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin-top: 1rem; text-align: left; border: 2px solid #4a5568; }
+        .debug-log span { color: #f6e05e; }
     </style>
 </head>
 <body>
@@ -64,31 +68,51 @@
     });
 
     async function fetchAndRenderBankData(token) {
+        let diagnostika = "START DIAGNOSTIKY\n=================\n";
         try {
-            // Nemilosrdné odříznutí mezer, kdyby se nějaké zkopírovaly
+            // 1. Čištění klíče a příprava datumů
             var cleanToken = token.trim(); 
+            diagnostika += "1. Token vyčištěn (Délka: " + cleanToken.length + " znaků)\n";
 
             var toDate = new Date();
             var fromDate = new Date();
             fromDate.setDate(toDate.getDate() - 14);
             var fStr = fromDate.toISOString().split('T')[0];
             var tStr = toDate.toISOString().split('T')[0];
+            diagnostika += "2. Časové okno: " + fStr + " až " + tStr + "\n";
 
+            // 2. Příprava URL
             var fioUrl = 'https://www.fio.cz/ib_api/rest/periods/' + cleanToken + '/' + fStr + '/' + tStr + '/transactions.json';
+            var proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(fioUrl);
+            diagnostika += "3. Volám přes Proxy tunel...\n";
+
+            // 3. Odeslání požadavku
+            var response = await fetch(proxyUrl);
+            diagnostika += "4. Server odpověděl. HTTP Status: <span>" + response.status + " " + response.statusText + "</span>\n";
             
-            // Použití nového, odolnějšího tunelu (allorigins místo corsproxy)
-            var response = await fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(fioUrl));
-            
+            // 4. Přečtení RAW odpovědi jako čistý text pro analýzu (ne hned JSON!)
+            var rawText = await response.text();
+            diagnostika += "5. Surová odpověď serveru (RAW TEXT):\n----------------------------------------\n" + rawText.substring(0, 800) + (rawText.length > 800 ? "\n...[text zkrácen]..." : "") + "\n----------------------------------------\n";
+
             if (!response.ok) {
-                throw new Error("Banka odmítla přístup. Zkontrolujte, že API klíč je aktivní a správně zkopírovaný.");
+                throw new Error("HTTP požadavek selhal se statusem " + response.status);
             }
 
-            var data = await response.json();
+            // 5. Pokus o převod na JSON (zde to často padá, pokud přijde chyba v HTML)
+            var data;
+            try {
+                data = JSON.parse(rawText);
+                diagnostika += "6. Povedlo se rozkódovat JSON formát.\n";
+            } catch(e) {
+                throw new Error("Server neposlal JSON data, pravděpodobně blokace proxy nebo Fio banky.");
+            }
 
             if (!data || !data.accountStatement) {
-                throw new Error("Banka vrátila prázdná nebo nečitelná data.");
+                throw new Error("JSON sice dorazil, ale chybí v něm objekt 'accountStatement'. Banka posílá neznámou strukturu.");
             }
 
+            // 6. Zpracování úspěšných dat a vykreslení tabulky
+            diagnostika += "7. Data platná, vykresluji HTML tabulku...\n";
             var info = data.accountStatement.info;
             var trans = data.accountStatement.transactionList.transaction || [];
 
@@ -111,8 +135,15 @@
             }
             
             document.getElementById('bankContent').innerHTML = html;
+
         } catch (err) {
-            document.getElementById('bankContent').innerHTML = '<div class="error-msg">❌ Chyba při načítání dat:<br>' + err.message + '</div>';
+            // Pokud cokoliv z výše uvedeného selže, vykreslí se tato drsná chybová obrazovka
+            diagnostika += "\n>>> KRITICKÁ CHYBA: " + err.message + "\n";
+            
+            var errorHtml = '<div class="error-msg">❌ Aplikaci se nepodařilo přečíst data z banky. Podívejte se do logu níže a pošlete ho administrátorovi.</div>';
+            errorHtml += '<div class="debug-log">' + diagnostika + '</div>';
+            
+            document.getElementById('bankContent').innerHTML = errorHtml;
         }
     }
 </script>
