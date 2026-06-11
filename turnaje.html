@@ -3,11 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Plánované turnaje | Česká asociace prší</title>
-    <meta name="description" content="Oficiální stránky České asociace prší. Přidejte se k nám, hrajte turnaje v této legendární karetní hře na profesionální úrovni a zapište se do celorepublikového žebříčku!">
+    
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <title>Vypsané turnaje | Česká asociace v karetní hře prší</title>
+    <meta name="description" content="Oficiální kalendář vypsaných turnajů České asociace v karetní hře prší z.s. Přihlaste se na nadcházející turnaje a změřte síly s nejlepšími hráči!">
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     
     <style>
         :root { 
@@ -24,137 +28,150 @@
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        body { background: var(--bg); color: var(--text); line-height: 1.6; }
-
-        /* --- HLAVIČKA Z GIGANTA 1:1 --- */
-        header { background: var(--white); padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-        .logo-container { display: flex; align-items: center; gap: 1rem; cursor: pointer; text-decoration: none;}
+        body { background: var(--bg); color: var(--text); line-height: 1.6; padding-bottom: 3rem; }
+        
+        header { background: var(--white); padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .logo-container { display: flex; align-items: center; gap: 1rem; cursor: pointer; text-decoration: none; }
         .logo-container img { height: 50px; }
         .logo-container h1 { font-size: 1.2rem; color: var(--primary); text-transform: uppercase; }
         
-        .menu-toggle { display: none; font-size: 2rem; cursor: pointer; color: var(--primary); user-select: none; }
-        nav ul { display: flex; list-style: none; gap: 1rem; flex-wrap: wrap; }
-        nav a { text-decoration: none; color: var(--primary); font-weight: 600; cursor: pointer; padding: 0.5rem 1rem; border-radius: 6px; transition: 0.2s; display: block; }
-        nav a:hover, nav a.active { background: var(--gray); color: var(--secondary); }
+        nav a { text-decoration: none; color: var(--white); background: var(--primary); font-weight: 600; padding: 0.6rem 1.2rem; border-radius: 6px; transition: 0.2s; display: inline-block; }
+        nav a:hover { background: var(--secondary); }
         
-        @media (max-width: 768px) {
-            .menu-toggle { display: block; }
-            nav { display: none; width: 100%; order: 3; margin-top: 1rem; }
-            nav.mobile-active { display: block; }
-            nav ul { flex-direction: column; gap: 0.5rem; }
-            nav a { padding: 1rem; text-align: center; background: #f8fafc; }
-        }
-        /* -------------------------------- */
-
-        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; min-height: 60vh; }
-
-        /* Dynamické Filtry */
-        .filters { display: flex; justify-content: center; gap: 10px; margin-bottom: 3rem; flex-wrap: wrap; }
-        .filter-btn { background: white; border: 2px solid var(--primary); color: var(--primary); padding: 0.6rem 1.5rem; border-radius: 50px; cursor: pointer; font-weight: bold; transition: all 0.3s; }
-        .filter-btn.active, .filter-btn:hover { background: var(--primary); color: white; }
-
-        .tournament-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 30px; }
-
-        .t-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.03); transition: transform 0.3s; display: flex; flex-direction: column; border: 1px solid #e2e8f0; }
-        .t-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
+        main { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; min-height: 70vh; }
         
-        .t-img-wrapper { position: relative; width: 100%; padding-top: 56.25%; background: #edf2f7; overflow: hidden; border-bottom: 1px solid #e2e8f0; }
-        .t-img-wrapper img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; padding: 10px;}
+        .page-header { text-align: center; margin-bottom: 2.5rem; }
+        .page-header h2 { color: var(--primary); font-size: 2rem; margin-bottom: 0.5rem; border-bottom: 3px solid var(--secondary); display: inline-block; padding-bottom: 0.5rem; }
+        .page-header p { color: #718096; font-size: 1.1rem; }
+
+        /* Uživatelská lišta */
+        .user-status-bar { background: #ebf8ff; border: 1px solid #90cdf4; padding: 1rem; border-radius: 8px; margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .user-info { font-weight: bold; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        .user-badge { background: var(--green); color: white; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.8rem; }
+
+        /* Mřížka turnajů */
+        .tournaments-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 2rem; }
         
-        .t-content { padding: 1.5rem; flex-grow: 1; display: flex; flex-direction: column; }
-        .t-badge { display: inline-block; background: var(--primary); color: white; font-size: 0.75rem; font-weight: bold; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; margin-bottom: 0.8rem; width: fit-content; }
-        .t-title { font-size: 1.3rem; color: var(--primary); margin-bottom: 0.5rem; line-height: 1.2; border-bottom: none; padding-bottom: 0;}
-        .t-info { font-size: 0.95rem; color: #4a5568; margin-bottom: 1.5rem; font-weight: 600; }
+        .tournament-card { background: var(--white); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid var(--gray); display: flex; flex-direction: column; transition: transform 0.2s, box-shadow 0.2s; }
+        .tournament-card:hover { transform: translateY(-4px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
+        
+        .poster-container { width: 100%; height: 220px; background: linear-gradient(135deg, #1a365d, #2a4365); relative; overflow: hidden; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; text-align: center; padding: 1rem; }
+        .poster-container img { width: 100%; height: 100%; object-fit: cover; }
+        .poster-placeholder { text-transform: uppercase; font-size: 1.2rem; letter-spacing: 1px; color: var(--gold); text-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
 
-        .btn-reg { margin-top: auto; width: 100%; padding: 0.8rem; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s; text-align: center; text-decoration: none; display: block; font-size: 0.95rem; }
-        .btn-reg.available { background: var(--green); color: white; }
-        .btn-reg.available:hover { background: #276749; }
-        .btn-reg.locked { background: #edf2f7; color: var(--primary); cursor: pointer; border: 1px solid #cbd5e0; }
-        .btn-reg.locked:hover { background: #e2e8f0; }
+        .card-body { padding: 1.5rem; display: flex; flex-direction: column; flex-grow: 1; }
+        .card-title { color: var(--primary); font-size: 1.3rem; margin-bottom: 0.8rem; font-weight: bold; min-height: 3rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        
+        .info-row { display: flex; align-items: center; gap: 8px; margin-bottom: 0.6rem; font-size: 0.95rem; color: #4a5568; }
+        .info-row strong { color: var(--text); }
+        
+        .capacity-bar-wrapper { margin-top: 1rem; margin-bottom: 1rem; }
+        .capacity-text { display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: bold; margin-bottom: 0.3rem; }
+        .capacity-bar { width: 100%; height: 8px; background: var(--gray); border-radius: 4px; overflow: hidden; }
+        .capacity-fill { height: 100%; background: var(--green); border-radius: 4px; transition: width 0.3s; }
+        .capacity-fill.warning { background: var(--orange); }
+        .capacity-fill.danger { background: var(--secondary); }
 
-        .empty-state { text-align: center; padding: 4rem; grid-column: 1 / -1; color: #718096; font-size: 1.1rem; background: white; border-radius: 12px; border: 1px dashed #cbd5e0;}
-
-        footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 2rem; }
+        .registration-zone { margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--gray); }
+        
+        select { width: 100%; padding: 0.6rem; margin-bottom: 0.8rem; border-radius: 6px; border: 1px solid #ccc; font-family: inherit; font-size: 0.9rem; }
+        
+        button { border: none; padding: 0.8rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; text-align: center; font-size: 1rem; }
+        .btn-register { background: var(--green); color: white; }
+        .btn-register:hover { background: #236838; }
+        .btn-substitute { background: var(--orange); color: white; }
+        .btn-substitute:hover { background: #b85618; }
+        .btn-login-req { background: #718096; color: white; text-decoration: none; display: block; text-align: center; padding: 0.8rem 1rem; border-radius: 6px; font-weight: bold; font-size: 0.9rem; }
+        .btn-login-req:hover { background: var(--primary); }
+        
+        .loading-text { text-align: center; font-size: 1.2rem; font-weight: bold; color: var(--primary); margin: 3rem 0; }
+        
+        footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 4rem; }
     </style>
 </head>
 <body>
 
-<header class="no-print">
+<header>
     <a href="index.html" class="logo-container">
         <img src="logo.png" alt="Logo" onerror="this.style.display='none';">
-        <h1>Česká asociace prší</h1>
+        <h1>Česká asociace v karetní hře prší</h1>
     </a>
-    <div class="menu-toggle" onclick="toggleMobileMenu()">☰</div>
-    <nav id="mainNav">
-        <ul>
-            <li><a href="index.html">Úvod</a></li>
-            <li><a href="index.html">Pravidla</a></li>
-            <li><a href="index.html">Pořádejte turnaj</a></li>
-            <li id="menu-tournaments"><a href="turnaje.html" class="active">Turnaje</a></li>
-            <li id="menu-stats" style="display:none;"><a href="index.html">Statistiky</a></li>
-            <li id="menu-voting" style="display:none; color:var(--gold);"><a href="index.html">Hlasování a Návrhy</a></li>
-            <li id="menu-auth"><a href="index.html">Pro členy</a></li>
-            <li id="menu-profile" style="display:none;"><a href="index.html">Můj profil</a></li>
-            <li id="menu-admin" style="display:none; color:var(--gold);"><a href="pozvanky.html">Administrace</a></li>
-            <li id="menu-logout" style="display:none;"><a onclick="logout()" style="cursor:pointer; color: var(--secondary);">Odhlásit</a></li>
-        </ul>
+    <nav>
+        <a href="index.html">⬅ Zpět do členské zóny</a>
     </nav>
 </header>
 
-<main class="container">
-    <div class="filters" id="dynamicFilters"></div>
-
-    <div id="tournamentGrid" class="tournament-grid">
-        <div class="empty-state">Načítám turnaje z databáze...</div>
+<main>
+    <div class="page-header">
+        <h2>Aktuální kalendář turnajů</h2>
+        <p>Zde najdete přehled všech oficiálně vypsaných turnajů s možností online registrace.</p>
     </div>
+
+    <!-- Uživatelská lišta indikující stav přihlášení -->
+    <div id="userStatusBar" class="user-status-bar">
+        <div class="user-info">
+            🔍 Ověřuji stav přihlášení...
+        </div>
+    </div>
+
+    <!-- Výpis turnajů -->
+    <div id="loadingText" class="loading-text">Načítám aktuální turnaje z cloudu...</div>
+    <div id="tournamentsGrid" class="tournaments-grid" style="display: none;"></div>
 </main>
 
 <footer>
-    <p>&copy; Česká asociace prší z. s.</p>
+    <p><strong>Česká asociace v karetní hře prší z.s.</strong></p>
+    <p>Sídlo: Kurzova 2222/16, Stodůlky, 155 00 Praha 5 | IČO: 29650186</p>
 </footer>
 
 <script>
+    // ==========================================
+    // --- 1. INICIALIZACE SUPABASE ---
+    // ==========================================
     const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-    let currentUser = null;
-    let turnajeData = [];
+    let loggedInUser = null;
+    let myProfileData = null;
+    let myFamily = [];
+    let allRegistrations = [];
 
-    function toggleMobileMenu() { 
-        document.getElementById('mainNav').classList.toggle('mobile-active'); 
-    }
+    // Seznam okresů pro formátování ID
+    const okresyList = [
+        { id: 0, zkratka: 'MB' }, { id: 1, zkratka: 'PR' }, { id: 2, zkratka: 'BM' }, { id: 3, zkratka: 'OS' },
+        { id: 4, zkratka: 'PM' }, { id: 5, zkratka: 'CB' }, { id: 6, zkratka: 'HK' }, { id: 7, zkratka: 'UL' },
+        { id: 8, zkratka: 'PU' }, { id: 9, zkratka: 'LB' }, { id: 10, zkratka: 'KV' }, { id: 11, zkratka: 'KD' },
+        { id: 12, zkratka: 'ZL' }, { id: 13, zkratka: 'OL' }, { id: 14, zkratka: 'JI' }, { id: 15, zkratka: 'BN' },
+        { id: 16, zkratka: 'BE' }, { id: 17, zkratka: 'KO' }, { id: 18, zkratka: 'KH' }, { id: 19, zkratka: 'ME' },
+        { id: 20, zkratka: 'NB' }, { id: 21, zkratka: 'PY' }, { id: 22, zkratka: 'PZ' }, { id: 23, zkratka: 'PB' },
+        { id: 24, zkratka: 'RA' }, { id: 25, zkratka: 'CK' }, { id: 26, zkratka: 'JH' }, { id: 27, zkratka: 'PI' },
+        { id: 28, zkratka: 'PT' }, { id: 29, zkratka: 'ST' }, { id: 30, zkratka: 'TA' }, { id: 31, zkratka: 'DO' },
+        { id: 32, zkratka: 'KT' }, { id: 33, zkratka: 'PJ' }, { id: 34, zkratka: 'PS' }, { id: 35, zkratka: 'RO' },
+        { id: 36, zkratka: 'TC' }, { id: 37, zkratka: 'CH' }, { id: 38, zkratka: 'SO' }, { id: 39, zkratka: 'DC' },
+        { id: 40, zkratka: 'CV' }, { id: 41, zkratka: 'LT' }, { id: 42, zkratka: 'LN' }, { id: 43, zkratka: 'MO' },
+        { id: 44, zkratka: 'TP' }, { id: 45, zkratka: 'CL' }, { id: 46, zkratka: 'JN' }, { id: 47, zkratka: 'SM' },
+        { id: 48, zkratka: 'JC' }, { id: 49, zkratka: 'NA' }, { id: 50, zkratka: 'RK' }, { id: 51, zkratka: 'TU' },
+        { id: 52, zkratka: 'CR' }, { id: 53, zkratka: 'SY' }, { id: 54, zkratka: 'UO' }, { id: 55, zkratka: 'HB' },
+        { id: 56, zkratka: 'PE' }, { id: 57, zkratka: 'TR' }, { id: 58, zkratka: 'ZR' }, { id: 59, zkratka: 'BK' },
+        { id: 60, zkratka: 'BO' }, { id: 61, zkratka: 'BV' }, { id: 62, zkratka: 'HO' }, { id: 63, zkratka: 'VY' },
+        { id: 64, zkratka: 'ZN' }, { id: 65, zkratka: 'JE' }, { id: 66, zkratka: 'PV' }, { id: 67, zkratka: 'PRV' },
+        { id: 68, zkratka: 'SU' }, { id: 69, zkratka: 'KM' }, { id: 70, zkratka: 'UH' }, { id: 71, zkratka: 'VS' },
+        { id: 72, zkratka: 'BR' }, { id: 73, zkratka: 'FM' }, { id: 74, zkratka: 'KI' }, { id: 75, zkratka: 'OP' },
+        { id: 76, zkratka: 'NJ' }
+    ];
 
-    async function init() {
-        const { data: { session } } = await db.auth.getSession();
-        
-        if (session) {
-            currentUser = session.user;
-            document.getElementById('menu-auth').style.display = 'none';
-            document.getElementById('menu-stats').style.display = 'block';
-            document.getElementById('menu-voting').style.display = 'block';
-            document.getElementById('menu-profile').style.display = 'block';
-            document.getElementById('menu-logout').style.display = 'block';
-
-            const { data: profile } = await db.from('profiles').select('role').eq('id', currentUser.id).single();
-            if (profile && ['pc', 'zc', 'zcp', 'superadmin'].includes(profile.role)) {
-                document.getElementById('menu-admin').style.display = 'block';
-            }
-        } else {
-            document.getElementById('menu-auth').style.display = 'block';
-            document.getElementById('menu-stats').style.display = 'none';
-            document.getElementById('menu-voting').style.display = 'none';
-            document.getElementById('menu-profile').style.display = 'none';
-            document.getElementById('menu-admin').style.display = 'none';
-            document.getElementById('menu-logout').style.display = 'none';
+    function formatSPZ(pureId) {
+        const num = parseInt(pureId);
+        if (isNaN(num)) return pureId;
+        if (num < 100000) return 'MB' + num; 
+        const okresId = Math.floor(num / 1000000);
+        const okres = okresyList.find(o => o.id === okresId);
+        if (okres) {
+            const zbytek = num % 1000000;
+            return okres.zkratka + zbytek.toString().padStart(6, '0');
         }
-
-        loadTurnaje();
-    }
-
-    async function logout() {
-        await db.auth.signOut();
-        window.location.reload();
+        return pureId;
     }
 
     function formatDateTime(dtStr) {
@@ -162,105 +179,219 @@
         const d = new Date(dtStr);
         if (isNaN(d)) return dtStr;
         const pad = n => n < 10 ? '0' + n : n;
-        return `${pad(d.getDate())}. ${pad(d.getMonth()+1)}. ${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        return `${pad(d.getDate())}. ${pad(d.getMonth()+1)}. ${d.getFullYear()} v ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
-    async function loadTurnaje() {
-        const grid = document.getElementById('tournamentGrid');
-        grid.innerHTML = '<div class="empty-state">Načítám turnaje z databáze...</div>';
-
-        // Čistý řez: vytáhne jen turnaje odedneška do budoucna
-        const today = new Date().toISOString();
-        const { data: tourns, error } = await db.from('tournaments')
-            .select('*')
-            .gte('event_date', today)
-            .order('event_date', { ascending: true });
-
-        if (error || !tourns || tourns.length === 0) {
-            grid.innerHTML = `<div class="empty-state">Aktuálně nejsou vypsané žádné nadcházející turnaje.</div>`;
-            document.getElementById('dynamicFilters').innerHTML = '';
-            return;
-        }
-
-        turnajeData = tourns;
-        renderFilters(turnajeData);
-        renderTurnaje(turnajeData);
-    }
-
-    function renderFilters(data) {
-        const filtersContainer = document.getElementById('dynamicFilters');
-        const kraje = [...new Set(data.map(t => t.kraj).filter(k => k && k.trim() !== ''))];
+    // ==========================================
+    // --- 2. KONTROLA AUTENTIZACE ---
+    // ==========================================
+    async function initAuthAndPage() {
+        const { data: { user } } = await db.auth.getUser();
+        const statusBar = document.getElementById('userStatusBar');
         
-        if (kraje.length === 0) {
-            filtersContainer.innerHTML = '';
-            return;
-        }
-
-        let html = `<button class="filter-btn active" onclick="filterTurnaje('vse', this)">Všechny okresy</button>`;
-        kraje.forEach(k => {
-            html += `<button class="filter-btn" onclick="filterTurnaje('${k}', this)">${k.toUpperCase()}</button>`;
-        });
-        
-        filtersContainer.innerHTML = html;
-    }
-
-    function renderTurnaje(data) {
-        const grid = document.getElementById('tournamentGrid');
-        if (data.length === 0) {
-            grid.innerHTML = `<div class="empty-state">V tomto okrese aktuálně nejsou žádné turnaje.</div>`;
-            return;
-        }
-
-        grid.innerHTML = data.map(t => {
-            let actionBtn = '';
-            if (!currentUser) {
-                actionBtn = `<a href="index.html" class="btn-reg locked">Pro registraci se přihlaste</a>`;
+        if (user) {
+            loggedInUser = user;
+            // Načtení profilu
+            const { data: prof } = await db.from('profiles').select('*').eq('id', user.id).maybeSingle();
+            if (prof && prof.player_id_card) {
+                myProfileData = prof;
+                
+                // Načtení rodinných příslušníků
+                const { data: fam } = await db.from('players').select('*').eq('owner_id', user.id);
+                myFamily = fam || [];
+                
+                statusBar.innerHTML = `
+                    <div class="user-info">
+                        👤 Přihlášen jako: <strong>${prof.full_name}</strong> 
+                        <span class="user-badge">${formatSPZ(prof.player_id_card)}</span>
+                    </div>
+                    <div>Aktivní členská zóna propojena.</div>
+                `;
             } else {
-                actionBtn = `<button class="btn-reg available" onclick="registrovatHrace('${t.id}')">Přejít k registraci</button>`;
+                statusBar.innerHTML = `
+                    <div class="user-info" style="color:var(--secondary);">
+                        ⚠️ Máte vytvořený účet, ale nemáte dokončený profil v členské zóně!
+                    </div>
+                    <a href="index.html" class="btn-login-req" style="padding:0.4rem 1rem;">Dokončit profil</a>
+                `;
+            }
+        } else {
+            statusBar.innerHTML = `
+                <div class="user-info" style="color:#4a5568;">
+                    🔒 Prohlížíte web jako anonymní host. Pro online registraci na turnaje se musíte přihlásit.
+                </div>
+                <a href="index.html" class="btn-login-req" style="padding:0.4rem 1rem;">🔑 Přihlásit se</a>
+            `;
+        }
+
+        // Načteme všechny registrace pro spočítání kapacit a kontrolu duplicit
+        const { data: regs } = await db.from('registrations').select('*');
+        allRegistrations = regs || [];
+
+        // Načteme a vykreslíme turnaje
+        await loadAndRenderTournaments();
+    }
+
+    // ==========================================
+    // --- 3. NAČTENÍ A VYKRESLENÍ TURNAJŮ ---
+    // ==========================================
+    async function loadAndRenderTournaments() {
+        const { data: tours, error } = await db.from('tournaments').select('*').order('event_date', { ascending: true });
+        
+        const loadingText = document.getElementById('loadingText');
+        const grid = document.getElementById('tournamentsGrid');
+        
+        if (error) {
+            loadingText.innerHTML = `<p style="color:var(--secondary)">Chyba při komunikaci s databází: ${error.message}</p>`;
+            return;
+        }
+
+        if (!tours || tours.length === 0) {
+            loadingText.innerHTML = '<p style="color:#718096; font-style:italic;">Aktuálně nejsou vypsané žádné nadcházející turnaje.</p>';
+            return;
+        }
+
+        loadingText.style.display = 'none';
+        grid.innerHTML = '';
+        grid.style.display = 'grid';
+
+        tours.forEach(t => {
+            // Spočítáme registrace pro tento konkrétní turnaj
+            const tRegs = allRegistrations.filter(r => r.tournament_id === t.id);
+            const currentRegCount = tRegs.length;
+            const maxCap = t.capacity || 50; // defaultní záloha, pokud by chyběla
+            
+            // Výpočet procenta naplnění pro kapacitní bar
+            const pct = Math.min(100, Math.round((currentRegCount / maxCap) * 100));
+            let barClass = '';
+            if (pct >= 90) barClass = 'danger';
+            else if (pct >= 70) barClass = 'warning';
+
+            // Příprava plakátu / banneru
+            let posterUI = `<div class="poster-placeholder">${t.title}<br><span style="font-size:0.8rem;color:white;">♠️ Prší z.s. ♥️</span></div>`;
+            if (t.image_url) {
+                posterUI = `<img src="${t.image_url}" alt="Plakát k turnaji ${t.title}" onerror="this.style.display='none'">`;
             }
 
-            const imgUrl = t.image_url || 'logo.png';
-            const krajBadge = t.kraj ? t.kraj.toUpperCase() : 'ASOCIACE PRŠÍ';
+            // Příprava registrační zóny na základě přihlášení
+            let regZoneUI = '';
+            
+            if (!loggedInUser || !myProfileData) {
+                // Anonymní uživatel
+                regZoneUI = `<a href="index.html" class="btn-login-req">🔒 Pro přihlášení se přihlaste</a>`;
+            } else {
+                // Přihlášený uživatel - sestavení dropdownu (On sám + rodina)
+                let optionsHtml = `<option value="${myProfileData.player_id_card}">Já: ${myProfileData.full_name} (${formatSPZ(myProfileData.player_id_card)})</option>`;
+                myFamily.forEach(f => {
+                    optionsHtml += `<option value="${f.player_id_card}">Rodina: ${f.full_name} (${formatSPZ(f.player_id_card)})</option>`;
+                });
 
-            return `
-                <div class="t-card">
-                    <div class="t-img-wrapper">
-                        <img src="${imgUrl}" alt="${t.title}" onerror="this.src='logo.png'">
+                // Zjistíme, zda je turnaj plný
+                const isFull = currentRegCount >= maxCap;
+                const buttonText = isFull ? 'Přihlásit se jako náhradník' : '⚡ Závazně se registrovat';
+                const buttonClass = isFull ? 'btn-substitute' : 'btn-register';
+
+                regZoneUI = `
+                    <label style="font-size:0.8rem;color:#718096;font-weight:bold;">Vyberte hráče k registraci:</label>
+                    <select id="voter_select_${t.id}">
+                        ${optionsHtml}
+                    </select>
+                    <button class="${buttonClass}" onclick="processRegistration('${t.id}', '${t.title.replace(/'/g, "\'")}')">${buttonText}</button>
+                `;
+            }
+
+            // Sestavení celé karty turnaje
+            grid.innerHTML += `
+                <div class="tournament-card">
+                    <div class="poster-container">
+                        ${posterUI}
                     </div>
-                    <div class="t-content">
-                        <span class="t-badge">${krajBadge}</span>
-                        <h2 class="t-title">${t.title}</h2>
-                        <p class="t-info">
-                            📅 ${formatDateTime(t.event_date)}<br>
-                            🏷️ Zápisné: ${t.fee || 'Dle rozpisu'} Kč
-                        </p>
-                        ${actionBtn}
+                    <div class="card-body">
+                        <div class="card-title">${t.title}</div>
+                        
+                        <div class="info-row">
+                            📅 <span><strong>Datum:</strong> ${formatDateTime(t.event_date)}</span>
+                        </div>
+                        <div class="info-row">
+                            📍 <span><strong>Pořádá:</strong> Okres ${t.kraj || 'Centrální'}</span>
+                        </div>
+                        <div class="info-row">
+                            🪙 <span><strong>Zápisné:</strong> ${t.fee || 0} Kč</span>
+                        </div>
+
+                        <div class="capacity-bar-wrapper">
+                            <div class="capacity-text">
+                                <span>Obsazenost stolů:</span>
+                                <span>${currentRegCount} / ${maxCap} hráčů</span>
+                            </div>
+                            <div class="capacity-bar">
+                                <div class="capacity-fill ${barClass}" style="width: ${pct}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="registration-zone">
+                            ${regZoneUI}
+                        </div>
                     </div>
                 </div>
             `;
-        }).join('');
+        });
     }
 
-    function filterTurnaje(kraj, btnElement) {
-        document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-        if(btnElement) btnElement.classList.add('active');
-
-        if (kraj === 'vse') {
-            renderTurnaje(turnajeData);
-        } else {
-            const filtered = turnajeData.filter(t => t.kraj === kraj);
-            renderTurnaje(filtered);
+    // ==========================================
+    // --- 4. ZPRACOVÁNÍ REGISTRACE (OPRAVA CHYBY) ---
+    // ==========================================
+    window.processRegistration = async function(tournamentId, tournamentTitle) {
+        if (!loggedInUser || !myProfileData) {
+            alert('Chyba: Nejste přihlášen.');
+            return;
         }
-    }
 
-    function registrovatHrace(tournamentId) {
-        if (!currentUser) return;
-        sessionStorage.setItem('activeTab', 'tournaments');
-        window.location.href = 'index.html';
-    }
+        const selectEl = document.getElementById(`voter_select_${tournamentId}`);
+        const selectedPlayerCard = selectEl.value; // Značka vybraného hráče (vlastní nebo rodinná)
+        
+        // Získání jména vybraného hráče pro lepší hlášky
+        let selectedPlayerName = myProfileData.full_name;
+        if (selectedPlayerCard !== myProfileData.player_id_card) {
+            const famMember = myFamily.find(f => f.player_id_card === selectedPlayerCard);
+            if (famMember) selectedPlayerName = famMember.full_name;
+        }
 
-    init();
+        // 1. KONTROLA DUPLICIT (Předchází tichému pádu a chybám v DB)
+        const isAlreadyRegistered = allRegistrations.some(r => 
+            r.tournament_id === tournamentId && 
+            r.player_id_card === selectedPlayerCard
+        );
+
+        if (isAlreadyRegistered) {
+            alert(`Hráč ${selectedPlayerName} už je na turnaj "${tournamentTitle}" bezpečně zaregistrován!
+Průkaz k platbě najde ve svém profilu.`);
+            return;
+        }
+
+        // 2. ODESLÁNÍ DO DATABÁZE SUPABASE
+        // Zde chirurgicky předáváme registered_by (ID přihlášeného usera), tournament_id a konkrétní player_id_card
+        const { error } = await db.from('registrations').insert({
+            tournament_id: tournamentId,
+            player_id_card: selectedPlayerCard,
+            registered_by: loggedInUser.id,
+            payment_status: false // začíná jako neuhrazené, vygeneruje QR kód na dashboardu
+        });
+
+        if (error) {
+            alert('Chyba při komunikaci s databází: ' + error.message);
+        } else {
+            alert(`Skvělé! Hráč ${selectedPlayerName} byl úspěšně zaregistrován na turnaj "${tournamentTitle}".
+
+Podklady k platbě a QR kód byly bleskově vygenerovány a najdete je po návratu v sekci "Můj Profil -> Moje přihlášky". Těšíme se u karetního stolu! ♠️`);
+            
+            // Znovu načteme celou stránku, aby se aktualizoval kapacitní ukazatel
+            window.location.reload();
+        }
+    };
+
+    // Spuštění celé stránky při loadu
+    window.addEventListener('DOMContentLoaded', initAuthAndPage);
 </script>
-
 </body>
 </html>
