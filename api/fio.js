@@ -1,5 +1,8 @@
-module.exports = async function(req, res) {
-  // Povolení CORS
+const https = require('https');
+const http = require('http');
+
+module.exports = function(req, res) {
+  // Povolení CORS pro tvůj web
   res.setHeader('Access-Control-Allow-Origin', '*');
   
   const { token, from, to } = req.query;
@@ -9,42 +12,55 @@ module.exports = async function(req, res) {
   }
 
   const cleanToken = token.trim();
-  const url = `https://www.fio.cz/ib_api/rest/periods/${encodeURIComponent(cleanToken)}/${encodeURIComponent(from)}/${encodeURIComponent(to)}/transactions.json`;
+  const initialUrl = `https://www.fio.cz/ib_api/rest/periods/${encodeURIComponent(cleanToken)}/${encodeURIComponent(from)}/${encodeURIComponent(to)}/transactions.json`;
 
-  try {
-    // 1. Dáme požadavku "falešnou občanku", ať vypadáme jako reálný člověk
-    const fetchResponse = await fetch(url, {
-      method: 'GET',
+  function makeRequest(currentUrl, redirectCount = 0) {
+    // Pojistka proti zacyklení přesměrování
+    if (redirectCount > 5) {
+      return res.status(500).json({ error: "Fio banka se zacyklila v přesměrování." });
+    }
+
+    const client = currentUrl.startsWith('https') ? https : http;
+
+    client.get(currentUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'cs,cs-CZ;q=0.9,en;q=0.8'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json'
       }
-    });
+    }, (fioRes) => {
+      // Automatické následování přesměrování (HTTP 301/302), na kterém jsme prve ztroskotali
+      if (fioRes.statusCode >= 300 && fioRes.statusCode < 400 && fioRes.headers.location) {
+        let nextUrl = fioRes.headers.location;
+        if (!nextUrl.startsWith('http')) {
+           nextUrl = new URL(nextUrl, currentUrl).href;
+        }
+        return makeRequest(nextUrl, redirectCount + 1);
+      }
 
-    // 2. Nečteme to rovnou jako JSON (aby to nepadalo), ale jako surový text
-    const rawText = await fetchResponse.text();
+      let rawData = '';
+      fioRes.on('data', (chunk) => { rawData += chunk; });
+      fioRes.on('end', () => {
+        if (fioRes.statusCode !== 200) {
+          return res.status(fioRes.statusCode).json({
+            error: `Banka vrátila HTTP ${fioRes.statusCode}`,
+            html_dump: rawData.substring(0, 1000)
+          });
+        }
 
-    if (!fetchResponse.ok) {
-       return res.status(fetchResponse.status).json({ 
-         error: `Banka vrátila HTTP ${fetchResponse.status}.`,
-         details: rawText.substring(0, 300)
-       });
-    }
-
-    // 3. Zkusíme surový text bezpečně převést na JSON
-    try {
-      const data = JSON.parse(rawText);
-      return res.status(200).json(data);
-    } catch (parseError) {
-      // 4. Pokud to spadne, banka nám místo JSONu poslala HTML. Pošleme ho do logu.
-      return res.status(500).json({ 
-        error: "Fio banka místo dat poslala HTML stránku (zřejmě firewall blokace Vercelu).", 
-        details: rawText.substring(0, 800) 
+        try {
+          const parsed = JSON.parse(rawData);
+          res.status(200).json(parsed);
+        } catch (e) {
+          res.status(500).json({
+            error: "Fio banka místo dat poslala HTML chybovou stránku.",
+            html_dump: rawData.substring(0, 1000)
+          });
+        }
       });
-    }
-
-  } catch (error) {
-    return res.status(500).json({ error: `Chyba Vercel připojení: ${error.message}` });
+    }).on('error', (e) => {
+      res.status(500).json({ error: `Kritická chyba Vercelu: ${e.message}` });
+    });
   }
+
+  makeRequest(initialUrl);
 };
