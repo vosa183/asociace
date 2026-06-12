@@ -1,5 +1,7 @@
-export default async function handler(req, res) {
-  // Povolení CORS pro jistotu
+const https = require('https');
+
+module.exports = function(req, res) {
+  // Povolení CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   
   const { token, from, to } = req.query;
@@ -11,18 +13,27 @@ export default async function handler(req, res) {
   const cleanToken = token.trim();
   const url = `https://www.fio.cz/ib_api/rest/periods/${encodeURIComponent(cleanToken)}/${encodeURIComponent(from)}/${encodeURIComponent(to)}/transactions.json`;
 
-  try {
-    const fetchResponse = await fetch(url);
+  https.get(url, (fioRes) => {
+    let rawData = '';
     
-    // Fio banka posílá data v ISO-8859-2, zkusíme to rovnou zpracovat
-    if (!fetchResponse.ok) {
-       return res.status(fetchResponse.status).json({ error: `Fio banka zamítla přístup (HTTP Status: ${fetchResponse.status}). Pravděpodobně pravidlo 60 sekund.`});
-    }
-
-    const data = await fetchResponse.json();
-    return res.status(200).json(data);
-
-  } catch (error) {
-    return res.status(500).json({ error: `Chyba Vercel serveru: ${error.message}` });
-  }
-}
+    fioRes.on('data', (chunk) => { rawData += chunk; });
+    
+    fioRes.on('end', () => {
+      if (fioRes.statusCode !== 200) {
+        return res.status(fioRes.statusCode).json({ 
+          error: `Fio banka zamítla přístup (HTTP ${fioRes.statusCode}). Pravděpodobně pravidlo 60 sekund.`, 
+          details: rawData.substring(0, 200) 
+        });
+      }
+      
+      try {
+        const parsedData = JSON.parse(rawData);
+        res.status(200).json(parsedData);
+      } catch (e) {
+        res.status(500).json({ error: "Banka nevrátila platný JSON.", details: rawData.substring(0, 200) });
+      }
+    });
+  }).on('error', (e) => {
+    res.status(500).json({ error: `Chyba připojení Vercelu k Fio: ${e.message}` });
+  });
+};
