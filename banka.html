@@ -40,7 +40,7 @@
             <strong>⚠️ PRAVIDLO 60 SEKUND:</strong> Fio banka přísně blokuje časté dotazy. 
             Mezi každým načtením této stránky musíte <strong>počkat minimálně 1 minutu</strong>.
         </div>
-        <div id="bankContent" class="loading">Spojuji se přes maskovaný Google tunel... ⏳</div>
+        <div id="bankContent" class="loading">Stahuji data... ⏳</div>
     </div>
 </main>
 
@@ -90,19 +90,29 @@
             var tStr = getLocalDateString(toDate);
             
             var fullUrl = googleProxyUrl + "?token=" + encodeURIComponent(cleanToken) + "&from=" + encodeURIComponent(fStr) + "&to=" + encodeURIComponent(tStr);
-            diagnostika += "1. Volám maskovaný Google Apps Script tunel...\n";
+            diagnostika += "1. Volám Google tunel...\n";
 
             var response = await fetch(fullUrl);
-            diagnostika += "2. Google odpověděl. HTTP Status: " + response.status + "\n";
+            diagnostika += "2. Tunel odpověděl. HTTP Status: " + response.status + "\n";
             
-            var data = await response.json();
+            // BEZPEČNÉ ČTENÍ: Nejdřív surový text, až pak překlad!
+            var rawText = await response.text();
+            diagnostika += "3. Text úspěšně přečten (Délka: " + rawText.length + " znaků).\n";
             
-            // KONEČNĚ UVIDÍME PRAVDU Z FIO BANKY
-            if (data.html_dump) {
-                diagnostika += "\n>>> SUROVÁ ODPOVĚĎ OD FIO BANKY (PRVNÍCH 1500 ZNAKŮ) <<<\n----------------------------------------\n";
-                diagnostika += data.html_dump.substring(0, 1500);
+            var data;
+            try {
+                data = JSON.parse(rawText);
+            } catch (err) {
+                // Pokud to spadne, ukážeme rovnou, co nám ten server poslal!
+                diagnostika += "\n>>> ZACHYCENÝ HTML TEXT (PRVNÍCH 1000 ZNAKŮ) <<<\n----------------------------------------\n";
+                diagnostika += rawText.substring(0, 1000);
                 diagnostika += "\n----------------------------------------\n";
-                throw new Error(data.error + " (Přečtěte si HTML obsah banky v černé konzoli)");
+                throw new Error("Server poslal HTML stránku místo dat. Podívej se do logu, co nám píše.");
+            }
+
+            if (data.html_dump) {
+                diagnostika += "\n>>> BANKA NÁS VYHMÁTLA (HTML Z BANKY) <<<\n" + data.html_dump.substring(0, 1000) + "\n";
+                throw new Error(data.error);
             }
             
             if (data.error) {
@@ -110,10 +120,10 @@
             }
 
             if (!data.accountStatement) {
-                throw new Error("Objekt accountStatement chybí v datech z banky.");
+                throw new Error("Objekt accountStatement chybí v datech.");
             }
 
-            diagnostika += "3. Převlek zafungoval! Data jsou platná, vykresluji...\n";
+            diagnostika += "4. Data jsou platná, vykresluji...\n";
             var info = data.accountStatement.info;
             var trans = data.accountStatement.transactionList.transaction || [];
 
@@ -139,7 +149,7 @@
 
         } catch (err) {
             diagnostika += "\n>>> KRITICKÁ CHYBA: " + err.message + "\n";
-            var errorHtml = '<div class="error-msg">❌ Aplikaci se nepodařilo přečíst data. Zkontrolujte diagnostický log.</div>';
+            var errorHtml = '<div class="error-msg">❌ Aplikaci se nepodařilo přečíst data.</div>';
             errorHtml += '<div class="debug-log">' + diagnostika + '</div>';
             document.getElementById('bankContent').innerHTML = errorHtml;
         }
