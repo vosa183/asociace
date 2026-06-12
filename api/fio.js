@@ -1,6 +1,4 @@
-const https = require('https');
-
-module.exports = function(req, res) {
+module.exports = async function(req, res) {
   // Povolení CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   
@@ -13,27 +11,22 @@ module.exports = function(req, res) {
   const cleanToken = token.trim();
   const url = `https://www.fio.cz/ib_api/rest/periods/${encodeURIComponent(cleanToken)}/${encodeURIComponent(from)}/${encodeURIComponent(to)}/transactions.json`;
 
-  https.get(url, (fioRes) => {
-    let rawData = '';
+  try {
+    // Nativní fetch v Node.js (Vercel) automaticky následuje 301 a 302 přesměrování
+    const fetchResponse = await fetch(url);
     
-    fioRes.on('data', (chunk) => { rawData += chunk; });
-    
-    fioRes.on('end', () => {
-      if (fioRes.statusCode !== 200) {
-        return res.status(fioRes.statusCode).json({ 
-          error: `Fio banka zamítla přístup (HTTP ${fioRes.statusCode}). Pravděpodobně pravidlo 60 sekund.`, 
-          details: rawData.substring(0, 200) 
-        });
-      }
-      
-      try {
-        const parsedData = JSON.parse(rawData);
-        res.status(200).json(parsedData);
-      } catch (e) {
-        res.status(500).json({ error: "Banka nevrátila platný JSON.", details: rawData.substring(0, 200) });
-      }
-    });
-  }).on('error', (e) => {
-    res.status(500).json({ error: `Chyba připojení Vercelu k Fio: ${e.message}` });
-  });
+    if (!fetchResponse.ok) {
+       const errText = await fetchResponse.text();
+       return res.status(fetchResponse.status).json({ 
+         error: `Banka vrátila HTTP ${fetchResponse.status}. (Možná pravidlo 60 sekund)`,
+         details: errText.substring(0, 200)
+       });
+    }
+
+    const data = await fetchResponse.json();
+    return res.status(200).json(data);
+
+  } catch (error) {
+    return res.status(500).json({ error: `Chyba Vercel připojení: ${error.message}` });
+  }
 };
