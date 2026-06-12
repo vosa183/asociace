@@ -40,7 +40,7 @@
             <strong>⚠️ PRAVIDLO 60 SEKUND:</strong> Fio banka přísně blokuje časté dotazy. 
             Mezi každým načtením této stránky musíte <strong>počkat minimálně 1 minutu</strong>.
         </div>
-        <div id="bankContent" class="loading">Stahuji data... ⏳</div>
+        <div id="bankContent" class="loading">Spojuji se přes lokální Vercel server... ⏳</div>
     </div>
 </main>
 
@@ -76,12 +76,15 @@
         return year + '-' + month + '-' + day;
     }
 
+    // Bezpečná funkce pro převod HTML značek, aby z nich nebyl neviditelný kód
+    function escapeHtml(unsafe) {
+        return (unsafe || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
     async function fetchAndRenderBankData(token) {
         let diagnostika = "START DIAGNOSTIKY\n=================\n";
         try {
-            var googleProxyUrl = "https://script.google.com/macros/s/AKfycbwYuOc7afBuHlHqODVSzGSNg6MG95iJ9gGaZ2kuXsf1g9zzLo5BGjYS1dHvj1paarqu/exec";
             var cleanToken = token.trim(); 
-            
             var toDate = new Date();
             var fromDate = new Date();
             fromDate.setDate(toDate.getDate() - 14);
@@ -89,13 +92,12 @@
             var fStr = getLocalDateString(fromDate);
             var tStr = getLocalDateString(toDate);
             
-            var fullUrl = googleProxyUrl + "?token=" + encodeURIComponent(cleanToken) + "&from=" + encodeURIComponent(fStr) + "&to=" + encodeURIComponent(tStr);
-            diagnostika += "1. Volám Google tunel...\n";
+            var proxyUrl = "/api/fio?token=" + encodeURIComponent(cleanToken) + "&from=" + encodeURIComponent(fStr) + "&to=" + encodeURIComponent(tStr);
+            diagnostika += "1. Volám lokální Vercel tunel...\n";
 
-            var response = await fetch(fullUrl);
-            diagnostika += "2. Tunel odpověděl. HTTP Status: " + response.status + "\n";
+            var response = await fetch(proxyUrl);
+            diagnostika += "2. Vercel odpověděl. HTTP Status: " + response.status + "\n";
             
-            // BEZPEČNÉ ČTENÍ: Nejdřív surový text, až pak překlad!
             var rawText = await response.text();
             diagnostika += "3. Text úspěšně přečten (Délka: " + rawText.length + " znaků).\n";
             
@@ -103,15 +105,17 @@
             try {
                 data = JSON.parse(rawText);
             } catch (err) {
-                // Pokud to spadne, ukážeme rovnou, co nám ten server poslal!
                 diagnostika += "\n>>> ZACHYCENÝ HTML TEXT (PRVNÍCH 1000 ZNAKŮ) <<<\n----------------------------------------\n";
-                diagnostika += rawText.substring(0, 1000);
+                diagnostika += escapeHtml(rawText.substring(0, 1000));
                 diagnostika += "\n----------------------------------------\n";
-                throw new Error("Server poslal HTML stránku místo dat. Podívej se do logu, co nám píše.");
+                throw new Error("Server poslal HTML stránku místo dat. HTML je vypsáno v logu.");
             }
 
+            // Kontrola, jestli náš Vercel chytil HTML chybu z banky
             if (data.html_dump) {
-                diagnostika += "\n>>> BANKA NÁS VYHMÁTLA (HTML Z BANKY) <<<\n" + data.html_dump.substring(0, 1000) + "\n";
+                diagnostika += "\n>>> BANKA NÁS VYHMÁTLA (HTML Z BANKY) <<<\n----------------------------------------\n";
+                diagnostika += escapeHtml(data.html_dump);
+                diagnostika += "\n----------------------------------------\n";
                 throw new Error(data.error);
             }
             
@@ -123,7 +127,7 @@
                 throw new Error("Objekt accountStatement chybí v datech.");
             }
 
-            diagnostika += "4. Data jsou platná, vykresluji...\n";
+            diagnostika += "4. Data z Vercelu jsou platná, vykresluji...\n";
             var info = data.accountStatement.info;
             var trans = data.accountStatement.transactionList.transaction || [];
 
