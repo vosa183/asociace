@@ -112,7 +112,7 @@
             try {
                 data = JSON.parse(rawText);
             } catch (err) {
-                throw new Error("Server poslal HTML stránku místo dat.");
+                throw new Error("Server poslal HTML stránku místo dat. Pravděpodobně pravidlo 30 sekund.");
             }
 
             if (data.error) {
@@ -143,7 +143,6 @@
                     var vs = t.column5 ? t.column5.value : '-';
                     var zprava = t.column16 ? t.column16.value : '-';
                     
-                    // Inteligentní načtení jména - Fio to dává buď do column10 nebo column7
                     var odesilatel = '-';
                     if (t.column10 && t.column10.value) {
                         odesilatel = t.column10.value;
@@ -166,6 +165,7 @@
         }
     }
 
+    // OSTRÁ FUNKCE PRO PÁROVÁNÍ PLATEB S DATABÁZÍ (Tabulka: registrations)
     async function matchPayments() {
         if (!window.globalTransactions || window.globalTransactions.length === 0) {
             alert('Nejsou načtena žádná data k párování.');
@@ -177,68 +177,52 @@
         btn.disabled = true;
 
         let matchedCount = 0;
-        let logText = "START PÁROVÁNÍ S DATABÁZÍ\n=================\n";
+        let logText = "START PÁROVÁNÍ S DATABÁZÍ (Tabulka: registrations)\n=================\n";
 
         for (const t of window.globalTransactions) {
             const castka = t.column1 ? parseFloat(t.column1.value) : 0;
             const vs = t.column5 ? t.column5.value : null;
-            const datumPlatby = t.column0 ? t.column0.value : null;
-            const id_pohybu = t.column22 ? t.column22.value : null; 
 
+            // Filtrujeme pouze příchozí platby, které mají vyplněný Variabilní symbol
             if (castka > 0 && vs) {
-                logText += `Platba: ${castka} CZK | VS: ${vs}\n`;
+                logText += `Banka hlásí platbu: ${castka} CZK | VS (Karta hráče): ${vs}\n`;
 
-                // ==========================================
-                // TROJITÁ KONTROLA (VS + ČÁSTKA + ČASOVÁ POSLOUPNOST)
-                // ==========================================
-                
-                /*
                 try {
-                    // 1. Zjistíme, jestli existuje nezaplacený záznam s tímto VS A ZÁROVEŇ se stejnou částkou
-                    // 2. Tabulku si musíme seřadit podle data vytvoření vzestupně (nejstarší nezaplacený turnaj má přednost)
+                    // 1. Zjistíme, jestli existuje nezaplacený záznam s tímto VS (player_id_card)
+                    // 2. Řadíme vzestupně podle created_at, takže zaplatíme ten historicky nejstarší dlužný turnaj
                     const { data, error } = await db
-                        .from('NAZEV_TABULKY_REGISTRACI')
-                        .select('id, stav_platby, id_turnaje (datum_turnaje)')
-                        .eq('variabilni_symbol', vs)
-                        .eq('castka_k_uhrade', castka) 
-                        .eq('stav_platby', 'nezaplaceno')
+                        .from('registrations')
+                        .select('id, payment_status, created_at, tournament_id, player_id_card')
+                        .eq('player_id_card', vs)
+                        .eq('payment_status', false)
                         .order('created_at', { ascending: true })
                         .limit(1)
                         .single();
 
                     if (data) {
-                        // 3. Tady přidáme ještě kontrolu na datum turnaje, aby to nebylo na turnaj, který už dávno proběhl (volitelné)
-                        
-                        // Aktualizace stavu platby
+                        // 3. Našli jsme nejstarší nezaplacený záznam -> aktualizujeme ho na TRUE!
                         const { error: updateError } = await db
-                            .from('NAZEV_TABULKY_REGISTRACI')
-                            .update({ 
-                                stav_platby: 'zaplaceno', 
-                                fio_id_pohybu: id_pohybu,
-                                datum_sparovani: new Date().toISOString()
-                            })
+                            .from('registrations')
+                            .update({ payment_status: true })
                             .eq('id', data.id);
                             
                         if (!updateError) {
                             matchedCount++;
-                            logText += ` -> ÚSPĚCH: Spárováno s turnajem!\n`;
+                            logText += ` -> ÚSPĚCH: Spárováno s registrací! (Hráč: ${data.player_id_card}, Turnaj ID: ${data.tournament_id})\n`;
                         } else {
                             logText += ` -> CHYBA PŘI AKTUALIZACI: ${updateError.message}\n`;
                         }
                     } else {
-                        logText += ` -> PŘESKOČENO: Záznam s VS ${vs} a částkou ${castka} nenalezen, nebo už je zaplacen.\n`;
+                        logText += ` -> PŘESKOČENO: Hráč s VS ${vs} nemá v systému žádnou nezaplacenou registraci.\n`;
                     }
                 } catch (e) {
-                    // Logika nenajde-li žádný záznam, vyhodí chybu ze Supabase (.single()), tu jen potichu zachytíme
-                    logText += ` -> PŘESKOČENO: Nenašli jsme shodu.\n`;
+                    // Pokud Supabase nenajde žádný záznam přes .single(), vyhodí interní chybu, kterou tady elegantně zachytíme
+                    logText += ` -> PŘESKOČENO: Hráč s VS ${vs} nebyl v databázi registrací nalezen.\n`;
                 }
-                */
-               
-               logText += ` -> Čekám na definici tabulek a sloupců ze Supabase...\n`;
             }
         }
 
-        logText += `\nHotovo. Nově spárováno plateb: ${matchedCount}`;
+        logText += `\nHotovo. Nově spárováno plateb v databázi: ${matchedCount}`;
         
         document.getElementById('matchLog').innerHTML = `<div class="debug-log">${logText}</div>`;
         btn.innerText = 'Spárovat došlé platby s databází';
