@@ -92,17 +92,11 @@
         .vote-card-orange { border-top: 5px solid var(--orange); }
         .question-box { background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid var(--gray); }
         
-        .poster-wrapper { background: linear-gradient(135deg, #1a365d, #0f2038); border: 4px solid var(--gold); border-radius: 12px; padding: 3rem 2rem; text-align: center; color: white; position: relative; overflow: hidden; }
-        .poster-wrapper h4 { color: var(--gold); font-size: 2.5rem; margin: 1rem 0; text-transform: uppercase; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
-        .poster-wrapper .date { font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem; }
-        .poster-wrapper .fee { background: rgba(214, 158, 46, 0.2); display: inline-block; padding: 0.5rem 1.5rem; border: 1px solid var(--gold); border-radius: 8px; font-size: 1.2rem; }
-        
         .print-modal { background: white; border: 1px solid #cbd5e0; border-radius: 8px; overflow: hidden; margin-bottom: 1.5rem; display: flex; flex-direction: column; }
         .print-header { background: #f7fafc; padding: 1rem; border-bottom: 1px solid #cbd5e0; }
         .print-header input { margin-bottom: 0; }
         .print-list { max-height: 300px; overflow-y: auto; padding: 0; margin: 0; background: #fdfdfd; }
         .print-item { display: flex; align-items: center; padding: 10px 15px; border-bottom: 1px solid #edf2f7; cursor: pointer; transition: 0.2s; font-weight: normal; margin-bottom: 0; }
-        .print-item:hover { background: #ebf8ff; }
         .print-item input[type="checkbox"] { width: 20px; height: 20px; margin: 0 15px 0 0; cursor: pointer; flex-shrink: 0; }
         .print-footer { background: #f7fafc; padding: 1rem; border-top: 1px solid #cbd5e0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
 
@@ -122,14 +116,6 @@
 
         footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 2rem; }
         footer p { margin-bottom: 0.3rem; }
-
-        @media print {
-            body * { visibility: hidden; }
-            #posterPreview, #posterPreview * { visibility: visible; }
-            #posterPreview { position: absolute; left: 0; top: 0; width: 100%; border: none !important; margin: 0 !important; padding: 2rem !important; }
-            .poster-wrapper { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background: #1a365d !important; }
-            .no-print { display: none !important; }
-        }
     </style>
 </head>
 <body>
@@ -191,7 +177,6 @@
     <section id="rules" class="page-section">
         <div class="card">
             <h2>Oficiální pravidla a turnajový řád</h2>
-            
             <h3 style="color: var(--secondary); margin-top: 1.5rem;">Herní balíček a rozdávání karet</h3>
             <p style="margin-bottom: 0.8rem;">Hraje se výhradně s balíčkem třiceti dvou karet německého typu (takzvané mariášky). Karty se dělí do čtyř barev: srdce, žaludy, listy a kule. Každá barva má osm hodnot: sedmička, osmička, devítka, desítka, spodek, svršek, král a eso.</p>
             <p>Na samém začátku hry rozdá rozdávající hráč každému hráči přesně čtyři karty. Zbytek balíčku se položí doprostřed hracího stolu lícem dolů jako lízací talón. Vrchní karta z tohoto talónu se otočí a položí vedle – čímž vzniká základ odhazovací hromádky. Tato první otočená karta je plně aktivní. Znamená to, že pokud je otočena například sedmička, hráč, který je jako první na tahu, si musí rovnou lízat dvě karty (pokud sám nemá sedmičku na přebití).</p>
@@ -436,12 +421,6 @@
                 <div id="famMsg" class="msg"></div>
                 <ul class="family-list" id="familyList" style="margin-top: 1rem;"></ul>
             </div>
-        </div>
-    </section>
-
-    <section id="public-invite" class="page-section">
-        <div class="card" style="padding-top: 0;">
-            <div id="publicInviteContent">Načítám detaily turnaje, prosím čekejte...</div>
         </div>
     </section>
 
@@ -1217,44 +1196,55 @@
     document.addEventListener('change', function(e) { if(e.target && e.target.classList.contains('print-check')) { if(document.getElementById('printSelectionCount')) document.getElementById('printSelectionCount').innerText = document.querySelectorAll('.print-check:checked').length; } });
 
     // ==========================================
-    // --- 6. REGISTRACE NA TURNAJ (Pro MOJE Přihlášky) ---
+    // --- 6. REGISTRACE NA TURNAJ (OPRAVENO: Odhlašování + Zobrazení Aničky) ---
     // ==========================================
     
     async function loadMyRegistrations() {
-        const { data: myRegs } = await db.from('registrations').select(`id, player_id_card, payment_status, tournaments ( id, title, event_date, fee )`).eq('registered_by', currentUser.id);
+        // TADY JE TA OPRAVA PRO ANIČKU: Hledáme přihlášky, které uživatel sám vytvořil NEBO na kterých figuruje
+        const { data: myRegs, error } = await db.from('registrations')
+            .select(`id, player_id_card, registered_by, payment_status, tournaments ( id, title, event_date, fee )`)
+            .or(`registered_by.eq.${currentUser.id},player_id_card.eq.${myProfileData.player_id_card}`);
+            
         const list = document.getElementById('myRegistrationsList'); list.innerHTML = '';
+        if (error) { list.innerHTML = '<p class="error">Chyba při načítání přihlášek.</p>'; return; }
         if (!myRegs || myRegs.length === 0) { list.innerHTML = '<p>Zatím nejste přihlášeni na žádný turnaj.</p>'; return; }
+        
         myRegs.forEach(reg => {
-            const t = reg.tournaments; let pName = reg.player_id_card === myProfileData?.player_id_card ? 'VY' : (myFamily.find(f => f.player_id_card === reg.player_id_card)?.full_name + ' (Rodina)' || reg.player_id_card);
+            const t = reg.tournaments; 
+            let pName = reg.player_id_card === myProfileData.player_id_card ? 'VY' : (myFamily.find(f => f.player_id_card === reg.player_id_card)?.full_name + ' (Rodina)' || 'Cizí přihláška');
             let payUI = reg.payment_status ? `<span class="badge" style="background:#38a169;">Uhrazeno</span>` : `<button class="btn-small" style="background:#2b6cb0;" onclick="toggleQR('qr_${reg.id}', '${t.fee}', '${reg.player_id_card}')">Kód k platbě</button>`;
-            list.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:start; background:#fff; border:1px solid #e2e8f0;"><h4 style="color:#2f855a;">${t.title}</h4><p>Hráč: ${pName} | Datum: ${formatDateTime(t.event_date)}</p><div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; align-items:center;">${payUI}<button class="btn-small" style="background:#4a5568;" onclick="downloadCalendar('${t.title}', '${t.event_date}')">Kalendář</button><button class="btn-small btn-danger" onclick="cancelRegistration('${reg.id}')">Zrušit</button></div><div id="qr_${reg.id}" class="qr-container" style="display:none; width:100%; text-align:center;"><p style="font-size:0.8rem;">Zápisné: ${t.fee} Kč | Značka: ${formatSPZ(reg.player_id_card)}</p><img id="img_qr_${reg.id}"></div></div>`;
+            
+            list.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:start; background:#fff; border:1px solid #e2e8f0;">
+                <h4 style="color:#2f855a;">${t.title}</h4>
+                <p>Hráč: ${pName} | Datum: ${formatDateTime(t.event_date)}</p>
+                <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; align-items:center;">
+                    ${payUI}
+                    <button class="btn-small" style="background:#4a5568;" onclick="downloadCalendar('${t.title}', '${t.event_date}')">Kalendář</button>
+                    <button class="btn-small btn-danger" onclick="cancelRegistration('${reg.id}')">Zrušit</button>
+                </div>
+                <div id="qr_${reg.id}" class="qr-container" style="display:none; width:100%; text-align:center;">
+                    <p style="font-size:0.8rem;">Zápisné: ${t.fee} Kč | Značka: ${formatSPZ(reg.player_id_card)}</p>
+                    <img id="img_qr_${reg.id}">
+                </div>
+            </div>`;
         });
     }
-
-    // Očištění pro SPAYD
-    window.toggleQR = function(cid, fee, vs) { 
-        const c = document.getElementById(cid), i = document.getElementById('img_' + cid); 
-        if (c.style.display === 'block') {
-            c.style.display = 'none'; 
-        } else { 
-            const cleanAccount = globalBankAccount.replace(/\s+/g, '');
-            const cleanVS = String(vs).replace(/\D/g, '').substring(0, 10);
-            const cleanFee = parseFloat(fee).toFixed(2);
-            
-            if (!cleanAccount.toUpperCase().startsWith('CZ')) {
-                alert('CHYBA FAKTURACE: Bankovní účet asociace ("' + cleanAccount + '") není ve správném formátu IBAN. Požádejte předsedu o nápravu v Administraci systému.');
-                return;
-            }
-            
-            i.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`SPD*1.0*ACC:${cleanAccount}*AM:${cleanFee}*CC:CZK*X-VS:${cleanVS}`)}`; 
-            c.style.display = 'block'; 
-        } 
-    };
 
     window.downloadCalendar = function(t, dStr) { const d = new Date(dStr); if(isNaN(d)) return; const pad=n=>n<10?'0'+n:n; const sD = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`; const b = new Blob([`BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${sD}\nDTEND:${sD}\nSUMMARY:${t}\nEND:VEVENT\nEND:VCALENDAR`], { type: 'text/calendar' }); const url = URL.createObjectURL(b); const a = document.createElement('a'); a.href = url; a.download = `Turnaj.ics`; a.click(); };
     window.joinTournament = async function(tId) { if (!myProfileData) return; const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: myProfileData.player_id_card, registered_by: currentUser.id }); if (!error) { alert('Přihlášeno!'); loadMyRegistrations(); } else alert('Chyba (nebo už jste přihlášeni).'); };
     window.joinFamilyTournament = async function(tId) { const fId = document.getElementById('famSel_' + tId).value; const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: fId, registered_by: currentUser.id }); if (!error) { alert('Člen přihlášen.'); loadMyRegistrations(); } else alert('Chyba.'); };
-    window.cancelRegistration = async function(regId) { if(confirm("Zrušit přihlášku?")) { await db.from('registrations').delete().eq('id', regId); loadMyRegistrations(); } };
+    
+    // OPRAVA ODHLAŠOVÁNÍ: Přidáno hlášení chyb, aby nezůstal "viset"
+    window.cancelRegistration = async function(regId) { 
+        if(confirm("Opravdu chcete tuto přihlášku zrušit?")) { 
+            const { error } = await db.from('registrations').delete().eq('id', regId); 
+            if (error) {
+                alert("Chyba při mazání registrace: " + error.message);
+            } else {
+                loadMyRegistrations(); 
+            }
+        } 
+    };
     
     // ==========================================
     // --- 7. STATISTIKY A KOMENTÁŘE ---
@@ -1900,7 +1890,7 @@
         }
     };
 
-    // Funkce pro načítání a online správu vypsaných turnajů
+    // OPRAVA DATA A ÚPRAVY TURNAJŮ
     async function loadAdminTournaments() {
         if (!['zc', 'zcp', 'superadmin'].includes(simulatedRole)) return;
         const { data: tours, error } = await db.from('tournaments').select('*').order('event_date', { ascending: false });
@@ -1930,6 +1920,11 @@
         let html = '<h4 style="color:var(--primary);border-bottom:1px solid #cbd5e0;padding-bottom:5px;">📋 Správa aktivních turnajů na webu:</h4>';
         html += '<table class="stats-table" style="margin-top:10px;"><tr><th>Turnaj</th><th>Akce</th></tr>';
         tours.forEach(t => {
+            // Tady formátujeme do YYYY-MM-DD HH:MM
+            let dObj = new Date(t.event_date);
+            let pad = n => n < 10 ? '0' + n : n;
+            let dateVal = isNaN(dObj) ? '' : `${dObj.getFullYear()}-${pad(dObj.getMonth()+1)}-${pad(dObj.getDate())} ${pad(dObj.getHours())}:${pad(dObj.getMinutes())}`;
+            
             html += `<tr>
                 <td>
                     <strong style="color:var(--primary); font-size:0.95rem;">${t.title}</strong><br>
@@ -1937,7 +1932,7 @@
                 </td>
                 <td>
                     <div style="display:flex; gap:5px;">
-                        <button class="btn-small btn-blue" onclick="editTournamentInline('${t.id}', '${t.title.replace(/'/g, "\\'")}', ${t.capacity}, ${t.fee})">✏️ Upravit</button>
+                        <button class="btn-small btn-blue" onclick="editTournamentInline('${t.id}', '${t.title.replace(/'/g, "\\'")}', ${t.capacity}, ${t.fee}, '${dateVal}')">✏️ Upravit</button>
                         <button class="btn-small btn-danger" onclick="deleteTournament('${t.id}', '${t.title.replace(/'/g, "\\'")}')">❌ Smazat</button>
                     </div>
                 </td>
@@ -1947,7 +1942,8 @@
         existingList.innerHTML = html;
     }
 
-    window.editTournamentInline = async function(id, currentTitle, currentCap, currentFee) {
+    // PŘIDÁNA MOŽNOST MĚNIT I DATUM TURNAJE
+    window.editTournamentInline = async function(id, currentTitle, currentCap, currentFee, currentDateStr) {
         const newTitle = prompt("Zadejte nový oficiální název turnaje:", currentTitle);
         if (newTitle === null) return;
         
@@ -1956,16 +1952,22 @@
         
         const newFee = prompt("Zadejte nové zápisné (Kč):", currentFee);
         if (newFee === null) return;
-        
+
+        const newDate = prompt("Zadejte nové datum a čas (RRRR-MM-DD HH:MM):", currentDateStr);
+        if (newDate === null) return;
+
+        let finalDateObj = new Date(newDate.replace(' ', 'T')); // zkusíme to naparsovat
+
         const { error } = await db.from('tournaments').update({
             title: newTitle.trim(),
             capacity: parseInt(newCap) || currentCap,
-            fee: parseInt(newFee) || currentFee
+            fee: parseInt(newFee) || currentFee,
+            event_date: isNaN(finalDateObj) ? new Date().toISOString() : finalDateObj.toISOString()
         }).eq('id', id);
         
         if (!error) {
             alert('Turnaj byl úspěšně upraven a aktualizován na webu.');
-            logAction('Úprava turnaje', `Upraven turnaj: ${newTitle}`);
+            logAction('Úprava turnaje', `Upraven turnaj: ${newTitle} (na čas ${newDate})`);
             loadAdminTournaments();
         } else {
             alert('Chyba při úpravě turnaje: ' + error.message);
@@ -2033,7 +2035,6 @@
     window.clearEmailDb = async function() { if(confirm('Vymazat kompletně celou databázi e-mailů?')) { await db.from('newsletter_subscribers').delete().neq('email', 'dummy_email'); loadNewsletterStats(); } };
     window.filterEmailList = function() { const term = document.getElementById('searchEmailInput').value.toLowerCase(); document.querySelectorAll('.email-list-item').forEach(i => i.style.display = i.innerText.toLowerCase().includes(term) ? 'flex' : 'none'); };
 
-    // NOVÝ import Excelu s kontrolou duplicit pro Newsletter
     let uploadEmailsFormEl = document.getElementById('uploadEmailsForm');
     if (uploadEmailsFormEl) {
         uploadEmailsFormEl.addEventListener('submit', async (e) => {
@@ -2099,7 +2100,7 @@
     if(sendNewsletterFormEl) {
         sendNewsletterFormEl.addEventListener('submit', async (e) => {
             e.preventDefault(); const subj = document.getElementById('nlSubject').value, msgText = document.getElementById('nlMessage').value, msgBox = document.getElementById('nlSendMsg'), btn = document.getElementById('sendNlBtn');
-            if(!confirm('Opravdu rozeslat zprávu všem kontaktům?')) return; btn.disabled = true; msgBox.className = 'msg'; msgBox.innerText = 'Stahuji kontakty z DB...'; msgBox.style.display = 'block';
+            if(!confirm('Opravdu rozeslat zprávu všem kontaktům?')) return; btn.disabled = true; msgBox.className = 'msg'; msgBox.innerText = 'Stahuji kontakty z DB...'; msgBox
             try {
                 const { data: emailsData } = await db.from('newsletter_subscribers').select('email');
                 if (!emailsData || emailsData.length === 0) { msgBox.className = 'msg error'; msgBox.innerText = 'Databáze kontaktů je prázdná.'; btn.disabled = false; return; }
@@ -2310,4 +2311,3 @@
     scheduleBankCheck();
 
 </script>
-    
