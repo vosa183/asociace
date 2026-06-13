@@ -148,9 +148,7 @@
             
             document.getElementById('bankContent').innerHTML = html;
 
-            // ===============================================
-            // ZDE SE NYNÍ AUTOMATICKY SPOUŠTÍ PÁROVÁNÍ PLATEB
-            // ===============================================
+            // Automatické spuštění párování po úspěšném vykreslení tabulky
             await autoMatchPayments();
 
         } catch (err) {
@@ -161,7 +159,6 @@
         }
     }
 
-    // AUTOMATICKÁ FUNKCE PRO ZÁPIS DO DATABÁZE
     async function autoMatchPayments() {
         if (!window.globalTransactions || window.globalTransactions.length === 0) return;
 
@@ -171,7 +168,6 @@
 
         for (const t of window.globalTransactions) {
             const castka = t.column1 ? parseFloat(t.column1.value) : 0;
-            // Ošetření, aby se VS vždy chápalo jako čistý text (jako to máš v Supabase)
             const vs = t.column5 ? String(t.column5.value).trim() : null;
 
             if (castka > 0 && vs) {
@@ -188,16 +184,20 @@
                         .single();
 
                     if (data) {
-                        const { error: updateError } = await db
+                        // Ověření zápisu vynucením návratu dat přes .select()
+                        const { data: updatedData, error: updateError } = await db
                             .from('registrations')
                             .update({ payment_status: true })
-                            .eq('id', data.id);
+                            .eq('id', data.id)
+                            .select();
                             
-                        if (!updateError) {
+                        if (updateError) {
+                            logText += ` -> CHYBA PŘI AKTUALIZACI V DB: ${updateError.message}\n`;
+                        } else if (!updatedData || updatedData.length === 0) {
+                            logText += ` -> ZAMÍTNUTO DATABÁZÍ: Zápis zablokován. Zkontroluj, zda je vypnuté RLS v Supabase u tabulky registrations!\n`;
+                        } else {
                             matchedCount++;
                             logText += ` -> ÚSPĚCH ZÁPISU: Spárováno! (Hráč: ${data.player_id_card}, Turnaj: ${data.tournament_id})\n`;
-                        } else {
-                            logText += ` -> CHYBA PŘI AKTUALIZACI V DB: ${updateError.message}\n`;
                         }
                     } else {
                         logText += ` -> PŘESKOČENO: Hráč s VS ${vs} nemá žádnou nezaplacenou registraci.\n`;
