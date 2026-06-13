@@ -22,12 +22,8 @@
         .stats-table th { background: var(--primary); color: white; }
         .loading { text-align: center; padding: 2rem; font-weight: bold; }
         .error-msg { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; padding: 1.5rem; border-radius: 8px; font-weight: bold; }
-        .debug-log { background: #1a202c; color: #48bb78; padding: 1.5rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin-top: 1rem; text-align: left; border: 2px solid #4a5568; }
+        .debug-log { background: #1a202c; color: #48bb78; padding: 1.5rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin-top: 2rem; text-align: left; border: 2px solid #4a5568; }
         .warning-box { background: #fffbeb; border: 1px solid #f6e05e; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; color: #b7791f; text-align: center; }
-        .action-bar { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
-        .btn-match { background: var(--blue); color: white; border: none; padding: 0.8rem 1.5rem; font-size: 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.3s; }
-        .btn-match:hover { background: #2b6cb0; }
-        .btn-match:disabled { background: #a0aec0; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -45,12 +41,8 @@
             Mezi každým načtením dat z banky musíte <strong>počkat minimálně 30 vteřin</strong>.
         </div>
         
-        <div class="action-bar" id="actionBar" style="display: none;">
-            <button id="matchBtn" class="btn-match" onclick="matchPayments()">Spárovat došlé platby s databází</button>
-        </div>
-
-        <div id="matchLog"></div>
         <div id="bankContent" class="loading">Spojuji se s bankou... ⏳</div>
+        <div id="matchLog"></div>
     </div>
 </main>
 
@@ -127,7 +119,6 @@
             var trans = data.accountStatement.transactionList.transaction || [];
 
             window.globalTransactions = trans;
-            document.getElementById('actionBar').style.display = 'flex';
 
             var html = '<div class="balance-box"><h3>' + info.closingBalance.toLocaleString('cs-CZ') + ' ' + info.currency + '</h3><p>Zůstatek k dnešnímu dni (' + info.iban + ')</p></div>';
             html += '<h3>Historie pohybů (posledních 14 dní)</h3>';
@@ -157,6 +148,11 @@
             
             document.getElementById('bankContent').innerHTML = html;
 
+            // ===============================================
+            // ZDE SE NYNÍ AUTOMATICKY SPOUŠTÍ PÁROVÁNÍ PLATEB
+            // ===============================================
+            await autoMatchPayments();
+
         } catch (err) {
             diagnostika += "\n>>> CHYBA: " + err.message + "\n";
             var errorHtml = '<div class="error-msg">❌ Aplikaci se nepodařilo přečíst data.</div>';
@@ -165,31 +161,23 @@
         }
     }
 
-    // OSTRÁ FUNKCE PRO PÁROVÁNÍ PLATEB S DATABÁZÍ (Tabulka: registrations)
-    async function matchPayments() {
-        if (!window.globalTransactions || window.globalTransactions.length === 0) {
-            alert('Nejsou načtena žádná data k párování.');
-            return;
-        }
-
-        const btn = document.getElementById('matchBtn');
-        btn.innerText = 'Páruji platby... ⏳';
-        btn.disabled = true;
+    // AUTOMATICKÁ FUNKCE PRO ZÁPIS DO DATABÁZE
+    async function autoMatchPayments() {
+        if (!window.globalTransactions || window.globalTransactions.length === 0) return;
 
         let matchedCount = 0;
-        let logText = "START PÁROVÁNÍ S DATABÁZÍ (Tabulka: registrations)\n=================\n";
+        let logText = "START AUTOMATICKÉHO PÁROVÁNÍ S DATABÁZÍ\n=========================================\n";
+        document.getElementById('matchLog').innerHTML = `<div class="debug-log">Páruji platby na pozadí... ⏳</div>`;
 
         for (const t of window.globalTransactions) {
             const castka = t.column1 ? parseFloat(t.column1.value) : 0;
-            const vs = t.column5 ? t.column5.value : null;
+            // Ošetření, aby se VS vždy chápalo jako čistý text (jako to máš v Supabase)
+            const vs = t.column5 ? String(t.column5.value).trim() : null;
 
-            // Filtrujeme pouze příchozí platby, které mají vyplněný Variabilní symbol
             if (castka > 0 && vs) {
-                logText += `Banka hlásí platbu: ${castka} CZK | VS (Karta hráče): ${vs}\n`;
+                logText += `Hledám VS: ${vs} (Částka: ${castka} CZK)...\n`;
 
                 try {
-                    // 1. Zjistíme, jestli existuje nezaplacený záznam s tímto VS (player_id_card)
-                    // 2. Řadíme vzestupně podle created_at, takže zaplatíme ten historicky nejstarší dlužný turnaj
                     const { data, error } = await db
                         .from('registrations')
                         .select('id, payment_status, created_at, tournament_id, player_id_card')
@@ -200,7 +188,6 @@
                         .single();
 
                     if (data) {
-                        // 3. Našli jsme nejstarší nezaplacený záznam -> aktualizujeme ho na TRUE!
                         const { error: updateError } = await db
                             .from('registrations')
                             .update({ payment_status: true })
@@ -208,25 +195,21 @@
                             
                         if (!updateError) {
                             matchedCount++;
-                            logText += ` -> ÚSPĚCH: Spárováno s registrací! (Hráč: ${data.player_id_card}, Turnaj ID: ${data.tournament_id})\n`;
+                            logText += ` -> ÚSPĚCH ZÁPISU: Spárováno! (Hráč: ${data.player_id_card}, Turnaj: ${data.tournament_id})\n`;
                         } else {
-                            logText += ` -> CHYBA PŘI AKTUALIZACI: ${updateError.message}\n`;
+                            logText += ` -> CHYBA PŘI AKTUALIZACI V DB: ${updateError.message}\n`;
                         }
                     } else {
-                        logText += ` -> PŘESKOČENO: Hráč s VS ${vs} nemá v systému žádnou nezaplacenou registraci.\n`;
+                        logText += ` -> PŘESKOČENO: Hráč s VS ${vs} nemá žádnou nezaplacenou registraci.\n`;
                     }
                 } catch (e) {
-                    // Pokud Supabase nenajde žádný záznam přes .single(), vyhodí interní chybu, kterou tady elegantně zachytíme
-                    logText += ` -> PŘESKOČENO: Hráč s VS ${vs} nebyl v databázi registrací nalezen.\n`;
+                    logText += ` -> PŘESKOČENO: Nenalezena žádná shoda v dlužnících.\n`;
                 }
             }
         }
 
-        logText += `\nHotovo. Nově spárováno plateb v databázi: ${matchedCount}`;
-        
+        logText += `\n=========================================\nHOTOVO. Nově propsáno do databáze plateb: ${matchedCount}`;
         document.getElementById('matchLog').innerHTML = `<div class="debug-log">${logText}</div>`;
-        btn.innerText = 'Spárovat došlé platby s databází';
-        btn.disabled = false;
     }
 </script>
 </body>
