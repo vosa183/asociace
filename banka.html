@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
-        :root { --primary: #1a365d; --secondary: #c53030; --bg: #f4f7f6; --white: #ffffff; --green: #2f855a; }
+        :root { --primary: #1a365d; --secondary: #c53030; --bg: #f4f7f6; --white: #ffffff; --green: #2f855a; --blue: #3182ce; }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: var(--bg); color: #2d3748; padding: 2rem; }
         .card { background: var(--white); padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 1000px; margin: 0 auto; }
@@ -24,6 +24,10 @@
         .error-msg { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; padding: 1.5rem; border-radius: 8px; font-weight: bold; }
         .debug-log { background: #1a202c; color: #48bb78; padding: 1.5rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin-top: 1rem; text-align: left; border: 2px solid #4a5568; }
         .warning-box { background: #fffbeb; border: 1px solid #f6e05e; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; color: #b7791f; text-align: center; }
+        .action-bar { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
+        .btn-match { background: var(--blue); color: white; border: none; padding: 0.8rem 1.5rem; font-size: 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.3s; }
+        .btn-match:hover { background: #2b6cb0; }
+        .btn-match:disabled { background: #a0aec0; cursor: not-allowed; }
     </style>
 </head>
 <body>
@@ -37,10 +41,16 @@
     <div class="card">
         <h2>Přehled účtu asociace</h2>
         <div class="warning-box">
-            <strong>⚠️ PRAVIDLO 60 SEKUND:</strong> Fio banka přísně blokuje časté dotazy. 
-            Mezi každým načtením této stránky musíte <strong>počkat minimálně 1 minutu</strong>.
+            <strong>⚠️ PRAVIDLO 30 SEKUND:</strong> Fio banka přísně blokuje časté dotazy. 
+            Mezi každým načtením dat z banky musíte <strong>počkat minimálně 30 vteřin</strong>.
         </div>
-        <div id="bankContent" class="loading">Spojuji se přes lokální Vercel server... ⏳</div>
+        
+        <div class="action-bar" id="actionBar" style="display: none;">
+            <button id="matchBtn" class="btn-match" onclick="matchPayments()">Spárovat došlé platby s databází</button>
+        </div>
+
+        <div id="matchLog"></div>
+        <div id="bankContent" class="loading">Spojuji se s bankou... ⏳</div>
     </div>
 </main>
 
@@ -48,6 +58,8 @@
     const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+    window.globalTransactions = [];
 
     window.addEventListener('DOMContentLoaded', async function() {
         const { data: { user } } = await db.auth.getUser();
@@ -76,7 +88,6 @@
         return year + '-' + month + '-' + day;
     }
 
-    // Bezpečná funkce pro převod HTML značek, aby z nich nebyl neviditelný kód
     function escapeHtml(unsafe) {
         return (unsafe || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
@@ -93,32 +104,17 @@
             var tStr = getLocalDateString(toDate);
             
             var proxyUrl = "/api/fio?token=" + encodeURIComponent(cleanToken) + "&from=" + encodeURIComponent(fStr) + "&to=" + encodeURIComponent(tStr);
-            diagnostika += "1. Volám lokální Vercel tunel...\n";
-
-            var response = await fetch(proxyUrl);
-            diagnostika += "2. Vercel odpověděl. HTTP Status: " + response.status + "\n";
             
+            var response = await fetch(proxyUrl);
             var rawText = await response.text();
-            diagnostika += "3. Text úspěšně přečten (Délka: " + rawText.length + " znaků).\n";
             
             var data;
             try {
                 data = JSON.parse(rawText);
             } catch (err) {
-                diagnostika += "\n>>> ZACHYCENÝ HTML TEXT (PRVNÍCH 1000 ZNAKŮ) <<<\n----------------------------------------\n";
-                diagnostika += escapeHtml(rawText.substring(0, 1000));
-                diagnostika += "\n----------------------------------------\n";
-                throw new Error("Server poslal HTML stránku místo dat. HTML je vypsáno v logu.");
+                throw new Error("Server poslal HTML stránku místo dat.");
             }
 
-            // Kontrola, jestli náš Vercel chytil HTML chybu z banky
-            if (data.html_dump) {
-                diagnostika += "\n>>> BANKA NÁS VYHMÁTLA (HTML Z BANKY) <<<\n----------------------------------------\n";
-                diagnostika += escapeHtml(data.html_dump);
-                diagnostika += "\n----------------------------------------\n";
-                throw new Error(data.error);
-            }
-            
             if (data.error) {
                 throw new Error(data.error);
             }
@@ -127,9 +123,11 @@
                 throw new Error("Objekt accountStatement chybí v datech.");
             }
 
-            diagnostika += "4. Data z Vercelu jsou platná, vykresluji...\n";
             var info = data.accountStatement.info;
             var trans = data.accountStatement.transactionList.transaction || [];
+
+            window.globalTransactions = trans;
+            document.getElementById('actionBar').style.display = 'flex';
 
             var html = '<div class="balance-box"><h3>' + info.closingBalance.toLocaleString('cs-CZ') + ' ' + info.currency + '</h3><p>Zůstatek k dnešnímu dni (' + info.iban + ')</p></div>';
             html += '<h3>Historie pohybů (posledních 14 dní)</h3>';
@@ -137,14 +135,23 @@
             if (trans.length === 0) {
                 html += '<p style="color:#718096; padding-top:1rem;">Za posledních 14 dní neproběhly na účtu žádné pohyby.</p>';
             } else {
-                html += '<table class="stats-table"><tr><th>Datum</th><th>VS</th><th>Zpráva</th><th>Částka</th></tr>';
-                trans.reverse().forEach(function(t) {
+                html += '<table class="stats-table"><tr><th>Datum</th><th>Odesílatel</th><th>VS</th><th>Zpráva</th><th>Částka</th></tr>';
+                
+                [...trans].reverse().forEach(function(t) {
                     var datum = t.column0 ? t.column0.value.split('+')[0] : '-';
                     var castka = t.column1 ? parseFloat(t.column1.value) : 0;
                     var vs = t.column5 ? t.column5.value : '-';
                     var zprava = t.column16 ? t.column16.value : '-';
                     
-                    html += '<tr><td>' + datum.split('-').reverse().join('.') + '</td><td>' + vs + '</td><td>' + zprava + '</td><td style="font-weight:bold; color:'+(castka>0?'var(--green)':'var(--secondary)')+'">' + castka.toLocaleString('cs-CZ') + '</td></tr>';
+                    // Inteligentní načtení jména - Fio to dává buď do column10 nebo column7
+                    var odesilatel = '-';
+                    if (t.column10 && t.column10.value) {
+                        odesilatel = t.column10.value;
+                    } else if (t.column7 && t.column7.value) {
+                        odesilatel = t.column7.value;
+                    }
+                    
+                    html += '<tr><td>' + datum.split('-').reverse().join('.') + '</td><td>' + escapeHtml(odesilatel) + '</td><td>' + escapeHtml(vs) + '</td><td>' + escapeHtml(zprava) + '</td><td style="font-weight:bold; color:'+(castka>0?'var(--green)':'var(--secondary)')+'">' + castka.toLocaleString('cs-CZ') + '</td></tr>';
                 });
                 html += '</table>';
             }
@@ -152,11 +159,90 @@
             document.getElementById('bankContent').innerHTML = html;
 
         } catch (err) {
-            diagnostika += "\n>>> KRITICKÁ CHYBA: " + err.message + "\n";
+            diagnostika += "\n>>> CHYBA: " + err.message + "\n";
             var errorHtml = '<div class="error-msg">❌ Aplikaci se nepodařilo přečíst data.</div>';
             errorHtml += '<div class="debug-log">' + diagnostika + '</div>';
             document.getElementById('bankContent').innerHTML = errorHtml;
         }
+    }
+
+    async function matchPayments() {
+        if (!window.globalTransactions || window.globalTransactions.length === 0) {
+            alert('Nejsou načtena žádná data k párování.');
+            return;
+        }
+
+        const btn = document.getElementById('matchBtn');
+        btn.innerText = 'Páruji platby... ⏳';
+        btn.disabled = true;
+
+        let matchedCount = 0;
+        let logText = "START PÁROVÁNÍ S DATABÁZÍ\n=================\n";
+
+        for (const t of window.globalTransactions) {
+            const castka = t.column1 ? parseFloat(t.column1.value) : 0;
+            const vs = t.column5 ? t.column5.value : null;
+            const datumPlatby = t.column0 ? t.column0.value : null;
+            const id_pohybu = t.column22 ? t.column22.value : null; 
+
+            if (castka > 0 && vs) {
+                logText += `Platba: ${castka} CZK | VS: ${vs}\n`;
+
+                // ==========================================
+                // TROJITÁ KONTROLA (VS + ČÁSTKA + ČASOVÁ POSLOUPNOST)
+                // ==========================================
+                
+                /*
+                try {
+                    // 1. Zjistíme, jestli existuje nezaplacený záznam s tímto VS A ZÁROVEŇ se stejnou částkou
+                    // 2. Tabulku si musíme seřadit podle data vytvoření vzestupně (nejstarší nezaplacený turnaj má přednost)
+                    const { data, error } = await db
+                        .from('NAZEV_TABULKY_REGISTRACI')
+                        .select('id, stav_platby, id_turnaje (datum_turnaje)')
+                        .eq('variabilni_symbol', vs)
+                        .eq('castka_k_uhrade', castka) 
+                        .eq('stav_platby', 'nezaplaceno')
+                        .order('created_at', { ascending: true })
+                        .limit(1)
+                        .single();
+
+                    if (data) {
+                        // 3. Tady přidáme ještě kontrolu na datum turnaje, aby to nebylo na turnaj, který už dávno proběhl (volitelné)
+                        
+                        // Aktualizace stavu platby
+                        const { error: updateError } = await db
+                            .from('NAZEV_TABULKY_REGISTRACI')
+                            .update({ 
+                                stav_platby: 'zaplaceno', 
+                                fio_id_pohybu: id_pohybu,
+                                datum_sparovani: new Date().toISOString()
+                            })
+                            .eq('id', data.id);
+                            
+                        if (!updateError) {
+                            matchedCount++;
+                            logText += ` -> ÚSPĚCH: Spárováno s turnajem!\n`;
+                        } else {
+                            logText += ` -> CHYBA PŘI AKTUALIZACI: ${updateError.message}\n`;
+                        }
+                    } else {
+                        logText += ` -> PŘESKOČENO: Záznam s VS ${vs} a částkou ${castka} nenalezen, nebo už je zaplacen.\n`;
+                    }
+                } catch (e) {
+                    // Logika nenajde-li žádný záznam, vyhodí chybu ze Supabase (.single()), tu jen potichu zachytíme
+                    logText += ` -> PŘESKOČENO: Nenašli jsme shodu.\n`;
+                }
+                */
+               
+               logText += ` -> Čekám na definici tabulek a sloupců ze Supabase...\n`;
+            }
+        }
+
+        logText += `\nHotovo. Nově spárováno plateb: ${matchedCount}`;
+        
+        document.getElementById('matchLog').innerHTML = `<div class="debug-log">${logText}</div>`;
+        btn.innerText = 'Spárovat došlé platby s databází';
+        btn.disabled = false;
     }
 </script>
 </body>
