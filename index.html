@@ -117,9 +117,10 @@
         footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 2rem; }
         footer p { margin-bottom: 0.3rem; }
         
-        .progress-bar-bg { width: 100%; background-color: #e2e8f0; border-radius: 8px; height: 10px; overflow: hidden; margin-top: 5px; }
-        .progress-bar-fill { height: 100%; background-color: var(--blue); }
-        .progress-bar-paid { height: 100%; background-color: var(--green); }
+        /* OPRAVENÉ CSS PRO PROGRESS BAR - NIKAM UŽ NEUTEČE */
+        .progress-bar-bg { position: relative; width: 100%; background-color: #e2e8f0; border-radius: 8px; height: 10px; overflow: hidden; margin-top: 5px; }
+        .progress-bar-fill { position: absolute; left: 0; top: 0; height: 100%; background-color: var(--blue); border-radius: 8px; }
+        .progress-bar-paid { position: absolute; left: 0; top: 0; height: 100%; background-color: var(--green); z-index: 2; border-radius: 8px; }
         
         .social-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 24px; border-radius: 8px; color: white; text-decoration: none; font-weight: bold; transition: transform 0.2s, opacity 0.2s; }
         .social-btn:hover { transform: translateY(-2px); opacity: 0.9; }
@@ -443,12 +444,14 @@
         </div>
     </section>
 
+    <!-- ZMĚNA: VEŘEJNÉ TURNAJE PRO VŠECHNY -->
     <section id="tournaments" class="page-section">
         <div class="card">
             <h2>Vypsané turnaje asociace</h2>
             <p style="margin-bottom: 1.5rem;">Seznam nadcházejících turnajů. Pro rychlé přihlášení jedním kliknutím musíte mít vytvořený a propojený hráčský profil.</p>
             <div id="publicTournamentsList" style="margin-bottom: 3rem;">Načítám seznam turnajů...</div>
 
+            <!-- Tato sekce se ukáže pouze přihlášeným uživatelům -->
             <div id="myRegistrationsContainer" style="display:none; border-top: 2px solid #48bb78; padding-top: 1.5rem;">
                 <h2 style="color: #2f855a;">Moje přihlášky</h2>
                 <p style="margin-bottom: 1.5rem; font-size: 0.9rem;">Přehled turnajů, na které jste přihlášeni vy nebo členové vaší rodiny.</p>
@@ -628,6 +631,7 @@
                         <div>
                             <h4 style="color: var(--primary);">Napsat zprávu</h4>
                             <form id="sendNewsletterForm">
+                                <!-- ZMĚNA: ZAŠKRTÁVÁTKA PRO VÝBĚR PUBLIKA -->
                                 <div style="background: white; padding: 10px; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 10px;">
                                     <strong>Vyberte okruh příjemců:</strong>
                                     <label style="display:flex; align-items:center; gap:10px; margin-top:5px; cursor:pointer;">
@@ -713,6 +717,7 @@
                 </div>
 
                 <div style="background: var(--gray); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center;">
+                    <!-- ZMĚNA UPOZORNĚNÍ: Kombok a generátor pozvánek -->
                     <h3>Generátor turnajových pozvánek</h3>
                     <p style="margin-bottom: 1.5rem;">Chcete k turnaji vytvořit i grafický plakát a uložit si ho? Využijte náš generátor v externím modulu.</p>
                     <a href="pozvanky.html" target="_blank" class="btn-orange" style="text-align:center; display:block; text-decoration:none; padding:1rem; font-size:1.1rem; width: 100%; border-radius: 8px;">🚀 Otevřít Generátor pozvánek (Nová karta)</a>
@@ -1241,6 +1246,8 @@
     }
     window.printMyCard = function() { if(!myProfileData) return; const w = window.open('', '_blank'); w.document.write(generateMultipleCardsHTML([{id: myProfileData.player_id_card, spz: formatSPZ(myProfileData.player_id_card), name: myProfileData.full_name, city: myProfileData.city}])); w.document.close(); };
     window.filterPrintList = function() { const term = document.getElementById('printSearchInput').value.toLowerCase(); document.querySelectorAll('#adminPrintList label').forEach(lbl => { lbl.style.display = lbl.innerText.toLowerCase().includes(term) ? 'flex' : 'none'; }); };
+    
+    // ZMĚNA: Přidání bydliště k výpisu v admin sekci
     window.adminPrintSelectedCards = function() {
         const cbs = document.querySelectorAll('.print-check:checked'); if(cbs.length === 0) { alert('Nevybrali jste hráče.'); return; }
         let toPrint = []; cbs.forEach(cb => { toPrint.push({ id: cb.value, spz: formatSPZ(cb.value), name: cb.dataset.name, city: cb.dataset.city }); });
@@ -1253,7 +1260,6 @@
     // --- 6. VEŘEJNÉ TURNAJE A REGISTRACE ---
     // ==========================================
     
-    // Načítání VEŘEJNÝCH turnajů a tvorba grafických počítadel
     async function loadPublicTournaments() {
         const list = document.getElementById('publicTournamentsList');
         list.innerHTML = 'Načítám turnaje...';
@@ -1299,10 +1305,18 @@
                 }
             }
 
+            // ZMĚNA: Tlačítko hledá "poster_url" v databázi, nesměřuje do kombajnu
+            let posterBtn = '';
+            if (t.poster_url) {
+                posterBtn = `<button class="btn-small btn-blue" onclick="window.open('${t.poster_url}', '_blank')" style="margin-bottom: 10px;">👁️ Zobrazit / Stáhnout plakát</button>`;
+            } else {
+                posterBtn = `<button class="btn-small" style="background:#a0aec0; margin-bottom: 10px;" onclick="alert('K tomuto turnaji ještě nebyl nahrán oficiální plakát.')">Plakát se připravuje</button>`;
+            }
+
             html += `<div class="list-item" style="flex-direction:column; align-items:start; background:#fff; border:1px solid #e2e8f0;">
                 <div style="display:flex; justify-content:space-between; width:100%; flex-wrap:wrap; align-items:flex-start;">
                     <h3 style="color:var(--primary); margin-bottom: 5px;">${t.title}</h3>
-                    <button class="btn-small btn-blue" onclick="window.open('pozvanky.html?tid=${t.id}', '_blank')" style="margin-bottom: 10px;">👁️ Zobrazit / Stáhnout plakát</button>
+                    ${posterBtn}
                 </div>
                 <p style="font-size:0.9rem; color:#4a5568; margin-bottom: 10px;">📅 ${formatDateTime(t.event_date)} | 💰 Zápisné: ${t.fee} Kč</p>
                 <div style="width:100%; margin-bottom: 15px;">
@@ -1311,8 +1325,8 @@
                         <span style="color:var(--green);">Z toho zaplaceno: ${paidCount}</span>
                     </div>
                     <div class="progress-bar-bg">
-                        <div class="progress-bar-paid" style="width:${paidPct}%; position:absolute; z-index: 2;"></div>
-                        <div class="progress-bar-fill" style="width:${fillPct}%; z-index: 1;"></div>
+                        <div class="progress-bar-paid" style="width:${paidPct}%;"></div>
+                        <div class="progress-bar-fill" style="width:${fillPct}%;"></div>
                     </div>
                 </div>
                 <div style="width:100%;">
@@ -2058,7 +2072,6 @@
         }
     };
 
-    // OPRAVA DATA A ÚPRAVY TURNAJŮ
     async function loadAdminTournaments() {
         if (!['zc', 'zcp', 'superadmin'].includes(simulatedRole)) return;
         const { data: tours, error } = await db.from('tournaments').select('*').order('event_date', { ascending: false });
@@ -2102,7 +2115,6 @@
                 </td>
                 <td>
                     <div style="display:flex; gap:5px;">
-                        <button class="btn-small" style="background:#718096; color:white;" onclick="window.open('pozvanky.html?tid=${t.id}', '_blank')">👁️ Plakát</button>
                         <button class="btn-small btn-blue" onclick="editTournamentInline('${t.id}', '${t.title.replace(/'/g, "\\'")}', ${t.capacity}, ${t.fee}, '${dateVal}')">✏️ Upravit</button>
                         <button class="btn-small btn-danger" onclick="deleteTournament('${t.id}', '${t.title.replace(/'/g, "\\'")}')">❌ Smazat</button>
                     </div>
@@ -2145,7 +2157,7 @@
                 const promises = batch.map(email => sendEmailNotification(subj, msg, [email]));
                 await Promise.all(promises);
                 sentCount += batch.length;
-                await new Promise(r => setTimeout(r, 1000));
+                await new Promise(r => setTimeout(r, 1000)); 
             }
             
             alert(`Pozvánky úspěšně odeslány na ${sentCount} e-mailových adres!`);
@@ -2223,7 +2235,8 @@
             const { data: dbPlayers } = await db.from('player_database').select('*').order('full_name');
             if (dbPlayers) { 
                 document.getElementById('totalDbPlayersCount').innerText = dbPlayers.length; 
-                document.getElementById('adminPrintList').innerHTML = dbPlayers.map(c => `<label class="print-item"><input type="checkbox" class="print-check" value="${c.player_id_card}" data-name="${c.full_name}" data-city="${c.city||''}">${c.full_name} (${formatSPZ(c.player_id_card)})</label>`).join(''); 
+                // ZMĚNA U TISKU: Přidáno město pro snadnější identifikaci shodných jmen
+                document.getElementById('adminPrintList').innerHTML = dbPlayers.map(c => `<label class="print-item"><input type="checkbox" class="print-check" value="${c.player_id_card}" data-name="${c.full_name}" data-city="${c.city||''}">${c.full_name} — ${c.city||'Město neznámé'} (${formatSPZ(c.player_id_card)})</label>`).join(''); 
             }
             loadAssets();
             loadApiKeys();
@@ -2312,6 +2325,7 @@
         });
     }
 
+    // ZMĚNA: Hromadný rozesílač s výběrem publika
     let sendNewsletterFormEl = document.getElementById('sendNewsletterForm');
     if(sendNewsletterFormEl) {
         sendNewsletterFormEl.addEventListener('submit', async (e) => {
