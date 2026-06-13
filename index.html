@@ -270,7 +270,7 @@
             <div style="margin: 20px 0; padding: 15px; background: #edf2f7; border-radius: 8px;">
                 <label style="display:flex; align-items:center; gap:10px; margin-bottom:10px; cursor:pointer;">
                     <input type="radio" name="idChoice" value="haveId" checked onchange="toggleIdMode()" style="width:auto; margin:0;"> 
-                    <strong>Mám už přidělené ID hráče (Značku / SPZ)</strong>
+                    <strong>Mám už přidělené ID hráče (ID)</strong>
                 </label>
                 <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
                     <input type="radio" name="idChoice" value="newId" onchange="toggleIdMode()" style="width:auto; margin:0;"> 
@@ -280,8 +280,8 @@
 
             <form id="profileForm">
                 <div id="existingIdZone">
-                    <label for="profIdCard">Zadejte svou Značku (ID nebo formát s SPZ):</label>
-                    <input type="text" id="profIdCard" placeholder="Např. 12345 nebo MB12345">
+                    <label for="profIdCard">Zadejte svou Značku (ID- hráčské číslo):</label>
+                    <input type="text" id="profIdCard" placeholder="Např. 12345">
                 </div>
 
                 <div id="newIdZone" style="display:none; border-left: 3px solid var(--primary); padding-left: 15px; margin-bottom: 15px;">
