@@ -817,6 +817,7 @@
     Sídlo: Kurzova 2222/16, Stodůlky, 155 00 Praha 5 | IČO: 29650186</p>
 </footer>
 <script>
+<script>
     // ==========================================
     // --- 1. INICIALIZACE A GLOBÁLNÍ PROMĚNNÉ ---
     // ==========================================
@@ -1247,7 +1248,6 @@
     window.printMyCard = function() { if(!myProfileData) return; const w = window.open('', '_blank'); w.document.write(generateMultipleCardsHTML([{id: myProfileData.player_id_card, spz: formatSPZ(myProfileData.player_id_card), name: myProfileData.full_name, city: myProfileData.city}])); w.document.close(); };
     window.filterPrintList = function() { const term = document.getElementById('printSearchInput').value.toLowerCase(); document.querySelectorAll('#adminPrintList label').forEach(lbl => { lbl.style.display = lbl.innerText.toLowerCase().includes(term) ? 'flex' : 'none'; }); };
     
-    // ZMĚNA: Přidání bydliště k výpisu v admin sekci
     window.adminPrintSelectedCards = function() {
         const cbs = document.querySelectorAll('.print-check:checked'); if(cbs.length === 0) { alert('Nevybrali jste hráče.'); return; }
         let toPrint = []; cbs.forEach(cb => { toPrint.push({ id: cb.value, spz: formatSPZ(cb.value), name: cb.dataset.name, city: cb.dataset.city }); });
@@ -1305,10 +1305,10 @@
                 }
             }
 
-            // ZMĚNA: Tlačítko hledá "poster_url" v databázi, nesměřuje do kombajnu
+            // OPRAVA: Zde bereme data ze sloupce image_url z databáze
             let posterBtn = '';
-            if (t.poster_url) {
-                posterBtn = `<button class="btn-small btn-blue" onclick="window.open('${t.poster_url}', '_blank')" style="margin-bottom: 10px;">👁️ Zobrazit / Stáhnout plakát</button>`;
+            if (t.image_url) {
+                posterBtn = `<button class="btn-small btn-blue" onclick="window.open('${t.image_url}', '_blank')" style="margin-bottom: 10px;">👁️ Zobrazit / Stáhnout plakát</button>`;
             } else {
                 posterBtn = `<button class="btn-small" style="background:#a0aec0; margin-bottom: 10px;" onclick="alert('K tomuto turnaji ještě nebyl nahrán oficiální plakát.')">Plakát se připravuje</button>`;
             }
@@ -2235,7 +2235,6 @@
             const { data: dbPlayers } = await db.from('player_database').select('*').order('full_name');
             if (dbPlayers) { 
                 document.getElementById('totalDbPlayersCount').innerText = dbPlayers.length; 
-                // ZMĚNA U TISKU: Přidáno město pro snadnější identifikaci shodných jmen
                 document.getElementById('adminPrintList').innerHTML = dbPlayers.map(c => `<label class="print-item"><input type="checkbox" class="print-check" value="${c.player_id_card}" data-name="${c.full_name}" data-city="${c.city||''}">${c.full_name} — ${c.city||'Město neznámé'} (${formatSPZ(c.player_id_card)})</label>`).join(''); 
             }
             loadAssets();
@@ -2325,7 +2324,6 @@
         });
     }
 
-    // ZMĚNA: Hromadný rozesílač s výběrem publika
     let sendNewsletterFormEl = document.getElementById('sendNewsletterForm');
     if(sendNewsletterFormEl) {
         sendNewsletterFormEl.addEventListener('submit', async (e) => {
