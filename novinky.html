@@ -7,8 +7,6 @@
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any/dist/heic2any.min.js"></script>
-    
-    <!-- KNIHOVNA PRO OŘEZÁVÁNÍ FOTEK -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     
@@ -42,8 +40,8 @@
         .card { background: var(--white); padding: 2rem; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 2rem; }
         h2 { color: var(--primary); border-bottom: 2px solid var(--secondary); padding-bottom: 0.5rem; margin-bottom: 1.5rem; font-size: 1.5rem; }
         
-        input[type="text"], textarea { width: 100%; padding: 1rem; margin-bottom: 1.2rem; border-radius: 8px; border: 1px solid #cbd5e0; font-family: inherit; font-size: 1rem; background: #f8fafc; transition: border-color 0.2s; }
-        input[type="text"]:focus, textarea:focus { outline: none; border-color: var(--blue); background: var(--white); }
+        input[type="text"], textarea, select { width: 100%; padding: 1rem; margin-bottom: 1.2rem; border-radius: 8px; border: 1px solid #cbd5e0; font-family: inherit; font-size: 1rem; background: #f8fafc; transition: border-color 0.2s; }
+        input[type="text"]:focus, textarea:focus, select:focus { outline: none; border-color: var(--blue); background: var(--white); }
         button { background: var(--primary); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         button:hover { background: var(--secondary); }
         .btn-green { background: var(--green); }
@@ -53,21 +51,23 @@
         .drop-zone { border: 2px dashed var(--blue); padding: 3rem 1rem; text-align: center; background: #ebf8ff; border-radius: 12px; cursor: pointer; transition: 0.2s; font-weight: bold; color: var(--blue); margin-bottom: 1rem; }
         .drop-zone.dragover { background: #bee3f8; border-color: var(--primary); color: var(--primary); transform: scale(1.02); }
         .gallery-preview { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 1.5rem; }
-        .gallery-item { border: 1px solid #cbd5e0; padding: 8px; border-radius: 8px; text-align: center; font-size: 0.85rem; background: white; width: 140px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); position: relative; display: flex; flex-direction: column; justify-content: space-between; }
+        .gallery-item { border: 1px solid #cbd5e0; padding: 8px; border-radius: 8px; text-align: center; font-size: 0.85rem; background: white; width: 160px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); position: relative; display: flex; flex-direction: column; justify-content: space-between; }
         .gallery-item img { width: 100%; height: 90px; object-fit: cover; display: block; margin-bottom: 8px; border-radius: 4px; }
         .remove-img { position: absolute; top: -10px; right: -10px; background: var(--secondary); color: white; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; border: none; padding: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 10; }
-        .shortcode-badge { background: #2d3748; color: #48bb78; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; user-select: all; cursor: pointer; transition: 0.2s; display: block; margin-bottom: 5px; }
-        .shortcode-badge:hover { background: #1a202c; color: #68d391; }
-        .edit-img-btn { background: var(--blue); color: white; border: none; padding: 4px; width: 100%; border-radius: 4px; font-size: 0.8rem; cursor: pointer; }
-        .edit-img-btn:hover { background: #2b6cb0; }
+        
+        .action-btn { border: none; padding: 6px; width: 100%; border-radius: 4px; font-size: 0.8rem; cursor: pointer; margin-bottom: 5px; font-weight: bold; }
+        .btn-insert { background: #48bb78; color: white; }
+        .btn-insert:hover { background: #38a169; }
+        .btn-edit { background: var(--blue); color: white; }
+        .btn-edit:hover { background: #2b6cb0; }
 
         .msg { margin-top: 1rem; font-weight: bold; padding: 1rem; border-radius: 8px; display: none; text-align: center; }
         .error { background: #fed7d7; color: #c53030; display: block; }
         .success { background: #c6f6d5; color: #2f855a; display: block; }
 
-        /* MODÁLNÍ OKNO PRO OŘEZ */
+        /* MODÁLNÍ OKNA */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-box { background: white; padding: 2rem; border-radius: 12px; width: 95%; max-width: 800px; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
+        .modal-box { background: white; padding: 2rem; border-radius: 12px; width: 95%; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
         .modal-close { position: absolute; top: 15px; right: 15px; background: transparent; color: var(--secondary); border: none; font-size: 1.5rem; cursor: pointer; width: auto; padding: 0; }
         .cropper-container-box { max-height: 60vh; background: #eee; margin-bottom: 1.5rem; display: flex; justify-content: center; align-items: center; overflow: hidden; border-radius: 8px; border: 1px solid #ccc; }
 
@@ -81,13 +81,11 @@
         
         .post-content { padding: 0 2rem 1.5rem 2rem; line-height: 1.8; font-size: 1.1rem; color: #2d3748; white-space: pre-wrap; overflow: hidden; }
         
-        /* Moderní mřížka pro fotogalerii */
         .post-gallery { padding: 0 2rem 2rem 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
         .post-gallery img { width: 100%; height: 200px; object-fit: cover; border-radius: 10px; cursor: pointer; transition: transform 0.3s ease, box-shadow 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
         .post-gallery img:hover { transform: scale(1.03); box-shadow: 0 8px 20px rgba(0,0,0,0.15); z-index: 10; position: relative; }
         
         .loading { text-align: center; padding: 3rem; color: #a0aec0; font-style: italic; font-size: 1.2rem; }
-        
         .delete-post-btn { background: transparent; color: #e53e3e; text-decoration: none; padding: 4px 10px; border: 1px solid #feb2b2; border-radius: 6px; font-size: 0.8rem; margin-left: auto; }
         .delete-post-btn:hover { background: #fff5f5; color: #9b2c2c; }
 
@@ -122,16 +120,8 @@
                 
                 <div id="galleryPreview" class="gallery-preview"></div>
                 
-                <div style="background: #fffbeb; padding: 15px; border-radius: 8px; font-size: 0.95rem; color: #975a16; margin-bottom: 1.5rem; border: 1px solid #f6e05e; line-height: 1.8;">
-                    <strong>Formátování fotek v textu:</strong><br>
-                    Pokud jen vložíte <span class="shortcode-badge" style="display:inline;">[foto1]</span>, fotka bude přes celou šířku.<br>
-                    Můžete ale přidat příkaz pro velikost a pozici:<br>
-                    • <span class="shortcode-badge" style="display:inline;">[foto1 50%]</span> (Zmenší fotku na polovinu)<br>
-                    • <span class="shortcode-badge" style="display:inline;">[foto1 vlevo]</span> (Fotka se zmenší, přilepí doleva a text ji bude obtékat)<br>
-                    • <span class="shortcode-badge" style="display:inline;">[foto1 vpravo]</span> (Fotka se zmenší a přilepí doprava)
-                </div>
-
                 <label>Text článku</label>
+                <div style="font-size: 0.85rem; color: #718096; margin-bottom: 5px;">*Tip: Klikněte do textu tam, kam chcete fotku umístit, a u náhledu fotky klikněte na "Vložit do textu".</div>
                 <textarea id="postContent" rows="12" required placeholder="Tady pište svůj text..."></textarea>
                 
                 <button type="submit" id="submitBtn" class="btn-green" style="width: 100%; font-size: 1.2rem; padding: 1.2rem; margin-top: 10px;">Vydat a publikovat článek</button>
@@ -145,9 +135,34 @@
     </div>
 </main>
 
+<!-- Modální okno pro vložení obrázku (Nastavení velikosti a pozice) -->
+<div id="insertModal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 450px;">
+        <button type="button" class="modal-close" onclick="document.getElementById('insertModal').style.display='none'">×</button>
+        <h3 style="color: var(--blue); margin-bottom: 1rem; border-bottom: 2px solid var(--blue); padding-bottom: 10px;">Vložit fotku do textu</h3>
+        
+        <label>Velikost fotky</label>
+        <select id="insertSize">
+            <option value="100">100% (Přes celou šířku)</option>
+            <option value="75">75% šířky</option>
+            <option value="50">50% (Polovina)</option>
+            <option value="25">25% (Čtvrtina)</option>
+        </select>
+        
+        <label>Zarovnání</label>
+        <select id="insertPos">
+            <option value="stred">Na střed</option>
+            <option value="vlevo">Vlevo (text fotku obtéká zprava)</option>
+            <option value="vpravo">Vpravo (text fotku obtéká zleva)</option>
+        </select>
+        
+        <button type="button" class="btn-green" style="margin-top: 10px;" onclick="confirmInsert()">Vložit na pozici kurzoru</button>
+    </div>
+</div>
+
 <!-- Modální okno pro ořezávání -->
 <div id="cropperModal" class="modal-overlay">
-    <div class="modal-box">
+    <div class="modal-box" style="max-width: 800px;">
         <button type="button" class="modal-close" onclick="closeCropper()">×</button>
         <h3 style="color: var(--blue); margin-bottom: 1rem; border-bottom: 2px solid var(--blue); padding-bottom: 10px;">Oříznout a otočit fotku</h3>
         <div class="cropper-container-box">
@@ -167,9 +182,6 @@
 </footer>
 
 <script>
-    // ==========================================
-    // 1. INICIALIZACE DATABÁZE SUPABASE
-    // ==========================================
     const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -180,10 +192,8 @@
     let fileIdCounter = 1;
     let cropperInstance = null;
     let currentEditId = null;
+    let currentInsertShortcode = '';
 
-    // ==========================================
-    // 2. OVĚŘENÍ UŽIVATELE
-    // ==========================================
     async function checkAuth() {
         const { data: { user } } = await db.auth.getUser();
         if (user) {
@@ -192,7 +202,6 @@
             if (prof && ['zc', 'zcp', 'superadmin', 'pc'].includes(prof.role)) {
                 myProfileData = prof;
                 document.getElementById('adminZone').style.display = 'block';
-                
                 if (prof.role === 'pc') {
                     document.getElementById('submitBtn').innerText = 'Odeslat článek ke schválení';
                 }
@@ -202,9 +211,6 @@
     }
     checkAuth();
 
-    // ==========================================
-    // 3. LOGIKA PRO DRAG & DROP FOTEK + HEIC
-    // ==========================================
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
     const galleryPreview = document.getElementById('galleryPreview');
@@ -255,8 +261,10 @@
                 div.innerHTML = `
                     <button type="button" class="remove-img" onclick="removePendingFile(${fileObj.id})">×</button>
                     <img src="${e.target.result}" alt="Náhled">
-                    <span class="shortcode-badge" onclick="navigator.clipboard.writeText('${fileObj.shortcode}'); alert('Značka zkopírována!');">${fileObj.shortcode}</span>
-                    <button type="button" class="edit-img-btn" onclick="openEditor(${fileObj.id})">✂️ Upravit</button>
+                    <div>
+                        <button type="button" class="action-btn btn-insert" onclick="openInsertWizard('${fileObj.shortcode}')">➕ Vložit do textu</button>
+                        <button type="button" class="action-btn btn-edit" onclick="openEditor(${fileObj.id})">✂️ Oříznout</button>
+                    </div>
                 `;
                 galleryPreview.appendChild(div);
             };
@@ -271,9 +279,34 @@
         if(el) el.remove();
     };
 
-    // ==========================================
-    // 4. LOGIKA PRO CROPPER (OŘEZÁVÁNÍ FOTEK)
-    // ==========================================
+    // LOGIKA PRO CHYTRÉ VLOŽENÍ ZNAČKY DO TEXTU
+    window.openInsertWizard = function(shortcode) {
+        currentInsertShortcode = shortcode;
+        document.getElementById('insertModal').style.display = 'flex';
+    };
+
+    window.confirmInsert = function() {
+        let size = document.getElementById('insertSize').value;
+        let pos = document.getElementById('insertPos').value;
+        
+        let baseCode = currentInsertShortcode.replace('[', '').replace(']', '');
+        let finalTag = `[${baseCode} velikost=${size} pozice=${pos}]`;
+        
+        let textarea = document.getElementById('postContent');
+        let startPos = textarea.selectionStart;
+        let endPos = textarea.selectionEnd;
+        
+        // Vloží přesně tam, kde stojí kurzor
+        textarea.value = textarea.value.substring(0, startPos) + finalTag + textarea.value.substring(endPos, textarea.value.length);
+        
+        textarea.selectionStart = startPos + finalTag.length;
+        textarea.selectionEnd = startPos + finalTag.length;
+        textarea.focus();
+        
+        document.getElementById('insertModal').style.display = 'none';
+    };
+
+    // LOGIKA PRO CROPPER (OŘEZ)
     window.openEditor = function(id) {
         currentEditId = id;
         const fileObj = pendingFiles.find(f => f.id === id);
@@ -301,10 +334,7 @@
     window.saveCrop = function() {
         if (!cropperInstance || currentEditId === null) return;
         
-        cropperInstance.getCroppedCanvas({
-            maxWidth: 2000,
-            maxHeight: 2000
-        }).toBlob((blob) => {
+        cropperInstance.getCroppedCanvas({ maxWidth: 2000, maxHeight: 2000 }).toBlob((blob) => {
             const fileObj = pendingFiles.find(f => f.id === currentEditId);
             if (fileObj) {
                 const newName = fileObj.file.name.replace(/\.[^/.]+$/, "") + "_edit.jpg";
@@ -317,9 +347,6 @@
         }, 'image/jpeg', 0.85);
     };
 
-    // ==========================================
-    // 5. ODESLÁNÍ ČLÁNKU A FOTEK NA SERVER
-    // ==========================================
     document.getElementById('postForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('submitBtn');
@@ -386,9 +413,6 @@
         }
     });
 
-    // ==========================================
-    // 6. NAČÍTÁNÍ A VYKRESLOVÁNÍ ČLÁNKŮ PRO ČTENÁŘE
-    // ==========================================
     async function loadPosts() {
         const container = document.getElementById('newsContainer');
         const { data: posts, error: postsErr } = await db.from('reports').select('*').order('created_at', { ascending: false });
@@ -410,29 +434,41 @@
             let parsedContent = post.content;
             let usedShortcodes = [];
 
+            // NOVÝ INTELIGENTNÍ PARSER FOTEK
             postImages.forEach(img => {
                 let baseCode = img.shortcode.replace('[', '').replace(']', ''); 
-                let regex = new RegExp(`\\[${baseCode}(?:\\s+([a-zA-Z0-9%]+))?\\]`, 'g');
+                let regex = new RegExp(`\\[${baseCode}([^\\]]*)\\]`, 'g');
                 
                 if (parsedContent.match(regex)) {
-                    parsedContent = parsedContent.replace(regex, (match, param) => {
+                    parsedContent = parsedContent.replace(regex, (match, params) => {
                         usedShortcodes.push(img.shortcode);
-                        let style = 'width: 100%; display: block; margin: 1.5rem auto;';
-                        if (param) {
-                            if (param.includes('%') || param.includes('px')) {
-                                style = `width: ${param}; display: block; margin: 1.5rem auto;`;
-                            } else if (param === 'vlevo') {
-                                style = `width: 50%; float: left; margin: 0 1.5rem 1rem 0;`;
-                            } else if (param === 'vpravo') {
-                                style = `width: 50%; float: right; margin: 0 0 1rem 1.5rem;`;
-                            }
+                        let size = 100;
+                        let pos = 'stred';
+                        
+                        if (params.includes('velikost=')) {
+                            let m = params.match(/velikost=(\d+)/);
+                            if(m) size = m[1];
                         }
+                        if (params.includes('pozice=')) {
+                            let m = params.match(/pozice=([a-z]+)/);
+                            if(m) pos = m[1];
+                        }
+                        
+                        let style = '';
+                        if (pos === 'vlevo') {
+                            style = `width: ${size}%; float: left; margin: 0 1.5rem 1rem 0;`;
+                        } else if (pos === 'vpravo') {
+                            style = `width: ${size}%; float: right; margin: 0 0 1rem 1.5rem;`;
+                        } else {
+                            style = `width: ${size}%; display: block; margin: 1.5rem auto;`;
+                        }
+                        
                         return `<img src="${img.image_url}" style="${style} max-height: 600px; object-fit: cover; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);" alt="Fotografie">`;
                     });
                 }
             });
             
-            parsedContent += '<div style="clear: both;"></div>'; // Kvůli obtékání textu
+            parsedContent += '<div style="clear: both;"></div>';
 
             let galleryHtml = '';
             let unusedImages = postImages.filter(img => !usedShortcodes.includes(img.shortcode));
@@ -468,9 +504,6 @@
         container.innerHTML = html;
     }
 
-    // ==========================================
-    // 7. MAZÁNÍ ČLÁNKŮ
-    // ==========================================
     window.deletePost = async function(postId) {
         if(confirm('Skutečně chcete tento článek trvale smazat z webu?')) {
             await db.from('reports').delete().eq('id', postId);
