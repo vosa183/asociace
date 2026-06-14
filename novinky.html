@@ -6,6 +6,7 @@
     <title>Novinky | Česká asociace v karetní hře prší</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/heic2any/dist/heic2any.min.js"></script>
     <script src="font.js"></script>
     
     <style>
@@ -101,10 +102,10 @@
                 <label>Nadpis článku</label>
                 <input type="text" id="postTitle" required placeholder="Napište úderný nadpis...">
                 
-                <label>Obrázky (Přetáhněte sem z počítače, nebo klikněte)</label>
+                <label>Obrázky (Přetáhněte sem z počítače/mobilu, nebo klikněte)</label>
                 <div id="dropZone" class="drop-zone">
-                    📸 Přetáhněte sem fotky myší<br><span style="font-size: 0.9rem; font-weight: normal; color: #718096;">nebo klikněte pro otevření složky</span>
-                    <input type="file" id="fileInput" multiple accept="image/*" style="display:none;">
+                    <span id="dropZoneText">📸 Přetáhněte sem fotky myší<br><span style="font-size: 0.9rem; font-weight: normal; color: #718096;">nebo klikněte pro otevření složky (podporuje i HEIC z iPhonu)</span></span>
+                    <input type="file" id="fileInput" multiple accept="image/*,.heic" style="display:none;">
                 </div>
                 
                 <div id="galleryPreview" class="gallery-preview"></div>
@@ -167,11 +168,13 @@
     checkAuth();
 
     // ==========================================
-    // 3. LOGIKA PRO DRAG & DROP FOTEK
+    // 3. LOGIKA PRO DRAG & DROP FOTEK + HEIC PŘEVOD
     // ==========================================
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
     const galleryPreview = document.getElementById('galleryPreview');
+    const dropZoneText = document.getElementById('dropZoneText');
+    const originalDropZoneText = dropZoneText.innerHTML;
 
     dropZone.addEventListener('click', () => fileInput.click());
     
@@ -194,14 +197,39 @@
         handleFiles(this.files);
     });
 
-    function handleFiles(files) {
-        Array.from(files).forEach(file => {
-            if (!file.type.startsWith('image/')) return; 
+    // Upraveno na async, aby to dokázalo počkat na konverzi HEIC formátu
+    async function handleFiles(files) {
+        dropZoneText.innerHTML = "⏳ Zpracovávám fotky, prosím čekejte...";
+
+        for (let file of Array.from(files)) {
+            let processedFile = file;
             
+            // Je to fotka z iPhonu (HEIC)?
+            const isHeic = file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic');
+            
+            if (isHeic) {
+                try {
+                    // Magie: Převod HEIC na standardní JPG
+                    const conversionResult = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.8 });
+                    const blob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
+                    
+                    const newName = file.name.replace(/\.heic$/i, '.jpg');
+                    processedFile = new File([blob], newName, { type: "image/jpeg" });
+                } catch (e) {
+                    console.error("Chyba převodu HEIC:", e);
+                    alert("Nepodařilo se převést HEIC fotku z iPhonu: " + file.name);
+                    continue; // Fotku přeskočíme
+                }
+            } else if (!file.type.startsWith('image/')) {
+                // Pokud to není obrázek (a ani to nebyl HEIC), ignorujeme to
+                continue; 
+            }
+            
+            const currentId = fileIdCounter++;
             const fileObj = {
-                file: file,
-                id: fileIdCounter++,
-                shortcode: `[foto${fileIdCounter}]`
+                file: processedFile,
+                id: currentId,
+                shortcode: `[foto${currentId}]`
             };
             pendingFiles.push(fileObj);
 
@@ -217,8 +245,11 @@
                 `;
                 galleryPreview.appendChild(div);
             };
-            reader.readAsDataURL(file);
-        });
+            reader.readAsDataURL(processedFile);
+        }
+        
+        // Vrátit původní text drop zóny
+        dropZoneText.innerHTML = originalDropZoneText;
     }
 
     window.removePendingFile = function(id) {
@@ -263,6 +294,7 @@
 
             for (let i = 0; i < pendingFiles.length; i++) {
                 let fObj = pendingFiles[i];
+                // Vždy se už nahrává standardní formát (JPEG/PNG), HEIC je převeden
                 let safeName = `img_${Date.now()}_${Math.floor(Math.random() * 1000)}_${fObj.file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
                 
                 const { error: uploadErr } = await db.storage.from('report_media').upload(safeName, fObj.file);
