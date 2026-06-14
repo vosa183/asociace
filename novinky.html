@@ -7,6 +7,11 @@
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/heic2any/dist/heic2any.min.js"></script>
+    
+    <!-- KNIHOVNA PRO OŘEZÁVÁNÍ FOTEK -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    
     <script src="font.js"></script>
     
     <style>
@@ -42,20 +47,29 @@
         button { background: var(--primary); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         button:hover { background: var(--secondary); }
         .btn-green { background: var(--green); }
+        .btn-blue { background: var(--blue); }
 
         /* EDITOR A DROP ZÓNA */
         .drop-zone { border: 2px dashed var(--blue); padding: 3rem 1rem; text-align: center; background: #ebf8ff; border-radius: 12px; cursor: pointer; transition: 0.2s; font-weight: bold; color: var(--blue); margin-bottom: 1rem; }
         .drop-zone.dragover { background: #bee3f8; border-color: var(--primary); color: var(--primary); transform: scale(1.02); }
         .gallery-preview { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 1.5rem; }
-        .gallery-item { border: 1px solid #cbd5e0; padding: 8px; border-radius: 8px; text-align: center; font-size: 0.85rem; background: white; width: 130px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); position: relative; }
+        .gallery-item { border: 1px solid #cbd5e0; padding: 8px; border-radius: 8px; text-align: center; font-size: 0.85rem; background: white; width: 140px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); position: relative; display: flex; flex-direction: column; justify-content: space-between; }
         .gallery-item img { width: 100%; height: 90px; object-fit: cover; display: block; margin-bottom: 8px; border-radius: 4px; }
-        .remove-img { position: absolute; top: -10px; right: -10px; background: var(--secondary); color: white; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; border: none; padding: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        .shortcode-badge { background: #2d3748; color: #48bb78; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; user-select: all; cursor: pointer; transition: 0.2s; display: inline-block; }
+        .remove-img { position: absolute; top: -10px; right: -10px; background: var(--secondary); color: white; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; border: none; padding: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 10; }
+        .shortcode-badge { background: #2d3748; color: #48bb78; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; user-select: all; cursor: pointer; transition: 0.2s; display: block; margin-bottom: 5px; }
         .shortcode-badge:hover { background: #1a202c; color: #68d391; }
+        .edit-img-btn { background: var(--blue); color: white; border: none; padding: 4px; width: 100%; border-radius: 4px; font-size: 0.8rem; cursor: pointer; }
+        .edit-img-btn:hover { background: #2b6cb0; }
 
         .msg { margin-top: 1rem; font-weight: bold; padding: 1rem; border-radius: 8px; display: none; text-align: center; }
         .error { background: #fed7d7; color: #c53030; display: block; }
         .success { background: #c6f6d5; color: #2f855a; display: block; }
+
+        /* MODÁLNÍ OKNO PRO OŘEZ */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-box { background: white; padding: 2rem; border-radius: 12px; width: 95%; max-width: 800px; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
+        .modal-close { position: absolute; top: 15px; right: 15px; background: transparent; color: var(--secondary); border: none; font-size: 1.5rem; cursor: pointer; width: auto; padding: 0; }
+        .cropper-container-box { max-height: 60vh; background: #eee; margin-bottom: 1.5rem; display: flex; justify-content: center; align-items: center; overflow: hidden; border-radius: 8px; border: 1px solid #ccc; }
 
         /* MODERNÍ VÝPIS ČLÁNKŮ */
         .post-card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 3rem; transition: transform 0.3s ease, box-shadow 0.3s ease; border: 1px solid #edf2f7; }
@@ -65,9 +79,7 @@
         .post-meta { color: #718096; font-size: 0.9rem; margin-bottom: 1.5rem; border-bottom: 2px solid #edf2f7; padding-bottom: 1rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .post-meta .author-badge { background: #e2e8f0; color: #2d3748; padding: 4px 10px; border-radius: 20px; font-weight: bold; }
         
-        .post-content { padding: 0 2rem 1.5rem 2rem; line-height: 1.8; font-size: 1.1rem; color: #2d3748; white-space: pre-wrap; }
-        
-        .post-image-inline { width: 100%; max-height: 500px; object-fit: cover; border-radius: 12px; margin: 1.5rem 0; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        .post-content { padding: 0 2rem 1.5rem 2rem; line-height: 1.8; font-size: 1.1rem; color: #2d3748; white-space: pre-wrap; overflow: hidden; }
         
         /* Moderní mřížka pro fotogalerii */
         .post-gallery { padding: 0 2rem 2rem 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
@@ -110,8 +122,13 @@
                 
                 <div id="galleryPreview" class="gallery-preview"></div>
                 
-                <div style="background: #fffbeb; padding: 15px; border-radius: 8px; font-size: 0.9rem; color: #975a16; margin-bottom: 1.5rem; border: 1px solid #f6e05e;">
-                    <strong>Jak na fotky v textu:</strong> Zkopírujte kód (např. <span class="shortcode-badge">[foto1]</span>) a vložte ho kamkoliv do textu níže. Fotky, které do textu nevložíte, se automaticky seskládají do hezké mozaikové fotogalerie na úplný konec článku.
+                <div style="background: #fffbeb; padding: 15px; border-radius: 8px; font-size: 0.95rem; color: #975a16; margin-bottom: 1.5rem; border: 1px solid #f6e05e; line-height: 1.8;">
+                    <strong>Formátování fotek v textu:</strong><br>
+                    Pokud jen vložíte <span class="shortcode-badge" style="display:inline;">[foto1]</span>, fotka bude přes celou šířku.<br>
+                    Můžete ale přidat příkaz pro velikost a pozici:<br>
+                    • <span class="shortcode-badge" style="display:inline;">[foto1 50%]</span> (Zmenší fotku na polovinu)<br>
+                    • <span class="shortcode-badge" style="display:inline;">[foto1 vlevo]</span> (Fotka se zmenší, přilepí doleva a text ji bude obtékat)<br>
+                    • <span class="shortcode-badge" style="display:inline;">[foto1 vpravo]</span> (Fotka se zmenší a přilepí doprava)
                 </div>
 
                 <label>Text článku</label>
@@ -127,6 +144,22 @@
         <div class="loading">Načítám aktuální dění v asociaci...</div>
     </div>
 </main>
+
+<!-- Modální okno pro ořezávání -->
+<div id="cropperModal" class="modal-overlay">
+    <div class="modal-box">
+        <button type="button" class="modal-close" onclick="closeCropper()">×</button>
+        <h3 style="color: var(--blue); margin-bottom: 1rem; border-bottom: 2px solid var(--blue); padding-bottom: 10px;">Oříznout a otočit fotku</h3>
+        <div class="cropper-container-box">
+            <img id="cropperImage" style="max-width: 100%; display: block;">
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button type="button" class="btn-blue" style="flex: 1;" onclick="cropperInstance.rotate(-90)">↺ Otočit vlevo</button>
+            <button type="button" class="btn-blue" style="flex: 1;" onclick="cropperInstance.rotate(90)">↻ Otočit vpravo</button>
+            <button type="button" class="btn-green" style="flex: 2; font-size: 1.1rem;" onclick="saveCrop()">Uložit úpravy</button>
+        </div>
+    </div>
+</div>
 
 <footer>
     <p><strong>Česká asociace v karetní hře prší z.s.</strong><br>
@@ -145,9 +178,11 @@
     let myProfileData = null;
     let pendingFiles = []; 
     let fileIdCounter = 1;
+    let cropperInstance = null;
+    let currentEditId = null;
 
     // ==========================================
-    // 2. OVĚŘENÍ UŽIVATELE (Práva pro psaní)
+    // 2. OVĚŘENÍ UŽIVATELE
     // ==========================================
     async function checkAuth() {
         const { data: { user } } = await db.auth.getUser();
@@ -168,7 +203,7 @@
     checkAuth();
 
     // ==========================================
-    // 3. LOGIKA PRO DRAG & DROP FOTEK + HEIC PŘEVOD
+    // 3. LOGIKA PRO DRAG & DROP FOTEK + HEIC
     // ==========================================
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
@@ -177,51 +212,30 @@
     const originalDropZoneText = dropZoneText.innerHTML;
 
     dropZone.addEventListener('click', () => fileInput.click());
-    
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.classList.add('dragover');
-    });
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+    fileInput.addEventListener('change', function() { handleFiles(this.files); });
 
-    dropZone.addEventListener('dragleave', () => {
-        dropZone.classList.remove('dragover');
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('dragover');
-        handleFiles(e.dataTransfer.files);
-    });
-
-    fileInput.addEventListener('change', function() {
-        handleFiles(this.files);
-    });
-
-    // Upraveno na async, aby to dokázalo počkat na konverzi HEIC formátu
     async function handleFiles(files) {
         dropZoneText.innerHTML = "⏳ Zpracovávám fotky, prosím čekejte...";
 
         for (let file of Array.from(files)) {
             let processedFile = file;
-            
-            // Je to fotka z iPhonu (HEIC)?
             const isHeic = file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic');
             
             if (isHeic) {
                 try {
-                    // Magie: Převod HEIC na standardní JPG
                     const conversionResult = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.8 });
                     const blob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
-                    
                     const newName = file.name.replace(/\.heic$/i, '.jpg');
                     processedFile = new File([blob], newName, { type: "image/jpeg" });
                 } catch (e) {
                     console.error("Chyba převodu HEIC:", e);
                     alert("Nepodařilo se převést HEIC fotku z iPhonu: " + file.name);
-                    continue; // Fotku přeskočíme
+                    continue;
                 }
             } else if (!file.type.startsWith('image/')) {
-                // Pokud to není obrázek (a ani to nebyl HEIC), ignorujeme to
                 continue; 
             }
             
@@ -241,14 +255,13 @@
                 div.innerHTML = `
                     <button type="button" class="remove-img" onclick="removePendingFile(${fileObj.id})">×</button>
                     <img src="${e.target.result}" alt="Náhled">
-                    <span class="shortcode-badge" onclick="navigator.clipboard.writeText('${fileObj.shortcode}'); alert('Značka zkopírována do schránky!');">${fileObj.shortcode}</span>
+                    <span class="shortcode-badge" onclick="navigator.clipboard.writeText('${fileObj.shortcode}'); alert('Značka zkopírována!');">${fileObj.shortcode}</span>
+                    <button type="button" class="edit-img-btn" onclick="openEditor(${fileObj.id})">✂️ Upravit</button>
                 `;
                 galleryPreview.appendChild(div);
             };
             reader.readAsDataURL(processedFile);
         }
-        
-        // Vrátit původní text drop zóny
         dropZoneText.innerHTML = originalDropZoneText;
     }
 
@@ -259,7 +272,53 @@
     };
 
     // ==========================================
-    // 4. ODESLÁNÍ ČLÁNKU A FOTEK NA SERVER
+    // 4. LOGIKA PRO CROPPER (OŘEZÁVÁNÍ FOTEK)
+    // ==========================================
+    window.openEditor = function(id) {
+        currentEditId = id;
+        const fileObj = pendingFiles.find(f => f.id === id);
+        if (!fileObj) return;
+
+        const url = URL.createObjectURL(fileObj.file);
+        document.getElementById('cropperImage').src = url;
+        document.getElementById('cropperModal').style.display = 'flex';
+
+        if (cropperInstance) cropperInstance.destroy();
+        
+        cropperInstance = new Cropper(document.getElementById('cropperImage'), {
+            viewMode: 1,
+            autoCropArea: 1,
+            responsive: true,
+            background: false
+        });
+    };
+
+    window.closeCropper = function() {
+        document.getElementById('cropperModal').style.display = 'none';
+        if (cropperInstance) cropperInstance.destroy();
+    };
+
+    window.saveCrop = function() {
+        if (!cropperInstance || currentEditId === null) return;
+        
+        cropperInstance.getCroppedCanvas({
+            maxWidth: 2000,
+            maxHeight: 2000
+        }).toBlob((blob) => {
+            const fileObj = pendingFiles.find(f => f.id === currentEditId);
+            if (fileObj) {
+                const newName = fileObj.file.name.replace(/\.[^/.]+$/, "") + "_edit.jpg";
+                fileObj.file = new File([blob], newName, { type: "image/jpeg" });
+                
+                const thumbImg = document.querySelector(`#preview-${currentEditId} img`);
+                if (thumbImg) thumbImg.src = URL.createObjectURL(blob);
+            }
+            closeCropper();
+        }, 'image/jpeg', 0.85);
+    };
+
+    // ==========================================
+    // 5. ODESLÁNÍ ČLÁNKU A FOTEK NA SERVER
     // ==========================================
     document.getElementById('postForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -294,7 +353,6 @@
 
             for (let i = 0; i < pendingFiles.length; i++) {
                 let fObj = pendingFiles[i];
-                // Vždy se už nahrává standardní formát (JPEG/PNG), HEIC je převeden
                 let safeName = `img_${Date.now()}_${Math.floor(Math.random() * 1000)}_${fObj.file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
                 
                 const { error: uploadErr } = await db.storage.from('report_media').upload(safeName, fObj.file);
@@ -329,11 +387,10 @@
     });
 
     // ==========================================
-    // 5. NAČÍTÁNÍ A VYKRESLOVÁNÍ ČLÁNKŮ PRO ČTENÁŘE
+    // 6. NAČÍTÁNÍ A VYKRESLOVÁNÍ ČLÁNKŮ PRO ČTENÁŘE
     // ==========================================
     async function loadPosts() {
         const container = document.getElementById('newsContainer');
-        
         const { data: posts, error: postsErr } = await db.from('reports').select('*').order('created_at', { ascending: false });
         const { data: images } = await db.from('report_images').select('*');
 
@@ -354,14 +411,28 @@
             let usedShortcodes = [];
 
             postImages.forEach(img => {
-                let safeShortcode = img.shortcode.replace(/\[/g, '\\[').replace(/\]/g, '\\]');
-                let regex = new RegExp(safeShortcode, 'g');
+                let baseCode = img.shortcode.replace('[', '').replace(']', ''); 
+                let regex = new RegExp(`\\[${baseCode}(?:\\s+([a-zA-Z0-9%]+))?\\]`, 'g');
                 
                 if (parsedContent.match(regex)) {
-                    parsedContent = parsedContent.replace(regex, `<img src="${img.image_url}" class="post-image-inline" alt="Obrázek k článku">`);
-                    usedShortcodes.push(img.shortcode);
+                    parsedContent = parsedContent.replace(regex, (match, param) => {
+                        usedShortcodes.push(img.shortcode);
+                        let style = 'width: 100%; display: block; margin: 1.5rem auto;';
+                        if (param) {
+                            if (param.includes('%') || param.includes('px')) {
+                                style = `width: ${param}; display: block; margin: 1.5rem auto;`;
+                            } else if (param === 'vlevo') {
+                                style = `width: 50%; float: left; margin: 0 1.5rem 1rem 0;`;
+                            } else if (param === 'vpravo') {
+                                style = `width: 50%; float: right; margin: 0 0 1rem 1.5rem;`;
+                            }
+                        }
+                        return `<img src="${img.image_url}" style="${style} max-height: 600px; object-fit: cover; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);" alt="Fotografie">`;
+                    });
                 }
             });
+            
+            parsedContent += '<div style="clear: both;"></div>'; // Kvůli obtékání textu
 
             let galleryHtml = '';
             let unusedImages = postImages.filter(img => !usedShortcodes.includes(img.shortcode));
@@ -398,7 +469,7 @@
     }
 
     // ==========================================
-    // 6. MAZÁNÍ ČLÁNKŮ
+    // 7. MAZÁNÍ ČLÁNKŮ
     // ==========================================
     window.deletePost = async function(postId) {
         if(confirm('Skutečně chcete tento článek trvale smazat z webu?')) {
