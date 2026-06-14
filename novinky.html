@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novinky | Česká asociace prší</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="font.js"></script>
+    
+    <style>
+        :root { 
+            --primary: #1a365d; 
+            --secondary: #c53030; 
+            --bg: #f4f7f6; 
+            --text: #2d3748; 
+            --white: #ffffff; 
+            --gray: #e2e8f0; 
+            --orange: #dd6b20; 
+            --blue: #3182ce;   
+            --green: #2f855a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg); color: var(--text); line-height: 1.6; }
+        
+        header { background: var(--white); padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .logo-container { display: flex; align-items: center; gap: 1rem; text-decoration: none; }
+        .logo-container img { height: 50px; }
+        .logo-container h1 { font-size: 1.2rem; color: var(--primary); text-transform: uppercase; margin: 0; }
+        
+        nav a { text-decoration: none; color: var(--white); background: var(--primary); font-weight: 600; padding: 0.6rem 1.2rem; border-radius: 6px; transition: 0.2s; }
+        nav a:hover { background: var(--secondary); }
+
+        main { max-width: 900px; margin: 2rem auto; padding: 0 1rem; min-height: 60vh; }
+        .card { background: var(--white); padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 2rem; }
+        h2 { color: var(--primary); border-bottom: 2px solid var(--secondary); padding-bottom: 0.5rem; margin-bottom: 1.5rem; font-size: 1.5rem; }
+        
+        input[type="text"], textarea { width: 100%; padding: 0.8rem; margin-bottom: 1rem; border-radius: 6px; border: 1px solid #ccc; font-family: inherit; font-size: 1rem; }
+        button { background: var(--primary); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { background: var(--secondary); }
+        .btn-green { background: var(--green); }
+
+        /* EDITOR A DROP ZÓNA */
+        .drop-zone { border: 2px dashed var(--blue); padding: 2.5rem 1rem; text-align: center; background: #ebf8ff; border-radius: 8px; cursor: pointer; transition: 0.2s; font-weight: bold; color: var(--blue); margin-bottom: 1rem; }
+        .drop-zone.dragover { background: #bee3f8; border-color: var(--primary); color: var(--primary); }
+        .gallery-preview { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 1rem; }
+        .gallery-item { border: 1px solid #cbd5e0; padding: 8px; border-radius: 6px; text-align: center; font-size: 0.85rem; background: white; width: 120px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: relative; }
+        .gallery-item img { width: 100%; height: 80px; object-fit: cover; display: block; margin-bottom: 5px; border-radius: 4px; }
+        .remove-img { position: absolute; top: -8px; right: -8px; background: var(--secondary); color: white; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; border: none; padding: 0; }
+        .shortcode-badge { background: #1a202c; color: #48bb78; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; user-select: all; cursor: pointer; }
+
+        /* VÝPIS ČLÁNKŮ */
+        .post-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 2.5rem; border: 1px solid #e2e8f0; }
+        .post-header { padding: 1.5rem 1.5rem 0.5rem 1.5rem; }
+        .post-title { color: var(--primary); margin-bottom: 0.5rem; font-size: 1.6rem; }
+        .post-meta { color: #718096; font-size: 0.85rem; margin-bottom: 1rem; border-bottom: 1px solid #edf2f7; padding-bottom: 1rem; }
+        .post-content { padding: 0 1.5rem 1.5rem 1.5rem; line-height: 1.8; font-size: 1.05rem; white-space: pre-wrap; }
+        .post-image-inline { max-width: 100%; height: auto; border-radius: 8px; margin: 1.5rem 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .post-gallery { display: flex; gap: 10px; flex-wrap: wrap; padding: 0 1.5rem 1.5rem 1.5rem; }
+        .post-gallery img { height: 150px; border-radius: 8px; cursor: pointer; object-fit: cover; flex-grow: 1; max-width: 100%; }
+        
+        .loading { text-align: center; padding: 2rem; color: #718096; font-style: italic; }
+        .delete-post-btn { background: transparent; color: var(--secondary); text-decoration: underline; padding: 0; font-size: 0.85rem; }
+        .delete-post-btn:hover { background: transparent; color: #9b2c2c; }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="index.html" class="logo-container">
+        <img src="logo.png" alt="Logo" onerror="this.style.display='none';">
+        <h1>Česká asociace prší</h1>
+    </a>
+    <nav>
+        <a href="index.html">← Zpět na hlavní web</a>
+    </nav>
+</header>
+
+<main>
+    <div id="adminZone" style="display: none;">
+        <div class="card" style="border-top: 4px solid var(--blue);">
+            <h2 style="color: var(--blue); border-color: var(--blue);">+ Vydat nový článek</h2>
+            <form id="postForm">
+                <label>Nadpis článku</label>
+                <input type="text" id="postTitle" required placeholder="Napište úderný nadpis...">
+                
+                <label>Obrázky (Přetáhněte sem z počítače, nebo klikněte)</label>
+                <div id="dropZone" class="drop-zone">
+                    📸 Přetáhněte sem fotky nebo klikněte pro výběr souborů
+                    <input type="file" id="fileInput" multiple accept="image/*" style="display:none;">
+                </div>
+                
+                <div id="galleryPreview" class="gallery-preview"></div>
+                
+                <div style="background: #fffbeb; padding: 10px; border-radius: 6px; font-size: 0.85rem; color: #975a16; margin-bottom: 1rem; border: 1px solid #f6e05e;">
+                    <strong>Tip:</strong> Zkopírujte kód (např. <span class="shortcode-badge">[foto1]</span>) a vložte ho kamkoliv do textu níže. Na tomto místě se pak na webu ukáže velká fotka. Fotky, které do textu nevložíte, se automaticky seskládají do galerie na konci článku.
+                </div>
+
+                <label>Text článku</label>
+                <textarea id="postContent" rows="12" required placeholder="Tady pište svůj text..."></textarea>
+                
+                <button type="submit" id="submitBtn" class="btn-green" style="width: 100%; font-size: 1.1rem; padding: 1rem;">Publikovat článek</button>
+                <div id="uploadMsg" class="msg" style="margin-top: 15px;"></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="newsContainer">
+        <div class="loading">Načítám nejnovější události...</div>
+    </div>
+</main>
+
+<script>
+    // 1. INICIALIZACE DATABÁZE
+    const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
+    const db = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+    let currentUser = null;
+    let myProfileData = null;
+    let pendingFiles = []; 
+    let fileIdCounter = 1;
+
+    // 2. OVĚŘENÍ UŽIVATELE (Zda má právo psát články)
+    async function checkAuth() {
+        const { data: { user } } = await db.auth.getUser();
+        if (user) {
+            currentUser = user;
+            const { data: prof } = await db.from('profiles').select('full_name, role').eq('id', user.id).maybeSingle();
+            if (prof && ['zc', 'zcp', 'superadmin'].includes(prof.role)) {
+                myProfileData = prof;
+                document.getElementById('adminZone').style.display = 'block';
+            }
+        }
+        loadPosts();
+    }
+    checkAuth();
+
+    // 3. LOGIKA PRO DRAG & DROP FOTEK
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const galleryPreview = document.getElementById('galleryPreview');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        handleFiles(e.dataTransfer.files);
+    });
+
+    fileInput.addEventListener('change', function() {
+        handleFiles(this.files);
+    });
+
+    function handleFiles(files) {
+        Array.from(files).forEach(file => {
+            if (!file.type.startsWith('image/')) return; // Přijímáme jen fotky
+            
+            const fileObj = {
+                file: file,
+                id: fileIdCounter++,
+                shortcode: `[foto${fileIdCounter}]`
+            };
+            pendingFiles.push(fileObj);
+
+            // Vytvoření lokálního náhledu
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const div = document.createElement('div');
+                div.className = 'gallery-item';
+                div.id = `preview-${fileObj.id}`;
+                div.innerHTML = `
+                    <button type="button" class="remove-img" onclick="removePendingFile(${fileObj.id})">×</button>
+                    <img src="${e.target.result}" alt="Náhled">
+                    <span class="shortcode-badge" onclick="navigator.clipboard.writeText('${fileObj.shortcode}'); alert('Značka zkopírována!');">${fileObj.shortcode}</span>
+                `;
+                galleryPreview.appendChild(div);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    window.removePendingFile = function(id) {
+        pendingFiles = pendingFiles.filter(f => f.id !== id);
+        const el = document.getElementById(`preview-${id}`);
+        if(el) el.remove();
+    };
+
+    // 4. ODESLÁNÍ ČLÁNKU A FOTEK NA SERVER
+    document.getElementById('postForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        const msgBox = document.getElementById('uploadMsg');
+        
+        btn.disabled = true;
+        msgBox.className = 'msg';
+        msgBox.innerText = 'Vytvářím článek a nahrávám fotky... Prosím čekejte.';
+        msgBox.style.display = 'block';
+
+        const title = document.getElementById('postTitle').value.trim();
+        const content = document.getElementById('postContent').value.trim();
+
+        try {
+            // A) Vytvoření článku
+            const { data: postData, error: postErr } = await db.from('news_posts')
+                .insert({ 
+                    title: title, 
+                    content: content, 
+                    author_id: currentUser.id, 
+                    author_name: myProfileData.full_name 
+                }).select().single();
+
+            if (postErr) throw postErr;
+            const newPostId = postData.id;
+
+            // B) Nahrání fotek a uložení vazeb
+            for (let i = 0; i < pendingFiles.length; i++) {
+                let fObj = pendingFiles[i];
+                let safeName = `img_${Date.now()}_${Math.floor(Math.random() * 1000)}_${fObj.file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+                
+                // Nahrát do Storage bucketu 'news_media'
+                const { error: uploadErr } = await db.storage.from('news_media').upload(safeName, fObj.file);
+                if (uploadErr) throw uploadErr;
+                
+                // Získat veřejnou URL
+                const { data: urlData } = db.storage.from('news_media').getPublicUrl(safeName);
+                const publicUrl = urlData.publicUrl;
+
+                // Zapsat do tabulky obrázků
+                await db.from('news_images').insert({
+                    post_id: newPostId,
+                    image_url: publicUrl,
+                    shortcode: fObj.shortcode
+                });
+            }
+
+            // C) Hotovo, uklízíme
+            msgBox.className = 'msg success';
+            msgBox.innerText = 'Článek byl úspěšně vydán!';
+            document.getElementById('postForm').reset();
+            galleryPreview.innerHTML = '';
+            pendingFiles = [];
+            fileIdCounter = 1;
+            
+            loadPosts(); // Obnovíme výpis
+
+        } catch (err) {
+            console.error(err);
+            msgBox.className = 'msg error';
+            msgBox.innerText = 'Došlo k chybě: ' + err.message;
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    // 5. NAČÍTÁNÍ A VYKRESLOVÁNÍ ČLÁNKŮ PRO ČTENÁŘE
+    async function loadPosts() {
+        const container = document.getElementById('newsContainer');
+        
+        // Stáhneme články
+        const { data: posts, error: postsErr } = await db.from('news_posts').select('*').order('created_at', { ascending: false });
+        // Stáhneme všechny obrázky (pro zjednodušení taháme vše, databáze si to přebere)
+        const { data: images } = await db.from('news_images').select('*');
+
+        if (postsErr || !posts || posts.length === 0) {
+            container.innerHTML = '<div class="loading">Zatím nebyly vydány žádné novinky.</div>';
+            return;
+        }
+
+        let html = '';
+        const isAdmin = myProfileData !== null;
+
+        posts.forEach(post => {
+            let d = new Date(post.created_at);
+            let dateStr = `${d.getDate()}.${d.getMonth()+1}.${d.getFullYear()} v ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            
+            // Najdeme obrázky patřící k tomuto článku
+            let postImages = images ? images.filter(img => img.post_id === post.id) : [];
+            let parsedContent = post.content;
+            let usedShortcodes = [];
+
+            // A) Nahradíme značky [fotoX] v textu reálnými <img> tagy
+            postImages.forEach(img => {
+                // Musíme ošetřit hranaté závorky pro regulární výraz
+                let safeShortcode = img.shortcode.replace(/\[/g, '\\[').replace(/\]/g, '\\]');
+                let regex = new RegExp(safeShortcode, 'g');
+                
+                if (parsedContent.match(regex)) {
+                    parsedContent = parsedContent.replace(regex, `<img src="${img.image_url}" class="post-image-inline" alt="Ilustrační foto">`);
+                    usedShortcodes.push(img.shortcode);
+                }
+            });
+
+            // B) Sestavíme galerii z fotek, které se V TEXTU NEPOUŽILY
+            let galleryHtml = '';
+            let unusedImages = postImages.filter(img => !usedShortcodes.includes(img.shortcode));
+            if (unusedImages.length > 0) {
+                galleryHtml = `<div class="post-gallery">`;
+                unusedImages.forEach(img => {
+                    galleryHtml += `<a href="${img.image_url}" target="_blank"><img src="${img.image_url}" alt="Galerie"></a>`;
+                });
+                galleryHtml += `</div>`;
+            }
+
+            // Admin tlačítko pro smazání
+            let deleteBtn = isAdmin ? `<button class="delete-post-btn" onclick="deletePost('${post.id}')">Smazat článek</button>` : '';
+
+            // C) Sestavení finální karty
+            html += `
+                <article class="post-card">
+                    <div class="post-header">
+                        <h2 class="post-title">${post.title}</h2>
+                        <div class="post-meta">Vydal: <strong>${post.author_name || 'Redakce'}</strong> | ${dateStr} ${deleteBtn ? ' | ' + deleteBtn : ''}</div>
+                    </div>
+                    <div class="post-content">${parsedContent}</div>
+                    ${galleryHtml}
+                </article>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    // 6. MAZÁNÍ ČLÁNKŮ (Pouze pro ZČ)
+    window.deletePost = async function(postId) {
+        if(confirm('Skutečně chcete tento článek trvale smazat? Fotky zůstanou v archivu, ale článek zmizí z webu.')) {
+            await db.from('news_posts').delete().eq('id', postId);
+            loadPosts();
+        }
+    }
+</script>
+</body>
+</html>
