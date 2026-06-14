@@ -153,10 +153,13 @@
         if (user) {
             currentUser = user;
             const { data: prof } = await db.from('profiles').select('full_name, role').eq('id', user.id).maybeSingle();
-            // Právo psát články mají jen zakládající členové a předseda
-            if (prof && ['zc', 'zcp', 'superadmin'].includes(prof.role)) {
+            if (prof && ['zc', 'zcp', 'superadmin', 'pc'].includes(prof.role)) {
                 myProfileData = prof;
                 document.getElementById('adminZone').style.display = 'block';
+                
+                if (prof.role === 'pc') {
+                    document.getElementById('submitBtn').innerText = 'Odeslat článek ke schválení';
+                }
             }
         }
         loadPosts();
@@ -193,7 +196,7 @@
 
     function handleFiles(files) {
         Array.from(files).forEach(file => {
-            if (!file.type.startsWith('image/')) return; // Zabrání nahrání PDF apod.
+            if (!file.type.startsWith('image/')) return; 
             
             const fileObj = {
                 file: file,
@@ -202,7 +205,6 @@
             };
             pendingFiles.push(fileObj);
 
-            // Vytvoření grafického náhledu pod drop zónou
             const reader = new FileReader();
             reader.onload = (e) => {
                 const div = document.createElement('div');
@@ -241,49 +243,48 @@
         const title = document.getElementById('postTitle').value.trim();
         const content = document.getElementById('postContent').value.trim();
 
+        let postStatus = 'ceka_na_schvaleni';
+        if (['zc', 'zcp', 'superadmin'].includes(myProfileData.role)) {
+            postStatus = 'publikovano';
+        }
+
         try {
-            // A) Zápis textu článku do databáze
-            const { data: postData, error: postErr } = await db.from('news_posts')
+            const { data: postData, error: postErr } = await db.from('reports')
                 .insert({ 
                     title: title, 
                     content: content, 
                     author_id: currentUser.id, 
-                    author_name: myProfileData.full_name 
+                    author_name: myProfileData.full_name,
+                    status: postStatus
                 }).select().single();
 
             if (postErr) throw postErr;
             const newPostId = postData.id;
 
-            // B) Nahrání připravených fotek do Storage
             for (let i = 0; i < pendingFiles.length; i++) {
                 let fObj = pendingFiles[i];
                 let safeName = `img_${Date.now()}_${Math.floor(Math.random() * 1000)}_${fObj.file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
                 
-                // Upload do bucketu
-                const { error: uploadErr } = await db.storage.from('news_media').upload(safeName, fObj.file);
+                const { error: uploadErr } = await db.storage.from('report_media').upload(safeName, fObj.file);
                 if (uploadErr) throw uploadErr;
                 
-                // Získání veřejného URL odkazu
-                const { data: urlData } = db.storage.from('news_media').getPublicUrl(safeName);
+                const { data: urlData } = db.storage.from('report_media').getPublicUrl(safeName);
                 const publicUrl = urlData.publicUrl;
 
-                // Uložení odkazu do databáze a provázání s článkem
-                await db.from('news_images').insert({
-                    post_id: newPostId,
+                await db.from('report_images').insert({
+                    report_id: newPostId,
                     image_url: publicUrl,
                     shortcode: fObj.shortcode
                 });
             }
 
-            // C) Vyčištění formuláře po úspěšném odeslání
             msgBox.className = 'msg success';
-            msgBox.innerText = 'Článek byl úspěšně vydán!';
+            msgBox.innerText = postStatus === 'publikovano' ? 'Článek byl úspěšně vydán!' : 'Článek odeslán ke schválení.';
             document.getElementById('postForm').reset();
             galleryPreview.innerHTML = '';
             pendingFiles = [];
             fileIdCounter = 1;
             
-            // Obnovení výpisu na stránce
             loadPosts(); 
 
         } catch (err) {
@@ -301,10 +302,8 @@
     async function loadPosts() {
         const container = document.getElementById('newsContainer');
         
-        // Stáhneme všechny články řazené od nejnovějšího
-        const { data: posts, error: postsErr } = await db.from('news_posts').select('*').order('created_at', { ascending: false });
-        // Stáhneme obrázky
-        const { data: images } = await db.from('news_images').select('*');
+        const { data: posts, error: postsErr } = await db.from('reports').select('*').order('created_at', { ascending: false });
+        const { data: images } = await db.from('report_images').select('*');
 
         if (postsErr || !posts || posts.length === 0) {
             container.innerHTML = '<div class="loading">Zatím se neděje nic nového. První události se zde brzy objeví!</div>';
@@ -312,18 +311,16 @@
         }
 
         let html = '';
-        const isAdmin = myProfileData !== null;
+        const isAdmin = myProfileData && ['zc', 'zcp', 'superadmin'].includes(myProfileData.role);
 
         posts.forEach(post => {
             let d = new Date(post.created_at);
             let dateStr = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth()+1).padStart(2, '0')}.${d.getFullYear()} v ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
             
-            // Vyfiltrujeme obrázky, které patří jen k tomuto konkrétnímu článku
-            let postImages = images ? images.filter(img => img.post_id === post.id) : [];
+            let postImages = images ? images.filter(img => img.report_id === post.id) : [];
             let parsedContent = post.content;
             let usedShortcodes = [];
 
-            // A) Nahrazení značek (např. [foto1]) v textu za skutečné obrázky
             postImages.forEach(img => {
                 let safeShortcode = img.shortcode.replace(/\[/g, '\\[').replace(/\]/g, '\\]');
                 let regex = new RegExp(safeShortcode, 'g');
@@ -334,23 +331,20 @@
                 }
             });
 
-            // B) Tvorba mozaikové galerie z fotek, které autor neumístil přímo do textu
             let galleryHtml = '';
             let unusedImages = postImages.filter(img => !usedShortcodes.includes(img.shortcode));
             
             if (unusedImages.length > 0) {
                 galleryHtml = `<div class="post-gallery">`;
                 unusedImages.forEach(img => {
-                    // Kliknutí na obrázek jej otevře v plné velikosti v nové záložce
                     galleryHtml += `<a href="${img.image_url}" target="_blank"><img src="${img.image_url}" alt="Galerie"></a>`;
                 });
                 galleryHtml += `</div>`;
             }
 
-            // Tlačítko pro smazání (zobrazí se jen oprávněným osobám)
             let deleteBtn = isAdmin ? `<button class="delete-post-btn" onclick="deletePost('${post.id}')">🗑️ Smazat</button>` : '';
+            let statusBadge = post.status === 'publikovano' ? '<span style="color: #2f855a; font-weight: bold; font-size: 0.8rem; margin-left: 10px;">✓ Publikováno</span>' : '<span style="color: #dd6b20; font-weight: bold; font-size: 0.8rem; margin-left: 10px;">⏳ Čeká na schválení</span>';
 
-            // C) Finální vykreslení HTML karty pro jeden článek
             html += `
                 <article class="post-card">
                     <div class="post-header">
@@ -358,6 +352,7 @@
                         <div class="post-meta">
                             <span class="author-badge">✍️ ${post.author_name || 'Asociace'}</span>
                             <span>📅 ${dateStr}</span>
+                            ${isAdmin ? statusBadge : ''}
                             ${deleteBtn}
                         </div>
                     </div>
@@ -375,8 +370,8 @@
     // ==========================================
     window.deletePost = async function(postId) {
         if(confirm('Skutečně chcete tento článek trvale smazat z webu?')) {
-            await db.from('news_posts').delete().eq('id', postId);
-            loadPosts(); // Obnovit zobrazení
+            await db.from('reports').delete().eq('id', postId);
+            loadPosts(); 
         }
     }
 </script>
