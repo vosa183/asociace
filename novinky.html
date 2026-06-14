@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Novinky | Česká asociace prší</title>
+    <title>Novinky | Česká asociace v karetní hře prší</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="font.js"></script>
@@ -29,40 +29,56 @@
         .logo-container img { height: 50px; }
         .logo-container h1 { font-size: 1.2rem; color: var(--primary); text-transform: uppercase; margin: 0; }
         
-        nav a { text-decoration: none; color: var(--white); background: var(--primary); font-weight: 600; padding: 0.6rem 1.2rem; border-radius: 6px; transition: 0.2s; }
+        nav a { text-decoration: none; color: var(--white); background: var(--primary); font-weight: 600; padding: 0.6rem 1.2rem; border-radius: 6px; transition: 0.2s; display: inline-block; }
         nav a:hover { background: var(--secondary); }
 
-        main { max-width: 900px; margin: 2rem auto; padding: 0 1rem; min-height: 60vh; }
-        .card { background: var(--white); padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 2rem; }
+        main { max-width: 900px; margin: 2rem auto; padding: 0 1rem; min-height: 70vh; }
+        .card { background: var(--white); padding: 2rem; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 2rem; }
         h2 { color: var(--primary); border-bottom: 2px solid var(--secondary); padding-bottom: 0.5rem; margin-bottom: 1.5rem; font-size: 1.5rem; }
         
-        input[type="text"], textarea { width: 100%; padding: 0.8rem; margin-bottom: 1rem; border-radius: 6px; border: 1px solid #ccc; font-family: inherit; font-size: 1rem; }
-        button { background: var(--primary); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        input[type="text"], textarea { width: 100%; padding: 1rem; margin-bottom: 1.2rem; border-radius: 8px; border: 1px solid #cbd5e0; font-family: inherit; font-size: 1rem; background: #f8fafc; transition: border-color 0.2s; }
+        input[type="text"]:focus, textarea:focus { outline: none; border-color: var(--blue); background: var(--white); }
+        button { background: var(--primary); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         button:hover { background: var(--secondary); }
         .btn-green { background: var(--green); }
 
         /* EDITOR A DROP ZÓNA */
-        .drop-zone { border: 2px dashed var(--blue); padding: 2.5rem 1rem; text-align: center; background: #ebf8ff; border-radius: 8px; cursor: pointer; transition: 0.2s; font-weight: bold; color: var(--blue); margin-bottom: 1rem; }
-        .drop-zone.dragover { background: #bee3f8; border-color: var(--primary); color: var(--primary); }
-        .gallery-preview { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 1rem; }
-        .gallery-item { border: 1px solid #cbd5e0; padding: 8px; border-radius: 6px; text-align: center; font-size: 0.85rem; background: white; width: 120px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: relative; }
-        .gallery-item img { width: 100%; height: 80px; object-fit: cover; display: block; margin-bottom: 5px; border-radius: 4px; }
-        .remove-img { position: absolute; top: -8px; right: -8px; background: var(--secondary); color: white; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; border: none; padding: 0; }
-        .shortcode-badge { background: #1a202c; color: #48bb78; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; user-select: all; cursor: pointer; }
+        .drop-zone { border: 2px dashed var(--blue); padding: 3rem 1rem; text-align: center; background: #ebf8ff; border-radius: 12px; cursor: pointer; transition: 0.2s; font-weight: bold; color: var(--blue); margin-bottom: 1rem; }
+        .drop-zone.dragover { background: #bee3f8; border-color: var(--primary); color: var(--primary); transform: scale(1.02); }
+        .gallery-preview { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+        .gallery-item { border: 1px solid #cbd5e0; padding: 8px; border-radius: 8px; text-align: center; font-size: 0.85rem; background: white; width: 130px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); position: relative; }
+        .gallery-item img { width: 100%; height: 90px; object-fit: cover; display: block; margin-bottom: 8px; border-radius: 4px; }
+        .remove-img { position: absolute; top: -10px; right: -10px; background: var(--secondary); color: white; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; border: none; padding: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .shortcode-badge { background: #2d3748; color: #48bb78; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; user-select: all; cursor: pointer; transition: 0.2s; display: inline-block; }
+        .shortcode-badge:hover { background: #1a202c; color: #68d391; }
 
-        /* VÝPIS ČLÁNKŮ */
-        .post-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 2.5rem; border: 1px solid #e2e8f0; }
-        .post-header { padding: 1.5rem 1.5rem 0.5rem 1.5rem; }
-        .post-title { color: var(--primary); margin-bottom: 0.5rem; font-size: 1.6rem; }
-        .post-meta { color: #718096; font-size: 0.85rem; margin-bottom: 1rem; border-bottom: 1px solid #edf2f7; padding-bottom: 1rem; }
-        .post-content { padding: 0 1.5rem 1.5rem 1.5rem; line-height: 1.8; font-size: 1.05rem; white-space: pre-wrap; }
-        .post-image-inline { max-width: 100%; height: auto; border-radius: 8px; margin: 1.5rem 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .post-gallery { display: flex; gap: 10px; flex-wrap: wrap; padding: 0 1.5rem 1.5rem 1.5rem; }
-        .post-gallery img { height: 150px; border-radius: 8px; cursor: pointer; object-fit: cover; flex-grow: 1; max-width: 100%; }
+        .msg { margin-top: 1rem; font-weight: bold; padding: 1rem; border-radius: 8px; display: none; text-align: center; }
+        .error { background: #fed7d7; color: #c53030; display: block; }
+        .success { background: #c6f6d5; color: #2f855a; display: block; }
+
+        /* MODERNÍ VÝPIS ČLÁNKŮ */
+        .post-card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 3rem; transition: transform 0.3s ease, box-shadow 0.3s ease; border: 1px solid #edf2f7; }
+        .post-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
+        .post-header { padding: 2rem 2rem 0.5rem 2rem; }
+        .post-title { color: var(--primary); margin-bottom: 0.5rem; font-size: 1.8rem; font-weight: 800; line-height: 1.2; }
+        .post-meta { color: #718096; font-size: 0.9rem; margin-bottom: 1.5rem; border-bottom: 2px solid #edf2f7; padding-bottom: 1rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .post-meta .author-badge { background: #e2e8f0; color: #2d3748; padding: 4px 10px; border-radius: 20px; font-weight: bold; }
         
-        .loading { text-align: center; padding: 2rem; color: #718096; font-style: italic; }
-        .delete-post-btn { background: transparent; color: var(--secondary); text-decoration: underline; padding: 0; font-size: 0.85rem; }
-        .delete-post-btn:hover { background: transparent; color: #9b2c2c; }
+        .post-content { padding: 0 2rem 1.5rem 2rem; line-height: 1.8; font-size: 1.1rem; color: #2d3748; white-space: pre-wrap; }
+        
+        .post-image-inline { width: 100%; max-height: 500px; object-fit: cover; border-radius: 12px; margin: 1.5rem 0; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        
+        /* Moderní mřížka pro fotogalerii */
+        .post-gallery { padding: 0 2rem 2rem 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .post-gallery img { width: 100%; height: 200px; object-fit: cover; border-radius: 10px; cursor: pointer; transition: transform 0.3s ease, box-shadow 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .post-gallery img:hover { transform: scale(1.03); box-shadow: 0 8px 20px rgba(0,0,0,0.15); z-index: 10; position: relative; }
+        
+        .loading { text-align: center; padding: 3rem; color: #a0aec0; font-style: italic; font-size: 1.2rem; }
+        
+        .delete-post-btn { background: transparent; color: #e53e3e; text-decoration: none; padding: 4px 10px; border: 1px solid #feb2b2; border-radius: 6px; font-size: 0.8rem; margin-left: auto; }
+        .delete-post-btn:hover { background: #fff5f5; color: #9b2c2c; }
+
+        footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 3rem; background: var(--white); }
     </style>
 </head>
 <body>
@@ -70,7 +86,7 @@
 <header>
     <a href="index.html" class="logo-container">
         <img src="logo.png" alt="Logo" onerror="this.style.display='none';">
-        <h1>Česká asociace prší</h1>
+        <h1>Česká asociace v karetní hře prší</h1>
     </a>
     <nav>
         <a href="index.html">← Zpět na hlavní web</a>
@@ -87,32 +103,39 @@
                 
                 <label>Obrázky (Přetáhněte sem z počítače, nebo klikněte)</label>
                 <div id="dropZone" class="drop-zone">
-                    📸 Přetáhněte sem fotky nebo klikněte pro výběr souborů
+                    📸 Přetáhněte sem fotky myší<br><span style="font-size: 0.9rem; font-weight: normal; color: #718096;">nebo klikněte pro otevření složky</span>
                     <input type="file" id="fileInput" multiple accept="image/*" style="display:none;">
                 </div>
                 
                 <div id="galleryPreview" class="gallery-preview"></div>
                 
-                <div style="background: #fffbeb; padding: 10px; border-radius: 6px; font-size: 0.85rem; color: #975a16; margin-bottom: 1rem; border: 1px solid #f6e05e;">
-                    <strong>Tip:</strong> Zkopírujte kód (např. <span class="shortcode-badge">[foto1]</span>) a vložte ho kamkoliv do textu níže. Na tomto místě se pak na webu ukáže velká fotka. Fotky, které do textu nevložíte, se automaticky seskládají do galerie na konci článku.
+                <div style="background: #fffbeb; padding: 15px; border-radius: 8px; font-size: 0.9rem; color: #975a16; margin-bottom: 1.5rem; border: 1px solid #f6e05e;">
+                    <strong>Jak na fotky v textu:</strong> Zkopírujte kód (např. <span class="shortcode-badge">[foto1]</span>) a vložte ho kamkoliv do textu níže. Fotky, které do textu nevložíte, se automaticky seskládají do hezké mozaikové fotogalerie na úplný konec článku.
                 </div>
 
                 <label>Text článku</label>
                 <textarea id="postContent" rows="12" required placeholder="Tady pište svůj text..."></textarea>
                 
-                <button type="submit" id="submitBtn" class="btn-green" style="width: 100%; font-size: 1.1rem; padding: 1rem;">Publikovat článek</button>
-                <div id="uploadMsg" class="msg" style="margin-top: 15px;"></div>
+                <button type="submit" id="submitBtn" class="btn-green" style="width: 100%; font-size: 1.2rem; padding: 1.2rem; margin-top: 10px;">Vydat a publikovat článek</button>
+                <div id="uploadMsg" class="msg"></div>
             </form>
         </div>
     </div>
 
     <div id="newsContainer">
-        <div class="loading">Načítám nejnovější události...</div>
+        <div class="loading">Načítám aktuální dění v asociaci...</div>
     </div>
 </main>
 
+<footer>
+    <p><strong>Česká asociace v karetní hře prší z.s.</strong><br>
+    Sídlo: Kurzova 2222/16, Stodůlky, 155 00 Praha 5 | IČO: 29650186</p>
+</footer>
+
 <script>
-    // 1. INICIALIZACE DATABÁZE
+    // ==========================================
+    // 1. INICIALIZACE DATABÁZE SUPABASE
+    // ==========================================
     const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -122,12 +145,15 @@
     let pendingFiles = []; 
     let fileIdCounter = 1;
 
-    // 2. OVĚŘENÍ UŽIVATELE (Zda má právo psát články)
+    // ==========================================
+    // 2. OVĚŘENÍ UŽIVATELE (Práva pro psaní)
+    // ==========================================
     async function checkAuth() {
         const { data: { user } } = await db.auth.getUser();
         if (user) {
             currentUser = user;
             const { data: prof } = await db.from('profiles').select('full_name, role').eq('id', user.id).maybeSingle();
+            // Právo psát články mají jen zakládající členové a předseda
             if (prof && ['zc', 'zcp', 'superadmin'].includes(prof.role)) {
                 myProfileData = prof;
                 document.getElementById('adminZone').style.display = 'block';
@@ -137,7 +163,9 @@
     }
     checkAuth();
 
+    // ==========================================
     // 3. LOGIKA PRO DRAG & DROP FOTEK
+    // ==========================================
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
     const galleryPreview = document.getElementById('galleryPreview');
@@ -165,7 +193,7 @@
 
     function handleFiles(files) {
         Array.from(files).forEach(file => {
-            if (!file.type.startsWith('image/')) return; // Přijímáme jen fotky
+            if (!file.type.startsWith('image/')) return; // Zabrání nahrání PDF apod.
             
             const fileObj = {
                 file: file,
@@ -174,7 +202,7 @@
             };
             pendingFiles.push(fileObj);
 
-            // Vytvoření lokálního náhledu
+            // Vytvoření grafického náhledu pod drop zónou
             const reader = new FileReader();
             reader.onload = (e) => {
                 const div = document.createElement('div');
@@ -183,7 +211,7 @@
                 div.innerHTML = `
                     <button type="button" class="remove-img" onclick="removePendingFile(${fileObj.id})">×</button>
                     <img src="${e.target.result}" alt="Náhled">
-                    <span class="shortcode-badge" onclick="navigator.clipboard.writeText('${fileObj.shortcode}'); alert('Značka zkopírována!');">${fileObj.shortcode}</span>
+                    <span class="shortcode-badge" onclick="navigator.clipboard.writeText('${fileObj.shortcode}'); alert('Značka zkopírována do schránky!');">${fileObj.shortcode}</span>
                 `;
                 galleryPreview.appendChild(div);
             };
@@ -197,7 +225,9 @@
         if(el) el.remove();
     };
 
+    // ==========================================
     // 4. ODESLÁNÍ ČLÁNKU A FOTEK NA SERVER
+    // ==========================================
     document.getElementById('postForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('submitBtn');
@@ -212,7 +242,7 @@
         const content = document.getElementById('postContent').value.trim();
 
         try {
-            // A) Vytvoření článku
+            // A) Zápis textu článku do databáze
             const { data: postData, error: postErr } = await db.from('news_posts')
                 .insert({ 
                     title: title, 
@@ -224,20 +254,20 @@
             if (postErr) throw postErr;
             const newPostId = postData.id;
 
-            // B) Nahrání fotek a uložení vazeb
+            // B) Nahrání připravených fotek do Storage
             for (let i = 0; i < pendingFiles.length; i++) {
                 let fObj = pendingFiles[i];
                 let safeName = `img_${Date.now()}_${Math.floor(Math.random() * 1000)}_${fObj.file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
                 
-                // Nahrát do Storage bucketu 'news_media'
+                // Upload do bucketu
                 const { error: uploadErr } = await db.storage.from('news_media').upload(safeName, fObj.file);
                 if (uploadErr) throw uploadErr;
                 
-                // Získat veřejnou URL
+                // Získání veřejného URL odkazu
                 const { data: urlData } = db.storage.from('news_media').getPublicUrl(safeName);
                 const publicUrl = urlData.publicUrl;
 
-                // Zapsat do tabulky obrázků
+                // Uložení odkazu do databáze a provázání s článkem
                 await db.from('news_images').insert({
                     post_id: newPostId,
                     image_url: publicUrl,
@@ -245,7 +275,7 @@
                 });
             }
 
-            // C) Hotovo, uklízíme
+            // C) Vyčištění formuláře po úspěšném odeslání
             msgBox.className = 'msg success';
             msgBox.innerText = 'Článek byl úspěšně vydán!';
             document.getElementById('postForm').reset();
@@ -253,7 +283,8 @@
             pendingFiles = [];
             fileIdCounter = 1;
             
-            loadPosts(); // Obnovíme výpis
+            // Obnovení výpisu na stránce
+            loadPosts(); 
 
         } catch (err) {
             console.error(err);
@@ -264,17 +295,19 @@
         }
     });
 
+    // ==========================================
     // 5. NAČÍTÁNÍ A VYKRESLOVÁNÍ ČLÁNKŮ PRO ČTENÁŘE
+    // ==========================================
     async function loadPosts() {
         const container = document.getElementById('newsContainer');
         
-        // Stáhneme články
+        // Stáhneme všechny články řazené od nejnovějšího
         const { data: posts, error: postsErr } = await db.from('news_posts').select('*').order('created_at', { ascending: false });
-        // Stáhneme všechny obrázky (pro zjednodušení taháme vše, databáze si to přebere)
+        // Stáhneme obrázky
         const { data: images } = await db.from('news_images').select('*');
 
         if (postsErr || !posts || posts.length === 0) {
-            container.innerHTML = '<div class="loading">Zatím nebyly vydány žádné novinky.</div>';
+            container.innerHTML = '<div class="loading">Zatím se neděje nic nového. První události se zde brzy objeví!</div>';
             return;
         }
 
@@ -283,45 +316,50 @@
 
         posts.forEach(post => {
             let d = new Date(post.created_at);
-            let dateStr = `${d.getDate()}.${d.getMonth()+1}.${d.getFullYear()} v ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            let dateStr = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth()+1).padStart(2, '0')}.${d.getFullYear()} v ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
             
-            // Najdeme obrázky patřící k tomuto článku
+            // Vyfiltrujeme obrázky, které patří jen k tomuto konkrétnímu článku
             let postImages = images ? images.filter(img => img.post_id === post.id) : [];
             let parsedContent = post.content;
             let usedShortcodes = [];
 
-            // A) Nahradíme značky [fotoX] v textu reálnými <img> tagy
+            // A) Nahrazení značek (např. [foto1]) v textu za skutečné obrázky
             postImages.forEach(img => {
-                // Musíme ošetřit hranaté závorky pro regulární výraz
                 let safeShortcode = img.shortcode.replace(/\[/g, '\\[').replace(/\]/g, '\\]');
                 let regex = new RegExp(safeShortcode, 'g');
                 
                 if (parsedContent.match(regex)) {
-                    parsedContent = parsedContent.replace(regex, `<img src="${img.image_url}" class="post-image-inline" alt="Ilustrační foto">`);
+                    parsedContent = parsedContent.replace(regex, `<img src="${img.image_url}" class="post-image-inline" alt="Obrázek k článku">`);
                     usedShortcodes.push(img.shortcode);
                 }
             });
 
-            // B) Sestavíme galerii z fotek, které se V TEXTU NEPOUŽILY
+            // B) Tvorba mozaikové galerie z fotek, které autor neumístil přímo do textu
             let galleryHtml = '';
             let unusedImages = postImages.filter(img => !usedShortcodes.includes(img.shortcode));
+            
             if (unusedImages.length > 0) {
                 galleryHtml = `<div class="post-gallery">`;
                 unusedImages.forEach(img => {
+                    // Kliknutí na obrázek jej otevře v plné velikosti v nové záložce
                     galleryHtml += `<a href="${img.image_url}" target="_blank"><img src="${img.image_url}" alt="Galerie"></a>`;
                 });
                 galleryHtml += `</div>`;
             }
 
-            // Admin tlačítko pro smazání
-            let deleteBtn = isAdmin ? `<button class="delete-post-btn" onclick="deletePost('${post.id}')">Smazat článek</button>` : '';
+            // Tlačítko pro smazání (zobrazí se jen oprávněným osobám)
+            let deleteBtn = isAdmin ? `<button class="delete-post-btn" onclick="deletePost('${post.id}')">🗑️ Smazat</button>` : '';
 
-            // C) Sestavení finální karty
+            // C) Finální vykreslení HTML karty pro jeden článek
             html += `
                 <article class="post-card">
                     <div class="post-header">
                         <h2 class="post-title">${post.title}</h2>
-                        <div class="post-meta">Vydal: <strong>${post.author_name || 'Redakce'}</strong> | ${dateStr} ${deleteBtn ? ' | ' + deleteBtn : ''}</div>
+                        <div class="post-meta">
+                            <span class="author-badge">✍️ ${post.author_name || 'Asociace'}</span>
+                            <span>📅 ${dateStr}</span>
+                            ${deleteBtn}
+                        </div>
                     </div>
                     <div class="post-content">${parsedContent}</div>
                     ${galleryHtml}
@@ -332,11 +370,13 @@
         container.innerHTML = html;
     }
 
-    // 6. MAZÁNÍ ČLÁNKŮ (Pouze pro ZČ)
+    // ==========================================
+    // 6. MAZÁNÍ ČLÁNKŮ
+    // ==========================================
     window.deletePost = async function(postId) {
-        if(confirm('Skutečně chcete tento článek trvale smazat? Fotky zůstanou v archivu, ale článek zmizí z webu.')) {
+        if(confirm('Skutečně chcete tento článek trvale smazat z webu?')) {
             await db.from('news_posts').delete().eq('id', postId);
-            loadPosts();
+            loadPosts(); // Obnovit zobrazení
         }
     }
 </script>
