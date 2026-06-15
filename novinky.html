@@ -47,7 +47,6 @@
         .btn-green { background: var(--green); }
         .btn-blue { background: var(--blue); }
 
-        /* EDITOR A DROP ZÓNA */
         .drop-zone { border: 2px dashed var(--blue); padding: 3rem 1rem; text-align: center; background: #ebf8ff; border-radius: 12px; cursor: pointer; transition: 0.2s; font-weight: bold; color: var(--blue); margin-bottom: 1rem; }
         .drop-zone.dragover { background: #bee3f8; border-color: var(--primary); color: var(--primary); transform: scale(1.02); }
         .gallery-preview { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 1.5rem; }
@@ -65,13 +64,11 @@
         .error { background: #fed7d7; color: #c53030; display: block; }
         .success { background: #c6f6d5; color: #2f855a; display: block; }
 
-        /* MODÁLNÍ OKNA */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
         .modal-box { background: white; padding: 2rem; border-radius: 12px; width: 95%; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
         .modal-close { position: absolute; top: 15px; right: 15px; background: transparent; color: var(--secondary); border: none; font-size: 1.5rem; cursor: pointer; width: auto; padding: 0; }
         .cropper-container-box { max-height: 60vh; background: #eee; margin-bottom: 1.5rem; display: flex; justify-content: center; align-items: center; overflow: hidden; border-radius: 8px; border: 1px solid #ccc; }
 
-        /* MODERNÍ VÝPIS ČLÁNKŮ */
         .post-card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 3rem; transition: transform 0.3s ease, box-shadow 0.3s ease; border: 1px solid #edf2f7; }
         .post-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
         .post-header { padding: 2rem 2rem 0.5rem 2rem; }
@@ -80,7 +77,6 @@
         .post-meta .author-badge { background: #e2e8f0; color: #2d3748; padding: 4px 10px; border-radius: 20px; font-weight: bold; }
         
         .post-content { padding: 0 2rem 1.5rem 2rem; line-height: 1.8; font-size: 1.1rem; color: #2d3748; white-space: pre-wrap; overflow: hidden; }
-        
         .post-gallery { padding: 0 2rem 2rem 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
         .post-gallery img { width: 100%; height: 200px; object-fit: cover; border-radius: 10px; cursor: pointer; transition: transform 0.3s ease, box-shadow 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
         .post-gallery img:hover { transform: scale(1.03); box-shadow: 0 8px 20px rgba(0,0,0,0.15); z-index: 10; position: relative; }
@@ -114,8 +110,8 @@
                 
                 <label>Obrázky (Přetáhněte sem z počítače/mobilu, nebo klikněte)</label>
                 <div id="dropZone" class="drop-zone">
-                    <span id="dropZoneText">📸 Přetáhněte sem fotky myší<br><span style="font-size: 0.9rem; font-weight: normal; color: #718096;">nebo klikněte pro otevření složky (podporuje i HEIC z iPhonu)</span></span>
-                    <input type="file" id="fileInput" multiple accept="image/*,.heic" style="display:none;">
+                    <span id="dropZoneText">📸 Přetáhněte sem fotky myší<br><span style="font-size: 0.9rem; font-weight: normal; color: #718096;">nebo klikněte pro otevření složky (plná podpora HEIC formátu)</span></span>
+                    <input type="file" id="fileInput" multiple accept="image/*,.heic,.HEIC" style="display:none;">
                 </div>
                 
                 <div id="galleryPreview" class="gallery-preview"></div>
@@ -139,7 +135,6 @@
     <div class="modal-box" style="max-width: 450px;">
         <button type="button" class="modal-close" onclick="document.getElementById('insertModal').style.display='none'">×</button>
         <h3 style="color: var(--blue); margin-bottom: 1rem; border-bottom: 2px solid var(--blue); padding-bottom: 10px;">Vložit fotku do textu</h3>
-        
         <label>Velikost fotky</label>
         <select id="insertSize">
             <option value="100">100% (Přes celou šířku)</option>
@@ -147,14 +142,12 @@
             <option value="50">50% (Polovina)</option>
             <option value="25">25% (Čtvrtina)</option>
         </select>
-        
         <label>Zarovnání</label>
         <select id="insertPos">
             <option value="stred">Na střed</option>
             <option value="vlevo">Vlevo (text fotku obtéká zprava)</option>
             <option value="vpravo">Vpravo (text fotku obtéká zleva)</option>
         </select>
-        
         <button type="button" class="btn-green" style="margin-top: 10px;" onclick="confirmInsert()">Vložit na pozici kurzoru</button>
     </div>
 </div>
@@ -221,32 +214,72 @@
     dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
     fileInput.addEventListener('change', function() { handleFiles(this.files); });
 
+    // NEPRŮSTŘELNÝ MOTOR NA HEIC A BĚŽNÉ OBRÁZKY
+    function normalizeImage(file) {
+        return new Promise((resolve, reject) => {
+            // Pokud to není HEIC a je to běžný formát, projde rovnou
+            if ((file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/webp') && !file.name.toLowerCase().match(/\.(heic|heif)$/)) {
+                return resolve(file);
+            }
+
+            let objectUrl = URL.createObjectURL(file);
+            let img = new Image();
+            
+            // Varianta 1: Zařízení to umí vykreslit samo (Apple, nové telefony)
+            img.onload = () => {
+                let canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                let ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                
+                canvas.toBlob((blob) => {
+                    URL.revokeObjectURL(objectUrl);
+                    if (!blob) return attemptHeic2Any(file, resolve, reject);
+                    resolve(new File([blob], "image.jpg", { type: "image/jpeg" }));
+                }, 'image/jpeg', 0.85);
+            };
+            
+            // Varianta 2: Zařízení z toho má mrtvici (Windows), musíme použít knihovnu
+            img.onerror = () => {
+                URL.revokeObjectURL(objectUrl);
+                attemptHeic2Any(file, resolve, reject);
+            };
+
+            img.src = objectUrl;
+        });
+    }
+
+    async function attemptHeic2Any(file, resolve, reject) {
+        try {
+            let heicBlob = file;
+            if (!file.type) heicBlob = new Blob([file], { type: "image/heic" });
+            
+            let conversionResult = await heic2any({ blob: heicBlob, toType: "image/jpeg", quality: 0.85 });
+            let blob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
+            resolve(new File([blob], "image.jpg", { type: "image/jpeg" }));
+        } catch (err) {
+            reject(err);
+        }
+    }
+
     async function handleFiles(files) {
         dropZoneText.innerHTML = "⏳ Zpracovávám fotky, prosím čekejte...";
 
         for (let file of Array.from(files)) {
-            let processedFile = file;
-            const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif');
-            
-            if (isHeic) {
-                try {
-                    // HRUBÁ SÍLA PRO WINDOWS: Vnutit Blob strukturu před převodem
-                    let heicBlob = file;
-                    if (!file.type) {
-                        heicBlob = new Blob([file], { type: "image/heic" });
-                    }
-                    
-                    const conversionResult = await heic2any({ blob: heicBlob, toType: "image/jpeg", quality: 0.8 });
-                    const blob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
-                    const newName = file.name.replace(/\.heic$/i, '.jpg').replace(/\.heif$/i, '.jpg');
-                    processedFile = new File([blob], newName, { type: "image/jpeg" });
-                } catch (e) {
-                    console.error("Chyba převodu HEIC:", e);
-                    alert("⚠️ Nepodařilo se převést HEIC fotku: " + file.name + "\nWindows pravděpodobně poškodil hlavičku souboru při přesunu. Zkuste fotku otevřít např. v Malování a uložit jako JPG.");
-                    continue; // Fotku přeskočíme, ale skript jede dál
-                }
-            } else if (!file.type.startsWith('image/')) {
+            // Ignorujeme vše, co není fotka a nekončí na HEIC
+            if (!file.type.startsWith('image/') && !file.name.toLowerCase().match(/\.(heic|heif)$/)) {
                 continue; 
+            }
+
+            let processedFile;
+            try {
+                // Bezpečný převod všeho na JPEG
+                processedFile = await normalizeImage(file);
+            } catch (e) {
+                console.error(e);
+                alert("⚠️ Nepodařilo se zpracovat fotku: " + file.name + "\nFotka byla přeskočena.");
+                continue;
             }
             
             const currentId = fileIdCounter++;
@@ -283,7 +316,6 @@
         if(el) el.remove();
     };
 
-    // LOGIKA PRO CHYTRÉ VLOŽENÍ ZNAČKY DO TEXTU
     window.openInsertWizard = function(shortcode) {
         currentInsertShortcode = shortcode;
         document.getElementById('insertModal').style.display = 'flex';
@@ -300,7 +332,6 @@
         let startPos = textarea.selectionStart;
         let endPos = textarea.selectionEnd;
         
-        // Vloží přesně tam, kde stojí kurzor
         textarea.value = textarea.value.substring(0, startPos) + finalTag + textarea.value.substring(endPos, textarea.value.length);
         
         textarea.selectionStart = startPos + finalTag.length;
@@ -310,7 +341,6 @@
         document.getElementById('insertModal').style.display = 'none';
     };
 
-    // LOGIKA PRO CROPPER (OŘEZ)
     window.openEditor = function(id) {
         currentEditId = id;
         const fileObj = pendingFiles.find(f => f.id === id);
@@ -341,9 +371,7 @@
         cropperInstance.getCroppedCanvas({ maxWidth: 2000, maxHeight: 2000 }).toBlob((blob) => {
             const fileObj = pendingFiles.find(f => f.id === currentEditId);
             if (fileObj) {
-                const newName = fileObj.file.name.replace(/\.[^/.]+$/, "") + "_edit.jpg";
-                fileObj.file = new File([blob], newName, { type: "image/jpeg" });
-                
+                fileObj.file = new File([blob], "edited.jpg", { type: "image/jpeg" });
                 const thumbImg = document.querySelector(`#preview-${currentEditId} img`);
                 if (thumbImg) thumbImg.src = URL.createObjectURL(blob);
             }
@@ -358,7 +386,7 @@
         
         btn.disabled = true;
         msgBox.className = 'msg';
-        msgBox.innerText = 'Vytvářím článek a nahrávám fotky... Prosím čekejte.';
+        msgBox.innerText = 'Vytvářím článek a ukládám fotky...';
         msgBox.style.display = 'block';
 
         const title = document.getElementById('postTitle').value.trim();
@@ -384,17 +412,21 @@
 
             for (let i = 0; i < pendingFiles.length; i++) {
                 let fObj = pendingFiles[i];
-                let safeName = `img_${Date.now()}_${Math.floor(Math.random() * 1000)}_${fObj.file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+                // NÁZEV SE NYNÍ NATVRDO GENERUJE BEZ OHLEDU NA HEIC
+                let safeName = `img_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`;
                 
-                const { error: uploadErr } = await db.storage.from('report_media').upload(safeName, fObj.file);
+                const { error: uploadErr } = await db.storage.from('report_media').upload(safeName, fObj.file, {
+                    contentType: 'image/jpeg',
+                    cacheControl: '3600'
+                });
+                
                 if (uploadErr) throw uploadErr;
                 
                 const { data: urlData } = db.storage.from('report_media').getPublicUrl(safeName);
-                const publicUrl = urlData.publicUrl;
 
                 await db.from('report_images').insert({
                     report_id: newPostId,
-                    image_url: publicUrl,
+                    image_url: urlData.publicUrl,
                     shortcode: fObj.shortcode
                 });
             }
@@ -440,30 +472,21 @@
 
             postImages.forEach(img => {
                 let baseCode = img.shortcode.replace('[', '').replace(']', ''); 
-                let regex = new RegExp(`\\[${baseCode}([^\\]]*)\\]`, 'g');
+                let regex = new RegExp(`\\[${baseCode}(?:\\s+velikost=([0-9]+)\\s+pozice=([a-z]+))?\\]`, 'g');
                 
                 if (parsedContent.match(regex)) {
-                    parsedContent = parsedContent.replace(regex, (match, params) => {
+                    parsedContent = parsedContent.replace(regex, (match, size, pos) => {
                         usedShortcodes.push(img.shortcode);
-                        let size = 100;
-                        let pos = 'stred';
-                        
-                        if (params.includes('velikost=')) {
-                            let m = params.match(/velikost=(\d+)/);
-                            if(m) size = m[1];
-                        }
-                        if (params.includes('pozice=')) {
-                            let m = params.match(/pozice=([a-z]+)/);
-                            if(m) pos = m[1];
-                        }
+                        let s = size ? size : '100';
+                        let p = pos ? pos : 'stred';
                         
                         let style = '';
-                        if (pos === 'vlevo') {
-                            style = `width: ${size}%; float: left; margin: 0 1.5rem 1rem 0;`;
-                        } else if (pos === 'vpravo') {
-                            style = `width: ${size}%; float: right; margin: 0 0 1rem 1.5rem;`;
+                        if (p === 'vlevo') {
+                            style = `width: ${s}%; float: left; margin: 0 1.5rem 1rem 0;`;
+                        } else if (p === 'vpravo') {
+                            style = `width: ${s}%; float: right; margin: 0 0 1rem 1.5rem;`;
                         } else {
-                            style = `width: ${size}%; display: block; margin: 1.5rem auto;`;
+                            style = `width: ${s}%; display: block; margin: 1.5rem auto;`;
                         }
                         
                         return `<img src="${img.image_url}" style="${style} max-height: 600px; object-fit: cover; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);" alt="Fotografie">`;
