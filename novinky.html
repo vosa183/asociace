@@ -135,7 +135,6 @@
     </div>
 </main>
 
-<!-- Modální okno pro vložení obrázku (Nastavení velikosti a pozice) -->
 <div id="insertModal" class="modal-overlay">
     <div class="modal-box" style="max-width: 450px;">
         <button type="button" class="modal-close" onclick="document.getElementById('insertModal').style.display='none'">×</button>
@@ -160,7 +159,6 @@
     </div>
 </div>
 
-<!-- Modální okno pro ořezávání -->
 <div id="cropperModal" class="modal-overlay">
     <div class="modal-box" style="max-width: 800px;">
         <button type="button" class="modal-close" onclick="closeCropper()">×</button>
@@ -228,18 +226,24 @@
 
         for (let file of Array.from(files)) {
             let processedFile = file;
-            const isHeic = file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic');
+            const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif');
             
             if (isHeic) {
                 try {
-                    const conversionResult = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.8 });
+                    // HRUBÁ SÍLA PRO WINDOWS: Vnutit Blob strukturu před převodem
+                    let heicBlob = file;
+                    if (!file.type) {
+                        heicBlob = new Blob([file], { type: "image/heic" });
+                    }
+                    
+                    const conversionResult = await heic2any({ blob: heicBlob, toType: "image/jpeg", quality: 0.8 });
                     const blob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
-                    const newName = file.name.replace(/\.heic$/i, '.jpg');
+                    const newName = file.name.replace(/\.heic$/i, '.jpg').replace(/\.heif$/i, '.jpg');
                     processedFile = new File([blob], newName, { type: "image/jpeg" });
                 } catch (e) {
                     console.error("Chyba převodu HEIC:", e);
-                    alert("Nepodařilo se převést HEIC fotku z iPhonu: " + file.name);
-                    continue;
+                    alert("⚠️ Nepodařilo se převést HEIC fotku: " + file.name + "\nWindows pravděpodobně poškodil hlavičku souboru při přesunu. Zkuste fotku otevřít např. v Malování a uložit jako JPG.");
+                    continue; // Fotku přeskočíme, ale skript jede dál
                 }
             } else if (!file.type.startsWith('image/')) {
                 continue; 
@@ -434,7 +438,6 @@
             let parsedContent = post.content;
             let usedShortcodes = [];
 
-            // NOVÝ INTELIGENTNÍ PARSER FOTEK
             postImages.forEach(img => {
                 let baseCode = img.shortcode.replace('[', '').replace(']', ''); 
                 let regex = new RegExp(`\\[${baseCode}([^\\]]*)\\]`, 'g');
