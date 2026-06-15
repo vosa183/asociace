@@ -65,13 +65,11 @@
         .error { background: #fed7d7; color: #c53030; display: block; }
         .success { background: #c6f6d5; color: #2f855a; display: block; }
 
-        /* MODÁLNÍ OKNA */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
         .modal-box { background: white; padding: 2rem; border-radius: 12px; width: 95%; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
         .modal-close { position: absolute; top: 15px; right: 15px; background: transparent; color: var(--secondary); border: none; font-size: 1.5rem; cursor: pointer; width: auto; padding: 0; }
         .cropper-container-box { max-height: 60vh; background: #eee; margin-bottom: 1.5rem; display: flex; justify-content: center; align-items: center; overflow: hidden; border-radius: 8px; border: 1px solid #ccc; }
 
-        /* MODERNÍ VÝPIS ČLÁNKŮ */
         .post-card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 3rem; transition: transform 0.3s ease, box-shadow 0.3s ease; border: 1px solid #edf2f7; }
         .post-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
         .post-header { padding: 2rem 2rem 0.5rem 2rem; }
@@ -111,10 +109,15 @@
                 <label>Nadpis článku</label>
                 <input type="text" id="postTitle" required placeholder="Napište úderný nadpis...">
                 
-                <label>Obrázky (Přetáhněte sem z počítače/mobilu, nebo klikněte)</label>
+                <label>Obrázky</label>
                 <div id="dropZone" class="drop-zone">
-                    <span id="dropZoneText">📸 Přetáhněte sem fotky myší<br><span style="font-size: 0.9rem; font-weight: normal; color: #718096;">nebo klikněte pro otevření složky (podporuje i HEIC z iPhonu)</span></span>
-                    <input type="file" id="fileInput" multiple accept="image/*,.heic,.HEIC" style="display:none;">
+                    <span id="dropZoneText">
+                        📸 Klikněte sem pro výběr fotek z počítače / mobilu<br>
+                        <span style="font-size: 0.9rem; font-weight: normal; color: #718096;">
+                            (Doporučujeme fotky nevybírat přetažením, ale kliknutím. Apple tak automaticky převede problémové HEIC fotky na JPG.)
+                        </span>
+                    </span>
+                    <input type="file" id="fileInput" multiple accept="image/jpeg, image/png, image/webp" style="display:none;">
                 </div>
                 
                 <div id="galleryPreview" class="gallery-preview"></div>
@@ -222,25 +225,23 @@
 
         for (let file of Array.from(files)) {
             let processedFile = file;
-            const isHeic = file.name.toLowerCase().match(/\.(heic|heif)$/);
+            
+            // Jistota: Pokud to i přes náš OS trik projde jako HEIC (např. při přetažení myší)
+            const isHeic = file.name.toLowerCase().match(/\.(heic|heif)$/) || file.type === 'image/heic';
             
             if (isHeic) {
                 try {
-                    // multiple: false zajistí, že se Live Photos nezblázní
-                    const conversionResult = await heic2any({ 
-                        blob: file, 
-                        toType: "image/jpeg", 
-                        quality: 0.8,
-                        multiple: false 
-                    });
+                    let buffer = await file.arrayBuffer();
+                    let heicBlob = new Blob([buffer], { type: "image/heic" });
                     
+                    const conversionResult = await heic2any({ blob: heicBlob, toType: "image/jpeg", quality: 0.8 });
                     const blob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
                     const newName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
                     processedFile = new File([blob], newName, { type: "image/jpeg" });
                 } catch (e) {
                     console.error("Chyba převodu HEIC:", e);
-                    alert(`⚠️ Nepodařilo se převést fotku: ${file.name}\nZřejmě jde o nepodporovaný formát z iPhonu (např. vícestopá Live Photo). Zkuste ji nahrát ve standardním formátu JPG.`);
-                    continue; // Přeskočíme jen tuto problémovou fotku
+                    alert("⚠️ Nepodařilo se zpracovat HEIC fotku: " + file.name + "\n\n💡 TRIK PRO MAC/IPHONE: Zkuste fotku nepřetahovat myší, ale KLIKNĚTE na modré pole a vyberte ji v okně. Apple ji tak před nahráním sám automaticky a bezchybně převede na JPG.");
+                    continue; // Fotku přeskočíme, ale pokračujeme dalšími
                 }
             } else if (!file.type.startsWith('image/')) {
                 continue; 
