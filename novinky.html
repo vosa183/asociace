@@ -110,7 +110,7 @@
                 
                 <label>Obrázky (Přetáhněte sem z počítače/mobilu, nebo klikněte)</label>
                 <div id="dropZone" class="drop-zone">
-                    <span id="dropZoneText">📸 Přetáhněte sem fotky myší<br><span style="font-size: 0.9rem; font-weight: normal; color: #718096;">nebo klikněte pro otevření složky (plná podpora HEIC formátu)</span></span>
+                    <span id="dropZoneText">📸 Přetáhněte sem fotky myší<br><span style="font-size: 0.9rem; font-weight: normal; color: #718096;">nebo klikněte pro otevření složky (podporuje i HEIC z iPhonu)</span></span>
                     <input type="file" id="fileInput" multiple accept="image/*,.heic,.HEIC" style="display:none;">
                 </div>
                 
@@ -214,72 +214,31 @@
     dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
     fileInput.addEventListener('change', function() { handleFiles(this.files); });
 
-    // NEPRŮSTŘELNÝ MOTOR NA HEIC A BĚŽNÉ OBRÁZKY
-    function normalizeImage(file) {
-        return new Promise((resolve, reject) => {
-            // Pokud to není HEIC a je to běžný formát, projde rovnou
-            if ((file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/webp') && !file.name.toLowerCase().match(/\.(heic|heif)$/)) {
-                return resolve(file);
-            }
-
-            let objectUrl = URL.createObjectURL(file);
-            let img = new Image();
-            
-            // Varianta 1: Zařízení to umí vykreslit samo (Apple, nové telefony)
-            img.onload = () => {
-                let canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                let ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                
-                canvas.toBlob((blob) => {
-                    URL.revokeObjectURL(objectUrl);
-                    if (!blob) return attemptHeic2Any(file, resolve, reject);
-                    resolve(new File([blob], "image.jpg", { type: "image/jpeg" }));
-                }, 'image/jpeg', 0.85);
-            };
-            
-            // Varianta 2: Zařízení z toho má mrtvici (Windows), musíme použít knihovnu
-            img.onerror = () => {
-                URL.revokeObjectURL(objectUrl);
-                attemptHeic2Any(file, resolve, reject);
-            };
-
-            img.src = objectUrl;
-        });
-    }
-
-    async function attemptHeic2Any(file, resolve, reject) {
-        try {
-            let heicBlob = file;
-            if (!file.type) heicBlob = new Blob([file], { type: "image/heic" });
-            
-            let conversionResult = await heic2any({ blob: heicBlob, toType: "image/jpeg", quality: 0.85 });
-            let blob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
-            resolve(new File([blob], "image.jpg", { type: "image/jpeg" }));
-        } catch (err) {
-            reject(err);
-        }
-    }
-
     async function handleFiles(files) {
-        dropZoneText.innerHTML = "⏳ Zpracovávám fotky, prosím čekejte...";
+        dropZoneText.innerHTML = "⏳ Zpracovávám fotky, prosím čekejte... (u HEIC z iPhonu to může trvat o pár vteřin déle)";
 
         for (let file of Array.from(files)) {
-            // Ignorujeme vše, co není fotka a nekončí na HEIC
-            if (!file.type.startsWith('image/') && !file.name.toLowerCase().match(/\.(heic|heif)$/)) {
+            let processedFile = file;
+            const isHeic = file.name.toLowerCase().match(/\.(heic|heif)$/);
+            
+            if (isHeic) {
+                try {
+                    // HRUBÁ SÍLA PRO WINDOWS: Nasměrovat přímo do RAM přes ArrayBuffer
+                    const buffer = await file.arrayBuffer();
+                    const heicBlob = new Blob([buffer], { type: "image/heic" });
+                    
+                    const conversionResult = await heic2any({ blob: heicBlob, toType: "image/jpeg", quality: 0.8 });
+                    const blob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
+                    
+                    const newName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
+                    processedFile = new File([blob], newName, { type: "image/jpeg" });
+                } catch (e) {
+                    console.error("Chyba převodu HEIC:", e);
+                    alert("⚠️ Nepodařilo se převést fotku: " + file.name + "\nWindows pravděpodobně blokuje čtení struktury souboru. Zkuste fotku otevřít např. v Malování a uložit jako JPG.");
+                    continue; // Fotku přeskočíme, ale skript jede dál pro další fotky
+                }
+            } else if (!file.type.startsWith('image/')) {
                 continue; 
-            }
-
-            let processedFile;
-            try {
-                // Bezpečný převod všeho na JPEG
-                processedFile = await normalizeImage(file);
-            } catch (e) {
-                console.error(e);
-                alert("⚠️ Nepodařilo se zpracovat fotku: " + file.name + "\nFotka byla přeskočena.");
-                continue;
             }
             
             const currentId = fileIdCounter++;
@@ -386,7 +345,7 @@
         
         btn.disabled = true;
         msgBox.className = 'msg';
-        msgBox.innerText = 'Vytvářím článek a ukládám fotky...';
+        msgBox.innerText = 'Vytvářím článek a ukládám fotky... Prosím čekejte.';
         msgBox.style.display = 'block';
 
         const title = document.getElementById('postTitle').value.trim();
@@ -412,7 +371,6 @@
 
             for (let i = 0; i < pendingFiles.length; i++) {
                 let fObj = pendingFiles[i];
-                // NÁZEV SE NYNÍ NATVRDO GENERUJE BEZ OHLEDU NA HEIC
                 let safeName = `img_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`;
                 
                 const { error: uploadErr } = await db.storage.from('report_media').upload(safeName, fObj.file, {
