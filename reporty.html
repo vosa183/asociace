@@ -33,7 +33,6 @@
 
         main { max-width: 900px; margin: 2rem auto; padding: 0 1rem; min-height: 70vh; }
 
-        /* MODERNÍ VÝPIS REPORTŮ */
         .post-card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 3rem; transition: transform 0.3s ease, box-shadow 0.3s ease; border: 1px solid #edf2f7; }
         .post-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
         .post-header { padding: 2rem 2rem 0.5rem 2rem; }
@@ -41,12 +40,8 @@
         .post-meta { color: #718096; font-size: 0.9rem; margin-bottom: 1.5rem; border-bottom: 2px solid #edf2f7; padding-bottom: 1rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .post-meta .author-badge { background: #e2e8f0; color: #2d3748; padding: 4px 10px; border-radius: 20px; font-weight: bold; }
         
-        .post-content { padding: 0 2rem 1.5rem 2rem; line-height: 1.8; font-size: 1.1rem; color: #2d3748; white-space: pre-wrap; }
+        .post-content { padding: 0 2rem 1.5rem 2rem; line-height: 1.8; font-size: 1.1rem; color: #2d3748; white-space: pre-wrap; overflow: hidden; }
         
-        /* Fotky uvnitř textu */
-        .post-image-inline { width: 100%; max-height: 500px; object-fit: cover; border-radius: 12px; margin: 1.5rem 0; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
-        
-        /* Moderní mřížka pro fotogalerii na konci reportu */
         .post-gallery { padding: 0 2rem 2rem 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
         .post-gallery img { width: 100%; height: 200px; object-fit: cover; border-radius: 10px; cursor: pointer; transition: transform 0.3s ease, box-shadow 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
         .post-gallery img:hover { transform: scale(1.03); box-shadow: 0 8px 20px rgba(0,0,0,0.15); z-index: 10; position: relative; }
@@ -80,26 +75,18 @@
 </footer>
 
 <script>
-    // ==========================================
-    // 1. INICIALIZACE DATABÁZE SUPABASE
-    // ==========================================
     const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-    // ==========================================
-    // 2. NAČÍTÁNÍ A VYKRESLOVÁNÍ REPORTŮ PRO ČTENÁŘE
-    // ==========================================
     async function loadReports() {
         const container = document.getElementById('reportsContainer');
         
-        // Stáhneme všechny SCHVÁLENÉ reporty řazené od nejnovějšího
         const { data: reports, error: reportsErr } = await db.from('reports')
             .select('*')
             .eq('status', 'publikovano')
             .order('created_at', { ascending: false });
 
-        // Stáhneme všechny obrázky
         const { data: images } = await db.from('report_images').select('*');
 
         if (reportsErr || !reports || reports.length === 0) {
@@ -113,36 +100,58 @@
             let d = new Date(report.created_at);
             let dateStr = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth()+1).padStart(2, '0')}.${d.getFullYear()} v ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
             
-            // Vyfiltrujeme obrázky, které patří jen k tomuto konkrétnímu reportu
             let reportImages = images ? images.filter(img => img.report_id === report.id) : [];
             let parsedContent = report.content;
             let usedShortcodes = [];
 
-            // A) Nahrazení značek (např. [foto1]) v textu za skutečné obrázky
+            // ZCELA NOVÝ A NEPRŮSTŘELNÝ PARSER FOTEK
             reportImages.forEach(img => {
-                let safeShortcode = img.shortcode.replace(/\[/g, '\\[').replace(/\]/g, '\\]');
-                let regex = new RegExp(safeShortcode, 'g');
+                let baseCode = img.shortcode.replace('[', '').replace(']', ''); 
+                // Regex nyní chytne vše uvnitř závorek za názvem fotky
+                let regex = new RegExp(`\\[${baseCode}([^\\]]*)\\]`, 'g');
                 
                 if (parsedContent.match(regex)) {
-                    parsedContent = parsedContent.replace(regex, `<img src="${img.image_url}" class="post-image-inline" alt="Fotografie z reportu">`);
-                    usedShortcodes.push(img.shortcode);
+                    parsedContent = parsedContent.replace(regex, (match, params) => {
+                        usedShortcodes.push(img.shortcode);
+                        let s = '100'; // Výchozí velikost
+                        let p = 'stred'; // Výchozí pozice
+                        
+                        // Zkusí najít parametry uvnitř textu závorky
+                        if (params) {
+                            let sizeMatch = params.match(/velikost=([0-9]+)/);
+                            if (sizeMatch) s = sizeMatch[1];
+                            
+                            let posMatch = params.match(/pozice=([a-z]+)/);
+                            if (posMatch) p = posMatch[1];
+                        }
+                        
+                        let style = '';
+                        if (p === 'vlevo') {
+                            style = `width: ${s}%; float: left; margin: 0 1.5rem 1rem 0;`;
+                        } else if (p === 'vpravo') {
+                            style = `width: ${s}%; float: right; margin: 0 0 1rem 1.5rem;`;
+                        } else {
+                            style = `width: ${s}%; display: block; margin: 1.5rem auto;`;
+                        }
+                        
+                        return `<img src="${img.image_url}" style="${style} max-height: 600px; object-fit: cover; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);" alt="Fotografie z reportu">`;
+                    });
                 }
             });
+            
+            parsedContent += '<div style="clear: both;"></div>'; 
 
-            // B) Tvorba mozaikové galerie z fotek, které autor neumístil přímo do textu
             let galleryHtml = '';
             let unusedImages = reportImages.filter(img => !usedShortcodes.includes(img.shortcode));
             
             if (unusedImages.length > 0) {
                 galleryHtml = `<div class="post-gallery">`;
                 unusedImages.forEach(img => {
-                    // Kliknutí na obrázek jej otevře v plné velikosti v nové záložce
                     galleryHtml += `<a href="${img.image_url}" target="_blank"><img src="${img.image_url}" alt="Galerie reportu"></a>`;
                 });
                 galleryHtml += `</div>`;
             }
 
-            // C) Finální vykreslení HTML karty pro jeden report
             html += `
                 <article class="post-card">
                     <div class="post-header">
@@ -161,7 +170,6 @@
         container.innerHTML = html;
     }
 
-    // Spuštění načítání po otevření stránky
     window.onload = loadReports;
 </script>
 </body>
