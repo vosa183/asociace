@@ -46,6 +46,8 @@
         button:hover { background: var(--secondary); }
         .btn-green { background: var(--green); }
         .btn-blue { background: var(--blue); }
+        .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
+        .btn-outline:hover { background: var(--gray); color: var(--primary); }
 
         /* EDITOR A DROP ZÓNA */
         .drop-zone { border: 2px dashed var(--blue); padding: 3rem 1rem; text-align: center; background: #ebf8ff; border-radius: 12px; cursor: pointer; transition: 0.2s; font-weight: bold; color: var(--blue); margin-bottom: 1rem; }
@@ -65,11 +67,13 @@
         .error { background: #fed7d7; color: #c53030; display: block; }
         .success { background: #c6f6d5; color: #2f855a; display: block; }
 
+        /* MODÁLNÍ OKNA */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
         .modal-box { background: white; padding: 2rem; border-radius: 12px; width: 95%; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
         .modal-close { position: absolute; top: 15px; right: 15px; background: transparent; color: var(--secondary); border: none; font-size: 1.5rem; cursor: pointer; width: auto; padding: 0; }
         .cropper-container-box { max-height: 60vh; background: #eee; margin-bottom: 1.5rem; display: flex; justify-content: center; align-items: center; overflow: hidden; border-radius: 8px; border: 1px solid #ccc; }
 
+        /* MODERNÍ VÝPIS ČLÁNKŮ */
         .post-card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 3rem; transition: transform 0.3s ease, box-shadow 0.3s ease; border: 1px solid #edf2f7; }
         .post-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
         .post-header { padding: 2rem 2rem 0.5rem 2rem; }
@@ -83,7 +87,9 @@
         .post-gallery img:hover { transform: scale(1.03); box-shadow: 0 8px 20px rgba(0,0,0,0.15); z-index: 10; position: relative; }
         
         .loading { text-align: center; padding: 3rem; color: #a0aec0; font-style: italic; font-size: 1.2rem; }
-        .delete-post-btn { background: transparent; color: #e53e3e; text-decoration: none; padding: 4px 10px; border: 1px solid #feb2b2; border-radius: 6px; font-size: 0.8rem; margin-left: auto; }
+        .action-post-btn { background: transparent; color: var(--blue); text-decoration: none; padding: 4px 10px; border: 1px solid var(--blue); border-radius: 6px; font-size: 0.8rem; cursor: pointer; }
+        .action-post-btn:hover { background: #ebf8ff; }
+        .delete-post-btn { background: transparent; color: #e53e3e; text-decoration: none; padding: 4px 10px; border: 1px solid #feb2b2; border-radius: 6px; font-size: 0.8rem; cursor: pointer; }
         .delete-post-btn:hover { background: #fff5f5; color: #9b2c2c; }
 
         footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 3rem; background: var(--white); }
@@ -104,20 +110,15 @@
 <main>
     <div id="adminZone" style="display: none;">
         <div class="card" style="border-top: 4px solid var(--blue);">
-            <h2 style="color: var(--blue); border-color: var(--blue);">+ Vydat nový článek</h2>
+            <h2 id="editorTitle" style="color: var(--blue); border-color: var(--blue);">+ Vydat nový článek</h2>
             <form id="postForm">
                 <label>Nadpis článku</label>
                 <input type="text" id="postTitle" required placeholder="Napište úderný nadpis...">
                 
-                <label>Obrázky</label>
+                <label>Obrázky (Přetáhněte sem z počítače/mobilu, nebo klikněte)</label>
                 <div id="dropZone" class="drop-zone">
-                    <span id="dropZoneText">
-                        📸 Klikněte sem pro výběr fotek z počítače / mobilu<br>
-                        <span style="font-size: 0.9rem; font-weight: normal; color: #718096;">
-                            (Doporučujeme fotky nevybírat přetažením, ale kliknutím. Apple tak automaticky převede problémové HEIC fotky na JPG.)
-                        </span>
-                    </span>
-                    <input type="file" id="fileInput" multiple accept="image/jpeg, image/png, image/webp" style="display:none;">
+                    <span id="dropZoneText">📸 Přetáhněte sem fotky myší<br><span style="font-size: 0.9rem; font-weight: normal; color: #718096;">nebo klikněte pro otevření složky (podporuje i HEIC z iPhonu)</span></span>
+                    <input type="file" id="fileInput" multiple accept="image/*,.heic,.HEIC,.heif,.HEIF" style="display:none;">
                 </div>
                 
                 <div id="galleryPreview" class="gallery-preview"></div>
@@ -126,7 +127,11 @@
                 <div style="font-size: 0.85rem; color: #718096; margin-bottom: 5px;">*Tip: Klikněte do textu tam, kam chcete fotku umístit, a u náhledu fotky klikněte na "Vložit do textu".</div>
                 <textarea id="postContent" rows="12" required placeholder="Tady pište svůj text..."></textarea>
                 
-                <button type="submit" id="submitBtn" class="btn-green" style="width: 100%; font-size: 1.2rem; padding: 1.2rem; margin-top: 10px;">Vydat a publikovat článek</button>
+                <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
+                    <button type="button" id="submitBtn" class="btn-blue" style="flex: 2; font-size: 1.1rem; padding: 1rem;" onclick="submitPost('publikovano')">🚀 Vydat a publikovat článek</button>
+                    <button type="button" id="draftBtn" class="btn-green" style="flex: 1; font-size: 1.1rem; padding: 1rem;" onclick="submitPost('koncept')">💾 Uložit jako koncept</button>
+                    <button type="button" id="cancelEditBtn" class="btn-outline" style="display: none; padding: 1rem;" onclick="cancelEditing()">✖ Zrušit úpravy</button>
+                </div>
                 <div id="uploadMsg" class="msg"></div>
             </form>
         </div>
@@ -185,8 +190,18 @@
 
     let currentUser = null;
     let myProfileData = null;
+    
+    // Globální stavy
+    let loadedPosts = [];
+    let loadedImages = [];
     let pendingFiles = []; 
     let fileIdCounter = 1;
+    
+    // Editace
+    let editingPostId = null;
+    let deletedExistingImageIds = [];
+    
+    // Nástroje
     let cropperInstance = null;
     let currentEditId = null;
     let currentInsertShortcode = '';
@@ -199,6 +214,7 @@
             if (prof && ['zc', 'zcp', 'superadmin', 'pc'].includes(prof.role)) {
                 myProfileData = prof;
                 document.getElementById('adminZone').style.display = 'block';
+                
                 if (prof.role === 'pc') {
                     document.getElementById('submitBtn').innerText = 'Odeslat článek ke schválení';
                 }
@@ -220,31 +236,67 @@
     dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
     fileInput.addEventListener('change', function() { handleFiles(this.files); });
 
+    // NEPRŮSTŘELNÝ MOTOR NA HEIC A BĚŽNÉ OBRÁZKY
+    function normalizeImage(file) {
+        return new Promise((resolve, reject) => {
+            if ((file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/webp') && !file.name.toLowerCase().match(/\.(heic|heif)$/)) {
+                return resolve(file);
+            }
+
+            let objectUrl = URL.createObjectURL(file);
+            let img = new Image();
+            
+            img.onload = () => {
+                let canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                let ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                
+                canvas.toBlob((blob) => {
+                    URL.revokeObjectURL(objectUrl);
+                    if (!blob) return attemptHeic2Any(file, resolve, reject);
+                    resolve(new File([blob], "image.jpg", { type: "image/jpeg" }));
+                }, 'image/jpeg', 0.85);
+            };
+            
+            img.onerror = () => {
+                URL.revokeObjectURL(objectUrl);
+                attemptHeic2Any(file, resolve, reject);
+            };
+
+            img.src = objectUrl;
+        });
+    }
+
+    async function attemptHeic2Any(file, resolve, reject) {
+        try {
+            let heicBlob = file;
+            if (!file.type) heicBlob = new Blob([file], { type: "image/heic" });
+            
+            let conversionResult = await heic2any({ blob: heicBlob, toType: "image/jpeg", quality: 0.85 });
+            let blob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
+            resolve(new File([blob], "image.jpg", { type: "image/jpeg" }));
+        } catch (err) {
+            reject(err);
+        }
+    }
+
     async function handleFiles(files) {
         dropZoneText.innerHTML = "⏳ Zpracovávám fotky, prosím čekejte...";
 
         for (let file of Array.from(files)) {
-            let processedFile = file;
-            
-            // Jistota: Pokud to i přes náš OS trik projde jako HEIC (např. při přetažení myší)
-            const isHeic = file.name.toLowerCase().match(/\.(heic|heif)$/) || file.type === 'image/heic';
-            
-            if (isHeic) {
-                try {
-                    let buffer = await file.arrayBuffer();
-                    let heicBlob = new Blob([buffer], { type: "image/heic" });
-                    
-                    const conversionResult = await heic2any({ blob: heicBlob, toType: "image/jpeg", quality: 0.8 });
-                    const blob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
-                    const newName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
-                    processedFile = new File([blob], newName, { type: "image/jpeg" });
-                } catch (e) {
-                    console.error("Chyba převodu HEIC:", e);
-                    alert("⚠️ Nepodařilo se zpracovat HEIC fotku: " + file.name + "\n\n💡 TRIK PRO MAC/IPHONE: Zkuste fotku nepřetahovat myší, ale KLIKNĚTE na modré pole a vyberte ji v okně. Apple ji tak před nahráním sám automaticky a bezchybně převede na JPG.");
-                    continue; // Fotku přeskočíme, ale pokračujeme dalšími
-                }
-            } else if (!file.type.startsWith('image/')) {
+            if (!file.type.startsWith('image/') && !file.name.toLowerCase().match(/\.(heic|heif)$/)) {
                 continue; 
+            }
+
+            let processedFile;
+            try {
+                processedFile = await normalizeImage(file);
+            } catch (e) {
+                console.error(e);
+                alert("⚠️ Nepodařilo se zpracovat fotku: " + file.name + "\nFotka byla přeskočena.");
+                continue;
             }
             
             const currentId = fileIdCounter++;
@@ -279,6 +331,14 @@
         pendingFiles = pendingFiles.filter(f => f.id !== id);
         const el = document.getElementById(`preview-${id}`);
         if(el) el.remove();
+    };
+
+    window.removeExistingFile = function(id) {
+        if(confirm("Tato fotka bude po uložení článku nevratně smazána. Pokračovat?")) {
+            deletedExistingImageIds.push(id);
+            const el = document.getElementById(`existing-preview-${id}`);
+            if(el) el.style.display = 'none';
+        }
     };
 
     window.openInsertWizard = function(shortcode) {
@@ -344,37 +404,116 @@
         }, 'image/jpeg', 0.85);
     };
 
-    document.getElementById('postForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btn = document.getElementById('submitBtn');
-        const msgBox = document.getElementById('uploadMsg');
+    // EDITACE EXISTUJÍCÍHO ČLÁNKU
+    window.startEditing = function(postId) {
+        const post = loadedPosts.find(p => p.id === postId);
+        if(!post) return;
         
-        btn.disabled = true;
-        msgBox.className = 'msg';
-        msgBox.innerText = 'Vytvářím článek a ukládám fotky... Prosím čekejte.';
-        msgBox.style.display = 'block';
+        editingPostId = post.id;
+        document.getElementById('postTitle').value = post.title;
+        document.getElementById('postContent').value = post.content;
+        
+        // Reset stavu
+        pendingFiles = [];
+        deletedExistingImageIds = [];
+        galleryPreview.innerHTML = '';
+        
+        // Načtení už existujících obrázků
+        const postImages = loadedImages.filter(img => img.report_id === post.id);
+        postImages.forEach(img => {
+            const div = document.createElement('div');
+            div.className = 'gallery-item';
+            div.id = `existing-preview-${img.id}`;
+            div.innerHTML = `
+                <button type="button" class="remove-img" onclick="removeExistingFile('${img.id}')">×</button>
+                <img src="${img.image_url}" alt="Náhled">
+                <div>
+                    <button type="button" class="action-btn btn-insert" onclick="openInsertWizard('${img.shortcode}')">➕ Vložit do textu</button>
+                </div>
+            `;
+            galleryPreview.appendChild(div);
+        });
+        
+        document.getElementById('editorTitle').innerText = '✏️ Úprava existujícího článku';
+        if (myProfileData.role !== 'pc') {
+            document.getElementById('submitBtn').innerText = '🚀 Uložit změny a Publikovat';
+        }
+        document.getElementById('draftBtn').innerText = '💾 Uložit úpravy jako Koncept';
+        document.getElementById('cancelEditBtn').style.display = 'inline-block';
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
+    window.cancelEditing = function() {
+        editingPostId = null;
+        deletedExistingImageIds = [];
+        pendingFiles = [];
+        galleryPreview.innerHTML = '';
+        document.getElementById('postForm').reset();
+        
+        document.getElementById('editorTitle').innerText = '+ Vydat nový článek';
+        if (myProfileData.role !== 'pc') {
+            document.getElementById('submitBtn').innerText = '🚀 Vydat a publikovat článek';
+        } else {
+            document.getElementById('submitBtn').innerText = 'Odeslat článek ke schválení';
+        }
+        document.getElementById('draftBtn').innerText = '💾 Uložit jako koncept';
+        document.getElementById('cancelEditBtn').style.display = 'none';
+    };
+
+    // HLAVNÍ FUNKCE PRO ULOŽENÍ
+    window.submitPost = async function(requestedStatus) {
         const title = document.getElementById('postTitle').value.trim();
         const content = document.getElementById('postContent').value.trim();
+        
+        if(!title || !content) {
+            alert('Nadpis i text musí být vyplněny!');
+            return;
+        }
 
-        let postStatus = 'ceka_na_schvaleni';
-        if (['zc', 'zcp', 'superadmin'].includes(myProfileData.role)) {
-            postStatus = 'publikovano';
+        const btnPub = document.getElementById('submitBtn');
+        const btnDraft = document.getElementById('draftBtn');
+        const msgBox = document.getElementById('uploadMsg');
+        
+        btnPub.disabled = true; btnDraft.disabled = true;
+        msgBox.className = 'msg';
+        msgBox.innerText = 'Zpracovávám a ukládám do databáze... Prosím čekejte.';
+        msgBox.style.display = 'block';
+
+        let finalStatus = requestedStatus;
+        if (myProfileData.role === 'pc' && requestedStatus === 'publikovano') {
+            finalStatus = 'ceka_na_schvaleni';
         }
 
         try {
-            const { data: postData, error: postErr } = await db.from('reports')
-                .insert({ 
-                    title: title, 
-                    content: content, 
-                    author_id: currentUser.id, 
-                    author_name: myProfileData.full_name,
-                    status: postStatus
-                }).select().single();
+            let targetPostId = editingPostId;
 
-            if (postErr) throw postErr;
-            const newPostId = postData.id;
+            if (editingPostId) {
+                // ÚPRAVA EXISTUJÍCÍHO
+                const { error: updateErr } = await db.from('reports')
+                    .update({ title: title, content: content, status: finalStatus })
+                    .eq('id', editingPostId);
+                if (updateErr) throw updateErr;
 
+                // Smazání odstraněných starých fotek
+                if (deletedExistingImageIds.length > 0) {
+                    await db.from('report_images').delete().in('id', deletedExistingImageIds);
+                }
+            } else {
+                // ZCELA NOVÝ ČLÁNEK
+                const { data: postData, error: postErr } = await db.from('reports')
+                    .insert({ 
+                        title: title, 
+                        content: content, 
+                        author_id: currentUser.id, 
+                        author_name: myProfileData.full_name,
+                        status: finalStatus
+                    }).select().single();
+                if (postErr) throw postErr;
+                targetPostId = postData.id;
+            }
+
+            // Nahrání nových fotek do Storage a uložení do DB
             for (let i = 0; i < pendingFiles.length; i++) {
                 let fObj = pendingFiles[i];
                 let safeName = `img_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`;
@@ -383,36 +522,33 @@
                     contentType: 'image/jpeg',
                     cacheControl: '3600'
                 });
-                
                 if (uploadErr) throw uploadErr;
                 
                 const { data: urlData } = db.storage.from('report_media').getPublicUrl(safeName);
 
                 await db.from('report_images').insert({
-                    report_id: newPostId,
+                    report_id: targetPostId,
                     image_url: urlData.publicUrl,
                     shortcode: fObj.shortcode
                 });
             }
 
             msgBox.className = 'msg success';
-            msgBox.innerText = postStatus === 'publikovano' ? 'Článek byl úspěšně vydán!' : 'Článek odeslán ke schválení.';
-            document.getElementById('postForm').reset();
-            galleryPreview.innerHTML = '';
-            pendingFiles = [];
-            fileIdCounter = 1;
+            msgBox.innerText = finalStatus === 'publikovano' ? 'Článek byl úspěšně publikován!' : 'Úspěšně uloženo jako Koncept / Ke schválení.';
             
-            loadPosts(); 
+            cancelEditing(); // Uklidí formulář
+            loadPosts();     // Obnoví výpis dole
 
         } catch (err) {
             console.error(err);
             msgBox.className = 'msg error';
             msgBox.innerText = 'Došlo k chybě: ' + err.message;
         } finally {
-            btn.disabled = false;
+            btnPub.disabled = false; btnDraft.disabled = false;
         }
-    });
+    };
 
+    // NAČÍTÁNÍ ČLÁNKŮ S PODPOROU KONCEPTŮ
     async function loadPosts() {
         const container = document.getElementById('newsContainer');
         const { data: posts, error: postsErr } = await db.from('reports').select('*').order('created_at', { ascending: false });
@@ -423,14 +559,22 @@
             return;
         }
 
+        loadedPosts = posts;
+        loadedImages = images || [];
+
         let html = '';
-        const isAdmin = myProfileData && ['zc', 'zcp', 'superadmin'].includes(myProfileData.role);
+        const isHigherAdmin = myProfileData && ['zc', 'zcp', 'superadmin'].includes(myProfileData.role);
 
         posts.forEach(post => {
+            // Logika viditelnosti: PC vidí publikované a jen SVÉ koncepty. ZC vidí VŠECHNO.
+            if (!isHigherAdmin && post.status !== 'publikovano' && post.author_id !== currentUser?.id) {
+                return; // Přeskočí cizí neschválené články
+            }
+
             let d = new Date(post.created_at);
             let dateStr = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth()+1).padStart(2, '0')}.${d.getFullYear()} v ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
             
-            let postImages = images ? images.filter(img => img.report_id === post.id) : [];
+            let postImages = loadedImages.filter(img => img.report_id === post.id);
             let parsedContent = post.content;
             let usedShortcodes = [];
 
@@ -471,18 +615,32 @@
                 galleryHtml += `</div>`;
             }
 
-            let deleteBtn = isAdmin ? `<button class="delete-post-btn" onclick="deletePost('${post.id}')">🗑️ Smazat</button>` : '';
-            let statusBadge = post.status === 'publikovano' ? '<span style="color: #2f855a; font-weight: bold; font-size: 0.8rem; margin-left: 10px;">✓ Publikováno</span>' : '<span style="color: #dd6b20; font-weight: bold; font-size: 0.8rem; margin-left: 10px;">⏳ Čeká na schválení</span>';
+            // Oprávnění pro tlačítka u karty
+            let canEdit = isHigherAdmin || post.author_id === currentUser?.id;
+            let deleteBtn = canEdit ? `<button class="delete-post-btn" onclick="deletePost('${post.id}')">🗑️ Smazat</button>` : '';
+            let editBtn = canEdit ? `<button class="action-post-btn" onclick="startEditing('${post.id}')">✏️ Upravit</button>` : '';
+            
+            let statusBadge = '';
+            if (post.status === 'publikovano') {
+                statusBadge = '<span style="color: #2f855a; font-weight: bold; font-size: 0.8rem; margin-left: 10px;">✓ Publikováno</span>';
+            } else if (post.status === 'ceka_na_schvaleni') {
+                statusBadge = '<span style="color: #dd6b20; font-weight: bold; font-size: 0.8rem; margin-left: 10px;">⏳ Čeká na schválení</span>';
+            } else if (post.status === 'koncept') {
+                statusBadge = '<span style="color: #718096; font-weight: bold; font-size: 0.8rem; margin-left: 10px;">📝 Koncept</span>';
+            }
 
             html += `
-                <article class="post-card">
+                <article class="post-card" style="${post.status !== 'publikovano' ? 'border: 2px dashed #cbd5e0; opacity: 0.9;' : ''}">
                     <div class="post-header">
                         <h2 class="post-title">${post.title}</h2>
                         <div class="post-meta">
                             <span class="author-badge">✍️ ${post.author_name || 'Asociace'}</span>
                             <span>📅 ${dateStr}</span>
-                            ${isAdmin ? statusBadge : ''}
-                            ${deleteBtn}
+                            ${statusBadge}
+                            <div style="margin-left: auto; display: flex; gap: 10px;">
+                                ${editBtn}
+                                ${deleteBtn}
+                            </div>
                         </div>
                     </div>
                     <div class="post-content">${parsedContent}</div>
@@ -491,7 +649,7 @@
             `;
         });
 
-        container.innerHTML = html;
+        container.innerHTML = html || '<div class="loading">Nemáte přístup k žádným článkům.</div>';
     }
 
     window.deletePost = async function(postId) {
