@@ -189,7 +189,7 @@
             <li><a onclick="switchTab('rules')" id="nav-rules">Pravidla</a></li>
             <li><a onclick="switchTab('host')" id="nav-host">Pořádejte turnaj</a></li>
             <li><a onclick="switchTab('tournaments')" id="nav-tournaments">Turnaje</a></li>
-            <li id="menu-reports" style="display:none; color:var(--gold);"><a onclick="switchTab('reports')" id="nav-reports">Reporty</a></li>
+            <li><a onclick="switchTab('reports')" id="nav-reports">Reporty</a></li>
             <li id="menu-stats" style="display:none;"><a onclick="switchTab('stats')" id="nav-stats">Statistiky</a></li>
             <li id="menu-voting" style="display:none; color:var(--gold);"><a onclick="switchTab('voting')" id="nav-voting">Hlasování a Návrhy</a></li>
             <li id="menu-auth"><a onclick="switchTab('auth')" id="nav-auth">Pro členy</a></li>
@@ -1131,8 +1131,8 @@
         }
 
         if (tabId === 'reports') {
-            if (!['zc', 'zcp', 'superadmin'].includes(simulatedRole)) return;
-            document.getElementById('reportsAdminBtnZone').style.display = 'block';
+            let canEdit = ['zc', 'zcp', 'superadmin', 'pc'].includes(simulatedRole);
+            document.getElementById('reportsAdminBtnZone').style.display = canEdit ? 'block' : 'none';
             initReportsApp();
         }
     }
@@ -1223,7 +1223,6 @@
             document.getElementById('menu-auth').style.display = 'block';
             document.getElementById('menu-profile').style.display = 'none';
             document.getElementById('menu-admin').style.display = 'none';
-            document.getElementById('menu-reports').style.display = 'none';
             document.getElementById('menu-logout').style.display = 'none';
             document.getElementById('menu-stats').style.display = 'none';
             document.getElementById('menu-voting').style.display = 'none';
@@ -1327,7 +1326,6 @@
     function updateMenuByRole() {
         const isZcPlus = ['zc','zcp','superadmin'].includes(simulatedRole);
         document.getElementById('menu-admin').style.display = isZcPlus ? 'block' : 'none';
-        document.getElementById('menu-reports').style.display = isZcPlus ? 'block' : 'none';
         
         document.getElementById('zcZone').style.display = isZcPlus ? 'block' : 'none';
         document.getElementById('zcpZone').style.display = ['zcp','superadmin'].includes(simulatedRole) ? 'block' : 'none';
