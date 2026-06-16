@@ -40,8 +40,8 @@
         .card { background: var(--white); padding: 2rem; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 2rem; }
         h2 { color: var(--primary); border-bottom: 2px solid var(--secondary); padding-bottom: 0.5rem; margin-bottom: 1.5rem; font-size: 1.5rem; }
         
-        input[type="text"], textarea, select { width: 100%; padding: 1rem; margin-bottom: 1.2rem; border-radius: 8px; border: 1px solid #cbd5e0; font-family: inherit; font-size: 1rem; background: #f8fafc; transition: border-color 0.2s; }
-        input[type="text"]:focus, textarea:focus, select:focus { outline: none; border-color: var(--blue); background: var(--white); }
+        input[type="text"], input[type="date"], textarea, select { width: 100%; padding: 1rem; margin-bottom: 1.2rem; border-radius: 8px; border: 1px solid #cbd5e0; font-family: inherit; font-size: 1rem; background: #f8fafc; transition: border-color 0.2s; }
+        input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus { outline: none; border-color: var(--blue); background: var(--white); }
         button { background: var(--primary); color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         button:hover { background: var(--secondary); }
         .btn-green { background: var(--green); }
@@ -49,7 +49,6 @@
         .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
         .btn-outline:hover { background: var(--gray); color: var(--primary); }
 
-        /* EDITOR A DROP ZÓNA */
         .drop-zone { border: 2px dashed var(--blue); padding: 3rem 1rem; text-align: center; background: #ebf8ff; border-radius: 12px; cursor: pointer; transition: 0.2s; font-weight: bold; color: var(--blue); margin-bottom: 1rem; }
         .drop-zone.dragover { background: #bee3f8; border-color: var(--primary); color: var(--primary); transform: scale(1.02); }
         .gallery-preview { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 1.5rem; }
@@ -67,13 +66,11 @@
         .error { background: #fed7d7; color: #c53030; display: block; }
         .success { background: #c6f6d5; color: #2f855a; display: block; }
 
-        /* MODÁLNÍ OKNA */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
         .modal-box { background: white; padding: 2rem; border-radius: 12px; width: 95%; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
         .modal-close { position: absolute; top: 15px; right: 15px; background: transparent; color: var(--secondary); border: none; font-size: 1.5rem; cursor: pointer; width: auto; padding: 0; }
         .cropper-container-box { max-height: 60vh; background: #eee; margin-bottom: 1.5rem; display: flex; justify-content: center; align-items: center; overflow: hidden; border-radius: 8px; border: 1px solid #ccc; }
 
-        /* MODERNÍ VÝPIS ČLÁNKŮ */
         .post-card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 3rem; transition: transform 0.3s ease, box-shadow 0.3s ease; border: 1px solid #edf2f7; }
         .post-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
         .post-header { padding: 2rem 2rem 0.5rem 2rem; }
@@ -103,7 +100,7 @@
         <h1>Česká asociace v karetní hře prší</h1>
     </a>
     <nav>
-        <a href="index.html">← Zpět na hlavní web</a>
+        <a href="reporty.html">← Zpět na Reporty</a>
     </nav>
 </header>
 
@@ -114,11 +111,19 @@
             <form id="postForm">
                 <label>Nadpis článku</label>
                 <input type="text" id="postTitle" required placeholder="Napište úderný nadpis...">
+
+                <label>Datum turnaje (podle tohoto data se zařadí do ročníku)</label>
+                <input type="date" id="eventDate" required>
                 
-                <label>Obrázky (Přetáhněte sem z počítače/mobilu, nebo klikněte)</label>
+                <label>Obrázky (Klikněte pro výběr)</label>
                 <div id="dropZone" class="drop-zone">
-                    <span id="dropZoneText">📸 Přetáhněte sem fotky myší<br><span style="font-size: 0.9rem; font-weight: normal; color: #718096;">nebo klikněte pro otevření složky (podporuje i HEIC z iPhonu)</span></span>
-                    <input type="file" id="fileInput" multiple accept="image/*,.heic,.HEIC,.heif,.HEIF" style="display:none;">
+                    <span id="dropZoneText">
+                        📸 Klikněte sem pro výběr fotek z počítače / mobilu<br>
+                        <span style="font-size: 0.9rem; font-weight: normal; color: #718096;">
+                            (Povoleno pouze: JPG, PNG, WEBP. Pokud máte HEIC, Mac jej převede při výběru okna.)
+                        </span>
+                    </span>
+                    <input type="file" id="fileInput" multiple accept=".jpg, .jpeg, .png, .webp, image/jpeg, image/png, image/webp" style="display:none;">
                 </div>
                 
                 <div id="galleryPreview" class="gallery-preview"></div>
@@ -191,20 +196,20 @@
     let currentUser = null;
     let myProfileData = null;
     
-    // Globální stavy
     let loadedPosts = [];
     let loadedImages = [];
     let pendingFiles = []; 
     let fileIdCounter = 1;
     
-    // Editace
     let editingPostId = null;
     let deletedExistingImageIds = [];
     
-    // Nástroje
     let cropperInstance = null;
     let currentEditId = null;
     let currentInsertShortcode = '';
+
+    // Nastavení dnešního data do kalendáře
+    document.getElementById('eventDate').value = new Date().toISOString().split('T')[0];
 
     async function checkAuth() {
         const { data: { user } } = await db.auth.getUser();
@@ -214,13 +219,19 @@
             if (prof && ['zc', 'zcp', 'superadmin', 'pc'].includes(prof.role)) {
                 myProfileData = prof;
                 document.getElementById('adminZone').style.display = 'block';
-                
                 if (prof.role === 'pc') {
                     document.getElementById('submitBtn').innerText = 'Odeslat článek ke schválení';
                 }
             }
         }
-        loadPosts();
+        await loadPosts();
+        
+        // Zpracování hash z URL (pokud přišel z Reportů přes "Upravit")
+        if (window.location.hash && window.location.hash.startsWith('#edit-')) {
+            let editId = window.location.hash.replace('#edit-', '');
+            startEditing(editId);
+            window.location.hash = ''; // Vyčištění URL, aby to při refresh nedělalo problémy
+        }
     }
     checkAuth();
 
@@ -236,72 +247,20 @@
     dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
     fileInput.addEventListener('change', function() { handleFiles(this.files); });
 
-    // NEPRŮSTŘELNÝ MOTOR NA HEIC A BĚŽNÉ OBRÁZKY
-    function normalizeImage(file) {
-        return new Promise((resolve, reject) => {
-            if ((file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/webp') && !file.name.toLowerCase().match(/\.(heic|heif)$/)) {
-                return resolve(file);
-            }
-
-            let objectUrl = URL.createObjectURL(file);
-            let img = new Image();
-            
-            img.onload = () => {
-                let canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                let ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                
-                canvas.toBlob((blob) => {
-                    URL.revokeObjectURL(objectUrl);
-                    if (!blob) return attemptHeic2Any(file, resolve, reject);
-                    resolve(new File([blob], "image.jpg", { type: "image/jpeg" }));
-                }, 'image/jpeg', 0.85);
-            };
-            
-            img.onerror = () => {
-                URL.revokeObjectURL(objectUrl);
-                attemptHeic2Any(file, resolve, reject);
-            };
-
-            img.src = objectUrl;
-        });
-    }
-
-    async function attemptHeic2Any(file, resolve, reject) {
-        try {
-            let heicBlob = file;
-            if (!file.type) heicBlob = new Blob([file], { type: "image/heic" });
-            
-            let conversionResult = await heic2any({ blob: heicBlob, toType: "image/jpeg", quality: 0.85 });
-            let blob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
-            resolve(new File([blob], "image.jpg", { type: "image/jpeg" }));
-        } catch (err) {
-            reject(err);
-        }
-    }
-
-    async function handleFiles(files) {
-        dropZoneText.innerHTML = "⏳ Zpracovávám fotky, prosím čekejte...";
-
+    function handleFiles(files) {
         for (let file of Array.from(files)) {
-            if (!file.type.startsWith('image/') && !file.name.toLowerCase().match(/\.(heic|heif)$/)) {
+            if (file.name.toLowerCase().match(/\.(heic|heif)$/) || file.type === 'image/heic') {
+                alert("⚠️ Formát HEIC není podporován.\n\nPřeveďte prosím fotku '" + file.name + "' na JPG (např. přes Rychlé akce v Macu) a nahrajte ji znovu.");
                 continue; 
             }
 
-            let processedFile;
-            try {
-                processedFile = await normalizeImage(file);
-            } catch (e) {
-                console.error(e);
-                alert("⚠️ Nepodařilo se zpracovat fotku: " + file.name + "\nFotka byla přeskočena.");
-                continue;
+            if (!file.type.startsWith('image/')) {
+                continue; 
             }
             
             const currentId = fileIdCounter++;
             const fileObj = {
-                file: processedFile,
+                file: file,
                 id: currentId,
                 shortcode: `[foto${currentId}]`
             };
@@ -322,9 +281,8 @@
                 `;
                 galleryPreview.appendChild(div);
             };
-            reader.readAsDataURL(processedFile);
+            reader.readAsDataURL(file);
         }
-        dropZoneText.innerHTML = originalDropZoneText;
     }
 
     window.removePendingFile = function(id) {
@@ -404,7 +362,6 @@
         }, 'image/jpeg', 0.85);
     };
 
-    // EDITACE EXISTUJÍCÍHO ČLÁNKU
     window.startEditing = function(postId) {
         const post = loadedPosts.find(p => p.id === postId);
         if(!post) return;
@@ -413,12 +370,17 @@
         document.getElementById('postTitle').value = post.title;
         document.getElementById('postContent').value = post.content;
         
-        // Reset stavu
+        // Zapsání data z databáze do kalendáře (pokud nemá event_date, vezme aspoň datum vytvoření)
+        if (post.event_date) {
+            document.getElementById('eventDate').value = post.event_date;
+        } else if (post.created_at) {
+            document.getElementById('eventDate').value = post.created_at.split('T')[0];
+        }
+        
         pendingFiles = [];
         deletedExistingImageIds = [];
         galleryPreview.innerHTML = '';
         
-        // Načtení už existujících obrázků
         const postImages = loadedImages.filter(img => img.report_id === post.id);
         postImages.forEach(img => {
             const div = document.createElement('div');
@@ -451,6 +413,9 @@
         galleryPreview.innerHTML = '';
         document.getElementById('postForm').reset();
         
+        // Reset data na dnešek
+        document.getElementById('eventDate').value = new Date().toISOString().split('T')[0];
+        
         document.getElementById('editorTitle').innerText = '+ Vydat nový článek';
         if (myProfileData.role !== 'pc') {
             document.getElementById('submitBtn').innerText = '🚀 Vydat a publikovat článek';
@@ -461,13 +426,13 @@
         document.getElementById('cancelEditBtn').style.display = 'none';
     };
 
-    // HLAVNÍ FUNKCE PRO ULOŽENÍ
     window.submitPost = async function(requestedStatus) {
         const title = document.getElementById('postTitle').value.trim();
         const content = document.getElementById('postContent').value.trim();
+        const eventDate = document.getElementById('eventDate').value;
         
-        if(!title || !content) {
-            alert('Nadpis i text musí být vyplněny!');
+        if(!title || !content || !eventDate) {
+            alert('Nadpis, datum i text musí být vyplněny!');
             return;
         }
 
@@ -489,37 +454,34 @@
             let targetPostId = editingPostId;
 
             if (editingPostId) {
-                // ÚPRAVA EXISTUJÍCÍHO
                 const { error: updateErr } = await db.from('reports')
-                    .update({ title: title, content: content, status: finalStatus })
+                    .update({ title: title, content: content, status: finalStatus, event_date: eventDate })
                     .eq('id', editingPostId);
                 if (updateErr) throw updateErr;
 
-                // Smazání odstraněných starých fotek
                 if (deletedExistingImageIds.length > 0) {
                     await db.from('report_images').delete().in('id', deletedExistingImageIds);
                 }
             } else {
-                // ZCELA NOVÝ ČLÁNEK
                 const { data: postData, error: postErr } = await db.from('reports')
                     .insert({ 
                         title: title, 
                         content: content, 
                         author_id: currentUser.id, 
                         author_name: myProfileData.full_name,
-                        status: finalStatus
+                        status: finalStatus,
+                        event_date: eventDate
                     }).select().single();
                 if (postErr) throw postErr;
                 targetPostId = postData.id;
             }
 
-            // Nahrání nových fotek do Storage a uložení do DB
             for (let i = 0; i < pendingFiles.length; i++) {
                 let fObj = pendingFiles[i];
                 let safeName = `img_${Date.now()}_${Math.floor(Math.random() * 10000)}.jpg`;
                 
                 const { error: uploadErr } = await db.storage.from('report_media').upload(safeName, fObj.file, {
-                    contentType: 'image/jpeg',
+                    contentType: fObj.file.type || 'image/jpeg',
                     cacheControl: '3600'
                 });
                 if (uploadErr) throw uploadErr;
@@ -536,8 +498,8 @@
             msgBox.className = 'msg success';
             msgBox.innerText = finalStatus === 'publikovano' ? 'Článek byl úspěšně publikován!' : 'Úspěšně uloženo jako Koncept / Ke schválení.';
             
-            cancelEditing(); // Uklidí formulář
-            loadPosts();     // Obnoví výpis dole
+            cancelEditing(); 
+            loadPosts();     
 
         } catch (err) {
             console.error(err);
@@ -548,10 +510,9 @@
         }
     };
 
-    // NAČÍTÁNÍ ČLÁNKŮ S PODPOROU KONCEPTŮ
     async function loadPosts() {
         const container = document.getElementById('newsContainer');
-        const { data: posts, error: postsErr } = await db.from('reports').select('*').order('created_at', { ascending: false });
+        const { data: posts, error: postsErr } = await db.from('reports').select('*').order('event_date', { ascending: false }).order('created_at', { ascending: false });
         const { data: images } = await db.from('report_images').select('*');
 
         if (postsErr || !posts || posts.length === 0) {
@@ -566,13 +527,13 @@
         const isHigherAdmin = myProfileData && ['zc', 'zcp', 'superadmin'].includes(myProfileData.role);
 
         posts.forEach(post => {
-            // Logika viditelnosti: PC vidí publikované a jen SVÉ koncepty. ZC vidí VŠECHNO.
             if (!isHigherAdmin && post.status !== 'publikovano' && post.author_id !== currentUser?.id) {
-                return; // Přeskočí cizí neschválené články
+                return; 
             }
 
-            let d = new Date(post.created_at);
-            let dateStr = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth()+1).padStart(2, '0')}.${d.getFullYear()} v ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            // Datum z kalendáře nebo záložní datum vytvoření
+            let d = post.event_date ? new Date(post.event_date) : new Date(post.created_at);
+            let dateStr = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth()+1).padStart(2, '0')}.${d.getFullYear()}`;
             
             let postImages = loadedImages.filter(img => img.report_id === post.id);
             let parsedContent = post.content;
@@ -580,22 +541,23 @@
 
             postImages.forEach(img => {
                 let baseCode = img.shortcode.replace('[', '').replace(']', ''); 
-                let regex = new RegExp(`\\[${baseCode}(?:\\s+velikost=([0-9]+)\\s+pozice=([a-z]+))?\\]`, 'g');
+                let regex = new RegExp(`\\[${baseCode}([^\\]]*)\\]`, 'g');
                 
                 if (parsedContent.match(regex)) {
-                    parsedContent = parsedContent.replace(regex, (match, size, pos) => {
+                    parsedContent = parsedContent.replace(regex, (match, params) => {
                         usedShortcodes.push(img.shortcode);
-                        let s = size ? size : '100';
-                        let p = pos ? pos : 'stred';
+                        let s = '100'; let p = 'stred';
+                        if (params) {
+                            let sizeMatch = params.match(/velikost=([0-9]+)/);
+                            if (sizeMatch) s = sizeMatch[1];
+                            let posMatch = params.match(/pozice=([a-z]+)/);
+                            if (posMatch) p = posMatch[1];
+                        }
                         
                         let style = '';
-                        if (p === 'vlevo') {
-                            style = `width: ${s}%; float: left; margin: 0 1.5rem 1rem 0;`;
-                        } else if (p === 'vpravo') {
-                            style = `width: ${s}%; float: right; margin: 0 0 1rem 1.5rem;`;
-                        } else {
-                            style = `width: ${s}%; display: block; margin: 1.5rem auto;`;
-                        }
+                        if (p === 'vlevo') { style = `width: ${s}%; float: left; margin: 0 1.5rem 1rem 0;`; } 
+                        else if (p === 'vpravo') { style = `width: ${s}%; float: right; margin: 0 0 1rem 1.5rem;`; } 
+                        else { style = `width: ${s}%; display: block; margin: 1.5rem auto;`; }
                         
                         return `<img src="${img.image_url}" style="${style} max-height: 600px; object-fit: cover; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);" alt="Fotografie">`;
                     });
@@ -615,19 +577,14 @@
                 galleryHtml += `</div>`;
             }
 
-            // Oprávnění pro tlačítka u karty
             let canEdit = isHigherAdmin || post.author_id === currentUser?.id;
             let deleteBtn = canEdit ? `<button class="delete-post-btn" onclick="deletePost('${post.id}')">🗑️ Smazat</button>` : '';
             let editBtn = canEdit ? `<button class="action-post-btn" onclick="startEditing('${post.id}')">✏️ Upravit</button>` : '';
             
             let statusBadge = '';
-            if (post.status === 'publikovano') {
-                statusBadge = '<span style="color: #2f855a; font-weight: bold; font-size: 0.8rem; margin-left: 10px;">✓ Publikováno</span>';
-            } else if (post.status === 'ceka_na_schvaleni') {
-                statusBadge = '<span style="color: #dd6b20; font-weight: bold; font-size: 0.8rem; margin-left: 10px;">⏳ Čeká na schválení</span>';
-            } else if (post.status === 'koncept') {
-                statusBadge = '<span style="color: #718096; font-weight: bold; font-size: 0.8rem; margin-left: 10px;">📝 Koncept</span>';
-            }
+            if (post.status === 'publikovano') { statusBadge = '<span style="color: #2f855a; font-weight: bold; font-size: 0.8rem; margin-left: 10px;">✓ Publikováno</span>'; } 
+            else if (post.status === 'ceka_na_schvaleni') { statusBadge = '<span style="color: #dd6b20; font-weight: bold; font-size: 0.8rem; margin-left: 10px;">⏳ Čeká na schválení</span>'; } 
+            else if (post.status === 'koncept') { statusBadge = '<span style="color: #718096; font-weight: bold; font-size: 0.8rem; margin-left: 10px;">📝 Koncept</span>'; }
 
             html += `
                 <article class="post-card" style="${post.status !== 'publikovano' ? 'border: 2px dashed #cbd5e0; opacity: 0.9;' : ''}">
@@ -635,7 +592,7 @@
                         <h2 class="post-title">${post.title}</h2>
                         <div class="post-meta">
                             <span class="author-badge">✍️ ${post.author_name || 'Asociace'}</span>
-                            <span>📅 ${dateStr}</span>
+                            <span>📅 Turnaj: ${dateStr}</span>
                             ${statusBadge}
                             <div style="margin-left: auto; display: flex; gap: 10px;">
                                 ${editBtn}
