@@ -16,6 +16,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    
     <script src="font.js"></script>
     
     <style>
@@ -36,9 +39,9 @@
         body { background: var(--bg); color: var(--text); line-height: 1.6; }
         
         header { background: var(--white); padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-        .logo-container { display: flex; align-items: center; gap: 1rem; cursor: pointer; }
+        .logo-container { display: flex; align-items: center; gap: 1rem; cursor: pointer; text-decoration: none; }
         .logo-container img { height: 50px; }
-        .logo-container h1 { font-size: 1.2rem; color: var(--primary); text-transform: uppercase; }
+        .logo-container h1 { font-size: 1.2rem; color: var(--primary); text-transform: uppercase; margin: 0; }
         
         .menu-toggle { display: none; font-size: 2rem; cursor: pointer; color: var(--primary); user-select: none; }
         nav ul { display: flex; list-style: none; gap: 1rem; flex-wrap: wrap; }
@@ -70,6 +73,7 @@
         input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="date"], input[type="datetime-local"], input[type="file"], textarea, select { 
             width: 100%; padding: 0.8rem; margin-bottom: 1.2rem; border-radius: 6px; border: 1px solid #ccc; font-family: inherit; 
         }
+        input[type="text"]:focus, input[type="date"]:focus, textarea:focus, select:focus { outline: none; border-color: var(--blue); }
         
         button { background: var(--primary); color: white; border: none; padding: 0.8rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; }
         button:hover { background: var(--secondary); }
@@ -78,6 +82,8 @@
         .btn-orange { background: var(--orange); }
         .btn-blue { background: var(--blue); }
         .btn-green { background: var(--green); }
+        .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
+        .btn-outline:hover { background: var(--gray); color: var(--primary); }
 
         .msg { margin-top: 1rem; font-weight: bold; padding: 0.8rem; border-radius: 6px; display: none; text-align: center; }
         .error { background: #fed7d7; color: #c53030; display: block; }
@@ -110,11 +116,11 @@
         .audit-log-item { border-bottom: 1px dashed #e2e8f0; padding: 0.5rem 0; }
 
         .asset-alert { background: #fff5f5; border: 2px solid #feb2b2; padding: 1rem; border-radius: 8px; color: #c53030; font-weight: bold; margin-bottom: 1.5rem; display: none; }
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-box { background: white; padding: 2rem; border-radius: 12px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; position: relative; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-box { background: white; padding: 2rem; border-radius: 12px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
         .modal-close { position: absolute; top: 15px; right: 15px; background: transparent; color: var(--secondary); border: none; font-size: 1.5rem; cursor: pointer; width: auto; padding: 0; }
 
-        footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 2rem; }
+        footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 2rem; background: var(--white); }
         footer p { margin-bottom: 0.3rem; }
         
         .progress-bar-bg { position: relative; width: 100%; background-color: #e2e8f0; border-radius: 8px; height: 10px; overflow: hidden; margin-top: 5px; }
@@ -125,6 +131,48 @@
         .social-btn:hover { transform: translateY(-2px); opacity: 0.9; }
         .btn-fb { background: #1877F2; }
         .btn-ig { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); }
+
+        /* STYLY PRO REPORTY */
+        .drop-zone { border: 2px dashed var(--blue); padding: 3rem 1rem; text-align: center; background: #ebf8ff; border-radius: 12px; cursor: pointer; transition: 0.2s; font-weight: bold; color: var(--blue); margin-bottom: 1rem; }
+        .drop-zone.dragover { background: #bee3f8; border-color: var(--primary); color: var(--primary); transform: scale(1.02); }
+        .gallery-preview { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+        .gallery-item { border: 1px solid #cbd5e0; padding: 8px; border-radius: 8px; text-align: center; font-size: 0.85rem; background: white; width: 160px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); position: relative; display: flex; flex-direction: column; justify-content: space-between; }
+        .gallery-item img { width: 100%; height: 90px; object-fit: cover; display: block; margin-bottom: 8px; border-radius: 4px; }
+        .remove-img { position: absolute; top: -10px; right: -10px; background: var(--secondary); color: white; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; border: none; padding: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 10; }
+        .cropper-container-box { max-height: 60vh; background: #eee; margin-bottom: 1.5rem; display: flex; justify-content: center; align-items: center; overflow: hidden; border-radius: 8px; border: 1px solid #ccc; }
+        
+        .hero-section { background: var(--white); border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.08); margin-bottom: 3rem; display: flex; flex-wrap: wrap; cursor: pointer; transition: 0.3s; border: 1px solid #edf2f7; }
+        .hero-section:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0,0,0,0.12); }
+        .hero-image { flex: 1 1 50%; min-width: 300px; background: #e2e8f0; position: relative; }
+        .hero-image img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+        .hero-content { flex: 1 1 50%; padding: 3rem; display: flex; flex-direction: column; justify-content: center; }
+        .hero-badge { background: var(--secondary); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; align-self: flex-start; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 1px; }
+        .hero-title { color: var(--primary); font-size: 2.2rem; margin-bottom: 1rem; line-height: 1.2; font-weight: 800; }
+        .hero-excerpt { color: #4a5568; font-size: 1.1rem; margin-bottom: 1.5rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; margin-bottom: 3rem; }
+        .tile-card { background: var(--white); border-radius: 12px; overflow: hidden; box-shadow: 0 6px 15px rgba(0,0,0,0.06); cursor: pointer; transition: 0.3s; border: 1px solid #edf2f7; display: flex; flex-direction: column; }
+        .tile-card:hover { transform: translateY(-6px); box-shadow: 0 12px 25px rgba(0,0,0,0.1); border-color: var(--blue); }
+        .tile-image { height: 180px; width: 100%; background: #e2e8f0; position: relative; }
+        .tile-image img { width: 100%; height: 100%; object-fit: cover; }
+        .tile-content { padding: 1.5rem; display: flex; flex-direction: column; flex-grow: 1; }
+        .tile-year { font-size: 2.5rem; font-weight: 900; color: var(--primary); text-align: center; margin: auto 0; }
+        .tile-title { color: var(--primary); font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem; line-height: 1.3; }
+        .tile-excerpt { color: #4a5568; font-size: 0.95rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+        .post-detail { background: white; border-radius: 16px; padding: 3rem; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .post-detail-title { color: var(--primary); font-size: 2.5rem; font-weight: 900; margin-bottom: 1rem; line-height: 1.2; }
+        .post-content-body { line-height: 1.8; font-size: 1.15rem; color: #2d3748; white-space: pre-wrap; }
+        .post-gallery { padding-top: 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 2rem; border-top: 1px solid #edf2f7; }
+        .post-gallery img { width: 100%; height: 200px; object-fit: cover; border-radius: 10px; cursor: pointer; transition: transform 0.3s; }
+        .post-gallery img:hover { transform: scale(1.03); z-index: 10; position: relative; box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
+        .back-btn { background: var(--gray); color: var(--primary); padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block; margin-bottom: 20px; cursor: pointer; border: none; font-size: 1rem; transition: 0.2s; }
+        .back-btn:hover { background: #cbd5e0; }
+        .action-btn { border: none; padding: 6px; width: 100%; border-radius: 4px; font-size: 0.8rem; cursor: pointer; margin-bottom: 5px; font-weight: bold; }
+        .btn-insert { background: #48bb78; color: white; }
+        .btn-insert:hover { background: #38a169; }
+        .btn-edit { background: var(--blue); color: white; }
+        .btn-edit:hover { background: #2b6cb0; }
     </style>
 </head>
 <body>
@@ -141,6 +189,7 @@
             <li><a onclick="switchTab('rules')" id="nav-rules">Pravidla</a></li>
             <li><a onclick="switchTab('host')" id="nav-host">Pořádejte turnaj</a></li>
             <li><a onclick="switchTab('tournaments')" id="nav-tournaments">Turnaje</a></li>
+            <li id="menu-reports" style="display:none; color:var(--gold);"><a onclick="switchTab('reports')" id="nav-reports">Reporty</a></li>
             <li id="menu-stats" style="display:none;"><a onclick="switchTab('stats')" id="nav-stats">Statistiky</a></li>
             <li id="menu-voting" style="display:none; color:var(--gold);"><a onclick="switchTab('voting')" id="nav-voting">Hlasování a Návrhy</a></li>
             <li id="menu-auth"><a onclick="switchTab('auth')" id="nav-auth">Pro členy</a></li>
@@ -443,6 +492,69 @@
         </div>
     </section>
 
+    <section id="reports" class="page-section">
+        <div id="reportsAdminBtnZone" style="display:none; margin-bottom: 1rem; text-align: right;">
+            <button class="btn-green" onclick="startEditingReport(null)" style="width: auto;">📝 Vydat nový report z turnaje</button>
+        </div>
+
+        <div id="reportsEditorZone" style="display: none;">
+            <div class="card" style="border-top: 4px solid var(--blue);">
+                <button class="back-btn" onclick="cancelEditingReport()">← Zpět do archivu</button>
+                <h2 id="reportEditorTitle" style="color: var(--blue); border-color: var(--blue);">+ Vydat nový článek</h2>
+                <form id="reportPostForm">
+                    <label>Nadpis článku</label>
+                    <input type="text" id="reportPostTitle" required placeholder="Napište úderný nadpis...">
+                    <label>Datum turnaje (pro správné zařazení do ročníku)</label>
+                    <input type="date" id="reportEventDate" required>
+                    <label>Obrázky (Klikněte pro výběr)</label>
+                    <div id="reportDropZone" class="drop-zone" onclick="document.getElementById('reportFileInput').click()">
+                        📸 Klikněte sem pro výběr fotek z počítače / mobilu
+                        <input type="file" id="reportFileInput" multiple accept=".jpg, .jpeg, .png, .webp" style="display:none;" onchange="handleReportFiles(this.files)">
+                    </div>
+                    <div id="reportGalleryPreview" class="gallery-preview"></div>
+                    <label>Text článku</label>
+                    <textarea id="reportPostContent" rows="12" required placeholder="Tady pište svůj text..."></textarea>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
+                        <button type="button" id="reportSubmitBtn" class="btn-blue" style="flex: 2; padding: 1rem;" onclick="submitReportPost('publikovano', false)">🚀 Vydat článek (Bez upozornění)</button>
+                        <button type="button" id="reportSendBtn" class="btn-orange" style="flex: 2; padding: 1rem;" onclick="submitReportPost('publikovano', true)">📧 Vydat a rozeslat všem e-mailem</button>
+                        <button type="button" id="reportDraftBtn" class="btn-green" style="flex: 1; padding: 1rem;" onclick="submitReportPost('koncept', false)">💾 Uložit koncept</button>
+                    </div>
+                    <div id="reportUploadMsg" class="msg"></div>
+                </form>
+            </div>
+        </div>
+
+        <div id="reportsReaderZone">
+            <div id="reportsAppContent"><div class="loading">Načítám archiv reportů...</div></div>
+        </div>
+
+        <div id="reportInsertModal" class="modal-overlay">
+            <div class="modal-box" style="max-width: 450px;">
+                <button type="button" class="modal-close" onclick="document.getElementById('reportInsertModal').style.display='none'">×</button>
+                <h3 style="color: var(--blue); margin-bottom: 1rem;">Vložit fotku do textu</h3>
+                <label>Velikost</label>
+                <select id="reportInsertSize"><option value="100">100%</option><option value="75">75%</option><option value="50">50%</option><option value="25">25%</option></select>
+                <label>Zarovnání</label>
+                <select id="reportInsertPos"><option value="stred">Na střed</option><option value="vlevo">Vlevo</option><option value="vpravo">Vpravo</option></select>
+                <button type="button" class="btn-green" style="margin-top: 10px;" onclick="confirmReportInsert()">Vložit na pozici kurzoru</button>
+            </div>
+        </div>
+
+        <div id="reportCropperModal" class="modal-overlay">
+            <div class="modal-box" style="max-width: 800px;">
+                <button type="button" class="modal-close" onclick="closeReportCropper()">×</button>
+                <h3 style="color: var(--blue); margin-bottom: 1rem;">Oříznout fotku</h3>
+                <div class="cropper-container-box"><img id="reportCropperImage" style="max-width: 100%; display: block;"></div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="btn-blue" onclick="reportCropperInstance.rotate(-90)">↺ Vlevo</button>
+                    <button type="button" class="btn-blue" onclick="reportCropperInstance.rotate(90)">↻ Vpravo</button>
+                    <button type="button" class="btn-green" onclick="saveReportCrop()">Uložit úpravy</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section id="tournaments" class="page-section">
         <div class="card">
             <h2>Vypsané turnaje asociace</h2>
@@ -532,8 +644,8 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 10px;">
                     <h3 style="color: #b7791f; margin: 0;">Pohled pod kapotu</h3>
                     <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                        <p style="margin: 0; color: #2b6cb0; background: #ebf8ff; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem;">
-                            🟢 Online: <strong id="onlineCount">1</strong>
+                        <p style="margin: 0; color: #2b6cb0; background: #ebf8ff; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem;" title="Klikni pro seznam online hráčů">
+                            🟢 Online: <strong id="onlineCount" style="cursor:pointer; text-decoration:underline;" onclick="showOnlineUsersModal()">1</strong>
                         </p>
                         <p style="margin: 0; color: #4a5568; background: #e2e8f0; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem;">
                             👥 Celkem registrováno na webu: <strong id="totalUsersCount">0</strong>
@@ -568,7 +680,10 @@
                 
                 <h4 style="margin-top: 1.5rem; color: #2c5282;">Správa uživatelských rolí a Detailní náhledy</h4>
                 <p style="font-size: 0.85rem; margin-bottom: 1rem;">Můžete rozkliknout detail uživatele a zkontrolovat jeho kompletní registraci.</p>
-                <div id="adminUsersList" style="background: white; border: 1px solid #cbd5e0; padding: 1rem; border-radius: 6px; max-height: 250px; overflow-y: auto; margin-bottom: 2rem;">
+                
+                <input type="text" id="adminUserSearch" placeholder="🔍 Hledat uživatele podle jména..." onkeyup="filterAdminUsers()" style="margin-bottom: 10px;">
+                
+                <div id="adminUsersList" style="background: white; border: 1px solid #cbd5e0; padding: 1rem; border-radius: 6px; max-height: 450px; overflow-y: auto; margin-bottom: 2rem;">
                     Načítám seznam členů...
                 </div>
 
@@ -774,6 +889,7 @@
         </div>
     </section>
 
+    <!-- Modální okna pro správu a odhlášení -->
     <div id="unsubscribeBox" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 0 50px rgba(0,0,0,0.5); z-index: 1000; text-align: center; border: 2px solid var(--secondary);">
          <h3 style="color: var(--secondary);">Odhlášení z odběru</h3>
          <p>Opravdu si přejete trvale odhlásit e-mail <br><strong id="targetUnsubscribe"></strong>?</p>
@@ -806,6 +922,17 @@
         </div>
     </div>
 
+    <!-- NOVÉ: Seznam online hráčů (pro Superadmina) -->
+    <div id="onlineUsersModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 400px;">
+            <button class="modal-close" onclick="document.getElementById('onlineUsersModal').style.display='none'">×</button>
+            <h3 style="color: var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 10px;">Právě online na webu</h3>
+            <ul id="onlineUsersList" style="list-style: none; padding: 0; margin-top: 15px; max-height: 300px; overflow-y: auto;">
+                <li>Načítám...</li>
+            </ul>
+        </div>
+    </div>
+
 </main>
 <footer>
     <p><strong>Česká asociace v karetní hře prší z.s.</strong><br>
@@ -832,6 +959,7 @@
     let historicalData = [];
     let uniqueTournaments = [];
     let presenceChannel = null;
+    let currentOnlineUsers = {};
 
     const roleNames = { 
         'player': 'Hráč', 
@@ -1001,6 +1129,12 @@
             if (tabId === 'admin') loadAdminData();
             if (tabId === 'dashboard') renderDashboard();
         }
+
+        if (tabId === 'reports') {
+            if (!['zc', 'zcp', 'superadmin'].includes(simulatedRole)) return;
+            document.getElementById('reportsAdminBtnZone').style.display = 'block';
+            initReportsApp();
+        }
     }
 
     // ==========================================
@@ -1057,7 +1191,9 @@
                     if (!presenceChannel) {
                         presenceChannel = db.channel('online-users');
                         presenceChannel.on('presence', { event: 'sync' }, () => {
-                            const count = Object.keys(presenceChannel.presenceState()).length;
+                            const state = presenceChannel.presenceState();
+                            currentOnlineUsers = state;
+                            const count = Object.keys(state).length;
                             const el = document.getElementById('onlineCount');
                             if (el) el.innerText = count || 1;
                         }).subscribe(async (s) => { 
@@ -1087,6 +1223,7 @@
             document.getElementById('menu-auth').style.display = 'block';
             document.getElementById('menu-profile').style.display = 'none';
             document.getElementById('menu-admin').style.display = 'none';
+            document.getElementById('menu-reports').style.display = 'none';
             document.getElementById('menu-logout').style.display = 'none';
             document.getElementById('menu-stats').style.display = 'none';
             document.getElementById('menu-voting').style.display = 'none';
@@ -1096,7 +1233,7 @@
             document.getElementById('myRegistrationsContainer').style.display = 'none';
             
             const currentTab = sessionStorage.getItem('activeTab') || 'home';
-            if (['dashboard', 'profile-setup', 'admin', 'voting', 'stats'].includes(currentTab)) switchTab('home'); else switchTab(currentTab);
+            if (['dashboard', 'profile-setup', 'admin', 'voting', 'stats', 'reports'].includes(currentTab)) switchTab('home'); else switchTab(currentTab);
         }
     }
 
@@ -1190,6 +1327,7 @@
     function updateMenuByRole() {
         const isZcPlus = ['zc','zcp','superadmin'].includes(simulatedRole);
         document.getElementById('menu-admin').style.display = isZcPlus ? 'block' : 'none';
+        document.getElementById('menu-reports').style.display = isZcPlus ? 'block' : 'none';
         
         document.getElementById('zcZone').style.display = isZcPlus ? 'block' : 'none';
         document.getElementById('zcpZone').style.display = ['zcp','superadmin'].includes(simulatedRole) ? 'block' : 'none';
@@ -1420,7 +1558,59 @@
             }
         } 
     };
+
+    window.toggleQR = function(cid, fee, vs) { 
+        const c = document.getElementById(cid), i = document.getElementById('img_' + cid); 
+        if (c.style.display === 'block') {
+            c.style.display = 'none'; 
+        } else { 
+            const cleanAccount = globalBankAccount.replace(/\s+/g, '');
+            const cleanVS = String(vs).replace(/\D/g, '').substring(0, 10);
+            const cleanFee = parseFloat(fee).toFixed(2);
+            
+            if (!cleanAccount.toUpperCase().startsWith('CZ')) {
+                alert('CHYBA FAKTURACE: Bankovní účet asociace ("' + cleanAccount + '") není ve správném formátu IBAN. Požádejte předsedu o nápravu v Administraci systému.');
+                return;
+            }
+            
+            i.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`SPD*1.0*ACC:${cleanAccount}*AM:${cleanFee}*CC:CZK*X-VS:${cleanVS}`)}`; 
+            c.style.display = 'block'; 
+        } 
+    };
+
+    async function checkBankPayments() { 
+        if (!globalFioToken) return; 
+        console.log("Kontrola banky a kapacity turnajů běží na pozadí..."); 
+        try {
+            const timeLimit = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
+            const { data: oldRegs } = await db.from('registrations')
+                .select('id, player_id_card, tournaments(title)')
+                .eq('payment_status', false)
+                .lt('created_at', timeLimit);
+                
+            if(oldRegs && oldRegs.length > 0) {
+                for(let r of oldRegs) {
+                    await db.from('registrations').delete().eq('id', r.id);
+                    const { data: p } = await db.from('profiles').select('email').eq('player_id_card', r.player_id_card).maybeSingle();
+                    if(p && p.email && p.email.includes('@')) {
+                        const cancelMsg = `Dobrý den,\n\nVaše registrace na turnaj "${r.tournaments?.title || ''}" byla automaticky zrušena. Do 72 hodin jsme neobdrželi platbu startovného a Vaše místo tak muselo být uvolněno dalším zájemcům.\n\nPokud se chcete turnaje přesto zúčastnit, proveďte prosím novou registraci na webu a platbu obratem uhradte.\n\nDěkujeme za pochopení,\nČeská asociace v karetní hře prší z.s.`;
+                        sendEmailNotification("Storno registrace pro nezaplacení", cancelMsg, [p.email]);
+                    }
+                }
+                if (document.getElementById('tournaments').classList.contains('active')) loadPublicTournaments();
+            }
+        } catch(e) { console.error('Auto purge error:', e); }
+    }
     
+    function scheduleBankCheck() {
+        const now = new Date();
+        const msToNextHour = (60 - now.getMinutes()) * 60000 - (now.getSeconds() * 1000) - now.getMilliseconds();
+        setTimeout(function() {
+            checkBankPayments();
+            setInterval(checkBankPayments, 3600000); 
+        }, msToNextHour);
+    }
+    scheduleBankCheck();
     // ==========================================
     // --- 7. STATISTIKY A KOMENTÁŘE ---
     // ==========================================
@@ -2016,6 +2206,22 @@
     // ==========================================
     // --- 10. ADMINISTRACE A NEWSLETTER ---
     // ==========================================
+    
+    // NOVÉ: Modal pro zobrazení online uživatelů
+    window.showOnlineUsersModal = function() {
+        const list = document.getElementById('onlineUsersList');
+        list.innerHTML = '';
+        const users = Object.values(currentOnlineUsers).flatMap(u => u.map(x => x.user));
+        const uniqueUsers = [...new Set(users)];
+        
+        if(uniqueUsers.length === 0) {
+            list.innerHTML = '<li>Nikdo (kromě vás) není online.</li>';
+        } else {
+            list.innerHTML = uniqueUsers.map(u => `<li style="padding: 5px; border-bottom: 1px solid #eee;">🟢 ${u}</li>`).join('');
+        }
+        document.getElementById('onlineUsersModal').style.display = 'flex';
+    };
+
     window.generateApiKey = async function() {
         const name = document.getElementById('newApiKeyName').value.trim();
         if(!name) return alert('Zadejte prosím název klíče (např. Notebook Turnaje).');
@@ -2107,7 +2313,8 @@
                     <span style="font-size:0.8rem;color:#4a5568;">📅 ${formatDateTime(t.event_date)} | 💰 ${t.fee} Kč | 👥 Kapacita: ${t.capacity}</span>
                 </td>
                 <td>
-                    <div style="display:flex; gap:5px;">
+                    <div style="display:flex; gap:5px; flex-wrap: wrap;">
+                        <button class="btn-small" style="background:#48bb78; color:white;" onclick="window.open('ucastnici.html?tid=${t.id}', '_blank')">👥 Účastníci</button>
                         <button class="btn-small" style="background:#718096; color:white;" onclick="window.open('pozvanky.html?tid=${t.id}', '_blank')">👁️ Plakát</button>
                         <button class="btn-small btn-blue" onclick="editTournamentInline('${t.id}', '${t.title.replace(/'/g, "\\'")}', ${t.capacity}, ${t.fee}, '${dateVal}')">✏️ Upravit</button>
                         <button class="btn-small btn-danger" onclick="deleteTournament('${t.id}', '${t.title.replace(/'/g, "\\'")}')">❌ Smazat</button>
@@ -2119,7 +2326,6 @@
         existingList.innerHTML = html;
     }
 
-    // NOVÁ FUNKCE: Vypsání turnaje z adminu a okamžitá e-mailová rozesílka na registrované profily
     window.createNewTournament = async function() {
         const title = prompt("Zadejte oficiální název turnaje:"); if (!title) return;
         const eventDate = prompt("Zadejte datum a čas (ve formátu RRRR-MM-DD HH:MM):"); if (!eventDate) return;
@@ -2209,6 +2415,14 @@
         }
     };
 
+    // NOVÉ: Vyhledávání uživatelů
+    window.filterAdminUsers = function() {
+        const term = document.getElementById('adminUserSearch').value.toLowerCase();
+        document.querySelectorAll('.admin-user-row').forEach(row => {
+            row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none';
+        });
+    };
+
     async function loadAdminData() {
         const { count } = await db.from('profiles').select('*', { count: 'exact', head: true });
         if(document.getElementById('totalUsersCount')) document.getElementById('totalUsersCount').innerText = count || 0;
@@ -2220,7 +2434,7 @@
             profiles.forEach(user => {
                 let roleSelect = user.role === 'superadmin' ? 'Super Admin' : `<select id="role_sel_${user.id}" style="margin:0;">${availableRoles.map(k => `<option value="${k}" ${user.role === k ? 'selected' : ''}>${roleNames[k]}</option>`).join('')}</select>`;
                 let actionBtn = user.role !== 'superadmin' ? `<button class="btn-small btn-green" onclick="changeUserRole('${user.id}','${user.full_name}')">Uložit</button>` : '';
-                usersHtml += `<tr><td>${user.full_name || 'Nekompletní'} (${formatSPZ(user.player_id_card) || '-'})</td><td>${roleSelect}</td><td style="display:flex;gap:5px;"><button class="btn-small btn-blue" onclick="viewUserDetail('${user.id}')">Náhled</button>${actionBtn}</td></tr>`;
+                usersHtml += `<tr class="admin-user-row"><td>${user.full_name || 'Nekompletní'} (${formatSPZ(user.player_id_card) || '-'})</td><td>${roleSelect}</td><td style="display:flex;gap:5px;"><button class="btn-small btn-blue" onclick="viewUserDetail('${user.id}')">Náhled</button>${actionBtn}</td></tr>`;
             });
             document.getElementById('adminUsersList').innerHTML = usersHtml + '</table>';
         }
@@ -2229,7 +2443,6 @@
             const { data: dbPlayers } = await db.from('player_database').select('*').order('full_name');
             if (dbPlayers) { 
                 document.getElementById('totalDbPlayersCount').innerText = dbPlayers.length; 
-                // ZMĚNA: Přidáno bydliště vedle jména pro bezchybnou identifikaci jmenovců v seznamu tisku
                 document.getElementById('adminPrintList').innerHTML = dbPlayers.map(c => `<label class="print-item"><input type="checkbox" class="print-check" value="${c.player_id_card}" data-name="${c.full_name}" data-city="${c.city||''}">${c.full_name} — ${c.city||'Město neznámé'} (${formatSPZ(c.player_id_card)})</label>`).join(''); 
             }
             loadAssets();
@@ -2565,10 +2778,8 @@
     async function checkBankPayments() { 
         if (!globalFioToken) return; 
         console.log("Kontrola banky a kapacity turnajů běží na pozadí..."); 
-        
         try {
             const timeLimit = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
-            
             const { data: oldRegs } = await db.from('registrations')
                 .select('id, player_id_card, tournaments(title)')
                 .eq('payment_status', false)
@@ -2577,34 +2788,307 @@
             if(oldRegs && oldRegs.length > 0) {
                 for(let r of oldRegs) {
                     await db.from('registrations').delete().eq('id', r.id);
-                    
                     const { data: p } = await db.from('profiles').select('email').eq('player_id_card', r.player_id_card).maybeSingle();
                     if(p && p.email && p.email.includes('@')) {
                         const cancelMsg = `Dobrý den,\n\nVaše registrace na turnaj "${r.tournaments?.title || ''}" byla automaticky zrušena. Do 72 hodin jsme neobdrželi platbu startovného a Vaše místo tak muselo být uvolněno dalším zájemcům.\n\nPokud se chcete turnaje přesto zúčastnit, proveďte prosím novou registraci na webu a platbu obratem uhradte.\n\nDěkujeme za pochopení,\nČeská asociace v karetní hře prší z.s.`;
                         sendEmailNotification("Storno registrace pro nezaplacení", cancelMsg, [p.email]);
                     }
                 }
-                console.log(`Automaticky smazáno ${oldRegs.length} propadlých registrací.`);
-                
-                if (document.getElementById('tournaments').classList.contains('active')) {
-                    loadPublicTournaments();
-                }
+                if (document.getElementById('tournaments').classList.contains('active')) loadPublicTournaments();
             }
-        } catch(e) { 
-            console.error('Auto purge error:', e); 
-        }
+        } catch(e) { console.error('Auto purge error:', e); }
     }
     
     function scheduleBankCheck() {
         const now = new Date();
         const msToNextHour = (60 - now.getMinutes()) * 60000 - (now.getSeconds() * 1000) - now.getMilliseconds();
-        
         setTimeout(function() {
             checkBankPayments();
             setInterval(checkBankPayments, 3600000); 
         }, msToNextHour);
     }
     scheduleBankCheck();
+
+    // ==========================================
+    // --- 13. REPORTY Z TURNAJŮ A EDITOR ---
+    // ==========================================
+    let allReports = [];
+    let allReportImages = [];
+    let reportPendingFiles = []; 
+    let reportFileIdCounter = 1;
+    let editingReportPostId = null;
+    let reportDeletedImageIds = [];
+    let reportCropperInstance = null;
+    let currentReportEditId = null;
+    let currentReportInsertShortcode = '';
+
+    async function initReportsApp() {
+        document.getElementById('reportsReaderZone').style.display = 'block';
+        document.getElementById('reportsEditorZone').style.display = 'none';
+        const { data: reports, error } = await db.from('reports').select('*').order('event_date', { ascending: false }).order('created_at', { ascending: false });
+        const { data: images } = await db.from('report_images').select('*');
+        
+        allReports = reports || [];
+        allReportImages = images || [];
+        renderReportMainView();
+    }
+
+    function getReportThumbnail(reportId) {
+        let imgs = allReportImages.filter(img => img.report_id === reportId);
+        return imgs.length > 0 ? imgs[0].image_url : 'https://via.placeholder.com/600x400/e2e8f0/a0aec0?text=Bez+fotografie';
+    }
+
+    function getReportExcerpt(content) {
+        return content.replace(/\[foto.*?\]/g, '').substring(0, 150) + '...';
+    }
+
+    function renderReportMainView() {
+        const appContent = document.getElementById('reportsAppContent');
+        const pubReports = allReports.filter(r => r.status === 'publikovano');
+        
+        if (pubReports.length === 0) {
+            appContent.innerHTML = '<div class="loading">Zatím nebyly vydány žádné reporty.</div>';
+            return;
+        }
+
+        const latestPost = pubReports[0];
+        let d = new Date(latestPost.event_date || latestPost.created_at);
+        let html = `
+            <div class="hero-section" onclick="renderReportPostView('${latestPost.id}')">
+                <div class="hero-image"><img src="${getReportThumbnail(latestPost.id)}"></div>
+                <div class="hero-content">
+                    <span class="hero-badge">Nejnovější report</span>
+                    <h2 class="hero-title">${latestPost.title}</h2>
+                    <div style="color: #718096; margin-bottom: 1rem; font-weight: bold;">📅 ${d.toLocaleDateString('cs-CZ')}</div>
+                    <p class="hero-excerpt">${getReportExcerpt(latestPost.content)}</p>
+                    <div style="color: var(--blue); font-weight: bold;">Číst celý report →</div>
+                </div>
+            </div>
+            <h2 style="border-bottom: 2px solid var(--secondary); margin-bottom: 1.5rem;">Archiv podle ročníků</h2>
+            <div class="grid-container">
+        `;
+
+        let yearsMap = {};
+        pubReports.forEach(p => {
+            let y = new Date(p.event_date || p.created_at).getFullYear();
+            if (!yearsMap[y]) yearsMap[y] = [];
+            yearsMap[y].push(p);
+        });
+
+        Object.keys(yearsMap).sort((a,b) => b - a).forEach(y => {
+            html += `
+                <div class="tile-card" onclick="renderReportYearView('${y}')">
+                    <div class="tile-image" style="opacity: 0.85;"><img src="${getReportThumbnail(yearsMap[y][0].id)}"></div>
+                    <div class="tile-content" style="align-items: center; justify-content: center;">
+                        <div class="tile-year">${y}</div>
+                        <div style="color: #718096; font-weight: bold; margin-top: 10px;">Turnajů: ${yearsMap[y].length}</div>
+                    </div>
+                </div>`;
+        });
+        appContent.innerHTML = html + '</div>';
+    }
+
+    function renderReportYearView(year) {
+        let html = `<button class="back-btn" onclick="renderReportMainView()">← Zpět na ročníky</button><h2>Turnaje roku ${year}</h2><div class="grid-container">`;
+        let yearPosts = allReports.filter(p => p.status === 'publikovano' && new Date(p.event_date || p.created_at).getFullYear().toString() === year);
+        
+        yearPosts.forEach(p => {
+            let d = new Date(p.event_date || p.created_at);
+            let adminBtn = ['zc', 'zcp', 'superadmin'].includes(simulatedRole) ? `<div style="margin-top:10px;"><button class="btn-small btn-outline" onclick="event.stopPropagation(); startEditingReport('${p.id}')">✏️ Upravit</button></div>` : '';
+            html += `
+                <div class="tile-card" onclick="renderReportPostView('${p.id}')">
+                    <div class="tile-image"><img src="${getReportThumbnail(p.id)}"></div>
+                    <div class="tile-content">
+                        <h3 class="tile-title">${p.title}</h3>
+                        <div style="color: #718096; font-size: 0.85rem; margin-bottom: 0.8rem;">📅 ${d.toLocaleDateString('cs-CZ')}</div>
+                        <p class="tile-excerpt">${getReportExcerpt(p.content)}</p>
+                        ${adminBtn}
+                    </div>
+                </div>`;
+        });
+        document.getElementById('reportsAppContent').innerHTML = html + '</div>';
+    }
+
+    function renderReportPostView(postId) {
+        const post = allReports.find(p => p.id === postId);
+        let d = new Date(post.event_date || post.created_at);
+        let parsedContent = post.content;
+        let postImages = allReportImages.filter(img => img.report_id === post.id);
+        let usedShortcodes = [];
+
+        postImages.forEach(img => {
+            let baseCode = img.shortcode.replace('[', '').replace(']', ''); 
+            let regex = new RegExp(`\\[${baseCode}([^\\]]*)\\]`, 'g');
+            if (parsedContent.match(regex)) {
+                parsedContent = parsedContent.replace(regex, (match, params) => {
+                    usedShortcodes.push(img.shortcode);
+                    let s = '100', p = 'stred';
+                    if (params) {
+                        let sm = params.match(/velikost=([0-9]+)/); if (sm) s = sm[1];
+                        let pm = params.match(/pozice=([a-z]+)/); if (pm) p = pm[1];
+                    }
+                    let style = p === 'vlevo' ? `width:${s}%; float:left; margin:0 1.5rem 1rem 0;` : p === 'vpravo' ? `width:${s}%; float:right; margin:0 0 1rem 1.5rem;` : `width:${s}%; display:block; margin:1.5rem auto;`;
+                    return `<img src="${img.image_url}" style="${style} max-height:600px; object-fit:cover; border-radius:12px;" alt="Fotografie">`;
+                });
+            }
+        });
+
+        let galleryHtml = '';
+        let unusedImages = postImages.filter(img => !usedShortcodes.includes(img.shortcode));
+        if (unusedImages.length > 0) {
+            galleryHtml = `<div class="post-gallery">${unusedImages.map(img => `<a href="${img.image_url}" target="_blank"><img src="${img.image_url}"></a>`).join('')}</div>`;
+        }
+
+        let adminBtn = ['zc', 'zcp', 'superadmin'].includes(simulatedRole) ? `<button class="btn-small btn-outline" onclick="startEditingReport('${post.id}')">✏️ Upravit</button> <button class="btn-small btn-danger" onclick="deleteReport('${post.id}')">🗑️ Smazat</button>` : '';
+
+        document.getElementById('reportsAppContent').innerHTML = `
+            <button class="back-btn" onclick="renderReportYearView('${d.getFullYear()}')">← Zpět na ročník ${d.getFullYear()}</button>
+            <div class="post-detail">
+                <h1 class="post-detail-title">${post.title}</h1>
+                <div style="color: #718096; padding-bottom: 1.5rem; margin-bottom: 2rem; border-bottom: 2px solid #edf2f7; display: flex; gap: 15px; align-items: center;">
+                    📅 Turnaj: ${d.toLocaleDateString('cs-CZ')} | ✍️ ${post.author_name || 'Asociace'} ${adminBtn ? `| ${adminBtn}` : ''}
+                </div>
+                <div class="post-content-body">${parsedContent}<div style="clear:both;"></div></div>
+                ${galleryHtml}
+            </div>
+        `;
+    }
+
+    function startEditingReport(postId) {
+        document.getElementById('reportsReaderZone').style.display = 'none';
+        document.getElementById('reportsAdminBtnZone').style.display = 'none';
+        document.getElementById('reportsEditorZone').style.display = 'block';
+        
+        reportPendingFiles = []; reportDeletedImageIds = []; document.getElementById('reportGalleryPreview').innerHTML = '';
+        
+        if (postId) {
+            const post = allReports.find(p => p.id === postId);
+            editingReportPostId = post.id;
+            document.getElementById('reportPostTitle').value = post.title;
+            document.getElementById('reportPostContent').value = post.content;
+            document.getElementById('reportEventDate').value = (post.event_date || post.created_at).split('T')[0];
+            
+            allReportImages.filter(img => img.report_id === post.id).forEach(img => {
+                document.getElementById('reportGalleryPreview').innerHTML += `<div class="gallery-item" id="existing-rep-${img.id}">
+                    <button type="button" class="remove-img" onclick="removeExistingReportFile('${img.id}')">×</button>
+                    <img src="${img.image_url}"><div><button type="button" class="action-btn btn-insert" onclick="openReportInsertWizard('${img.shortcode}')">➕ Vložit</button></div></div>`;
+            });
+            document.getElementById('reportEditorTitle').innerText = '✏️ Úprava existujícího článku';
+        } else {
+            editingReportPostId = null;
+            document.getElementById('reportPostForm').reset();
+            document.getElementById('reportEventDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('reportEditorTitle').innerText = '+ Vydat nový článek';
+        }
+    }
+
+    function cancelEditingReport() {
+        document.getElementById('reportsEditorZone').style.display = 'none';
+        document.getElementById('reportsReaderZone').style.display = 'block';
+        document.getElementById('reportsAdminBtnZone').style.display = 'block';
+    }
+
+    function handleReportFiles(files) {
+        for (let file of Array.from(files)) {
+            if (!file.type.startsWith('image/')) continue; 
+            const fObj = { file: file, id: reportFileIdCounter++, shortcode: `[foto${reportFileIdCounter}]` };
+            reportPendingFiles.push(fObj);
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('reportGalleryPreview').innerHTML += `<div class="gallery-item" id="prep-${fObj.id}">
+                    <button type="button" class="remove-img" onclick="removePendingReportFile(${fObj.id})">×</button>
+                    <img src="${e.target.result}"><div>
+                    <button type="button" class="action-btn btn-insert" onclick="openReportInsertWizard('${fObj.shortcode}')">➕ Vložit</button>
+                    <button type="button" class="action-btn btn-edit" onclick="openReportEditor(${fObj.id})">✂️ Oříznout</button>
+                    </div></div>`;
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    window.removePendingReportFile = id => { reportPendingFiles = reportPendingFiles.filter(f => f.id !== id); document.getElementById(`prep-${id}`)?.remove(); };
+    window.removeExistingReportFile = id => { if(confirm("Trvale smazat?")) { reportDeletedImageIds.push(id); document.getElementById(`existing-rep-${id}`).style.display = 'none'; } };
+
+    window.openReportInsertWizard = code => { currentReportInsertShortcode = code; document.getElementById('reportInsertModal').style.display = 'flex'; };
+    window.confirmReportInsert = () => {
+        let size = document.getElementById('reportInsertSize').value, pos = document.getElementById('reportInsertPos').value;
+        let tag = `[${currentReportInsertShortcode.replace(/[\[\]]/g, '')} velikost=${size} pozice=${pos}]`;
+        let txt = document.getElementById('reportPostContent');
+        txt.value = txt.value.substring(0, txt.selectionStart) + tag + txt.value.substring(txt.selectionEnd);
+        document.getElementById('reportInsertModal').style.display = 'none';
+    };
+
+    window.openReportEditor = id => {
+        currentReportEditId = id; const fObj = reportPendingFiles.find(f => f.id === id); if (!fObj) return;
+        document.getElementById('reportCropperImage').src = URL.createObjectURL(fObj.file);
+        document.getElementById('reportCropperModal').style.display = 'flex';
+        if (reportCropperInstance) reportCropperInstance.destroy();
+        reportCropperInstance = new Cropper(document.getElementById('reportCropperImage'), { viewMode: 1, autoCropArea: 1, background: false });
+    };
+    window.closeReportCropper = () => { document.getElementById('reportCropperModal').style.display = 'none'; if (reportCropperInstance) reportCropperInstance.destroy(); };
+    window.saveReportCrop = () => {
+        if (!reportCropperInstance) return;
+        reportCropperInstance.getCroppedCanvas({ maxWidth: 2000, maxHeight: 2000 }).toBlob((blob) => {
+            const fObj = reportPendingFiles.find(f => f.id === currentReportEditId);
+            if (fObj) { fObj.file = new File([blob], "edit.jpg", { type: "image/jpeg" }); document.querySelector(`#prep-${currentReportEditId} img`).src = URL.createObjectURL(blob); }
+            closeReportCropper();
+        }, 'image/jpeg', 0.85);
+    };
+
+    window.submitReportPost = async function(status, sendMail) {
+        const title = document.getElementById('reportPostTitle').value.trim();
+        const content = document.getElementById('reportPostContent').value.trim();
+        const evDate = document.getElementById('reportEventDate').value;
+        if(!title || !content || !evDate) return alert('Vyplňte nadpis, datum a text.');
+        if(sendMail && !confirm('Rozeslat všem?')) return;
+
+        const msgBox = document.getElementById('reportUploadMsg');
+        msgBox.className = 'msg'; msgBox.innerText = 'Ukládám...'; msgBox.style.display = 'block';
+
+        try {
+            let targetId = editingReportPostId;
+            if (targetId) {
+                await db.from('reports').update({ title, content, status, event_date: evDate }).eq('id', targetId);
+                if (reportDeletedImageIds.length > 0) await db.from('report_images').delete().in('id', reportDeletedImageIds);
+            } else {
+                const { data } = await db.from('reports').insert({ title, content, author_id: currentUser.id, author_name: myProfileData.full_name, status, event_date: evDate }).select().single();
+                targetId = data.id;
+            }
+
+            for (let f of reportPendingFiles) {
+                let sName = `img_${Date.now()}_${Math.floor(Math.random()*1000)}.jpg`;
+                await db.storage.from('report_media').upload(sName, f.file, { contentType: 'image/jpeg' });
+                await db.from('report_images').insert({ report_id: targetId, image_url: db.storage.from('report_media').getPublicUrl(sName).data.publicUrl, shortcode: f.shortcode });
+            }
+
+            if (sendMail && status === 'publikovano') {
+                msgBox.innerText = 'Rozesílám maily...';
+                let emails = new Set();
+                const { data: p } = await db.from('profiles').select('email'); p?.forEach(x => { if(x.email) emails.add(x.email); });
+                const { data: s } = await db.from('newsletter_subscribers').select('email'); s?.forEach(x => { if(x.email) emails.add(x.email); });
+                
+                let arr = Array.from(emails);
+                let cleanText = content.replace(/\[foto.*?\]/g, '').substring(0, 350) + '...';
+                let body = `Dobrý den,\n\nprávě jsme vydali nový report!\n\n📑 Téma: ${title}\n📅 Z turnaje odehraného: ${evDate}\n\nKrátká ukázka:\n"${cleanText}"\n\nCelý článek naleznete na webu:\nhttps://www.asociaceprsi.cz\n\nČeská asociace v karetní hře prší z.s.`;
+                
+                for(let i=0; i<arr.length; i+=50) {
+                    await Promise.all(arr.slice(i, i+50).map(em => sendEmailNotification(`Nový článek: ${title}`, body + `\n\nOdhlášení: https://www.asociaceprsi.cz?unsubscribe=${encodeURIComponent(em)}`, [em])));
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
+
+            msgBox.className = 'msg success'; msgBox.innerText = 'Hotovo!';
+            cancelEditingReport();
+            initReportsApp();
+        } catch (e) { msgBox.className = 'msg error'; msgBox.innerText = 'Chyba: ' + e.message; }
+    };
+    
+    window.deleteReport = async function(id) { 
+        if(confirm('Smazat report?')) { 
+            await db.from('reports').delete().eq('id', id); 
+            initReportsApp(); 
+        } 
+    };
 
 </script>
 </body>
