@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reporty | Česká asociace v karetní hře prší</title>
+    <title>Reporty z turnajů | Česká asociace v karetní hře prší</title>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="font.js"></script>
@@ -31,24 +31,57 @@
         nav a { text-decoration: none; color: var(--white); background: var(--primary); font-weight: 600; padding: 0.6rem 1.2rem; border-radius: 6px; transition: 0.2s; display: inline-block; }
         nav a:hover { background: var(--secondary); }
 
-        main { max-width: 900px; margin: 2rem auto; padding: 0 1rem; min-height: 70vh; }
+        main { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; min-height: 70vh; }
 
-        .post-card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 3rem; transition: transform 0.3s ease, box-shadow 0.3s ease; border: 1px solid #edf2f7; }
-        .post-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
-        .post-header { padding: 2rem 2rem 0.5rem 2rem; }
-        .post-title { color: var(--primary); margin-bottom: 0.5rem; font-size: 1.8rem; font-weight: 800; line-height: 1.2; }
-        .post-meta { color: #718096; font-size: 0.9rem; margin-bottom: 1.5rem; border-bottom: 2px solid #edf2f7; padding-bottom: 1rem; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .post-meta .author-badge { background: #e2e8f0; color: #2d3748; padding: 4px 10px; border-radius: 20px; font-weight: bold; }
+        /* Tlačítka zpět a akce */
+        .back-btn { background: var(--gray); color: var(--primary); padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block; margin-bottom: 20px; cursor: pointer; border: none; font-size: 1rem; transition: 0.2s; }
+        .back-btn:hover { background: #cbd5e0; }
         
-        .post-content { padding: 0 2rem 1.5rem 2rem; line-height: 1.8; font-size: 1.1rem; color: #2d3748; white-space: pre-wrap; overflow: hidden; }
-        
-        .post-gallery { padding: 0 2rem 2rem 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
-        .post-gallery img { width: 100%; height: 200px; object-fit: cover; border-radius: 10px; cursor: pointer; transition: transform 0.3s ease, box-shadow 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .post-gallery img:hover { transform: scale(1.03); box-shadow: 0 8px 20px rgba(0,0,0,0.15); z-index: 10; position: relative; }
-        
-        .loading { text-align: center; padding: 3rem; color: #a0aec0; font-style: italic; font-size: 1.2rem; }
+        .admin-edit-btn { background: var(--white); color: var(--blue); border: 2px solid var(--blue); padding: 6px 12px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 0.85rem; display: inline-block; margin-top: 10px; transition: 0.2s; }
+        .admin-edit-btn:hover { background: #ebf8ff; }
 
-        footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 3rem; background: var(--white); }
+        /* HERO SEKCE (Nejnovější událost) */
+        .hero-section { background: var(--white); border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.08); margin-bottom: 3rem; display: flex; flex-wrap: wrap; cursor: pointer; transition: 0.3s; border: 1px solid #edf2f7; }
+        .hero-section:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0,0,0,0.12); }
+        .hero-image { flex: 1 1 50%; min-width: 300px; background: #e2e8f0; position: relative; }
+        .hero-image img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+        .hero-content { flex: 1 1 50%; padding: 3rem; display: flex; flex-direction: column; justify-content: center; }
+        .hero-badge { background: var(--secondary); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; align-self: flex-start; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 1px; }
+        .hero-title { color: var(--primary); font-size: 2.2rem; margin-bottom: 1rem; line-height: 1.2; font-weight: 800; }
+        .hero-excerpt { color: #4a5568; font-size: 1.1rem; margin-bottom: 1.5rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+        /* MŘÍŽKA DLAŽDIC (Ročníky a Turnaje) */
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; margin-bottom: 3rem; }
+        
+        .tile-card { background: var(--white); border-radius: 12px; overflow: hidden; box-shadow: 0 6px 15px rgba(0,0,0,0.06); cursor: pointer; transition: 0.3s; border: 1px solid #edf2f7; display: flex; flex-direction: column; }
+        .tile-card:hover { transform: translateY(-6px); box-shadow: 0 12px 25px rgba(0,0,0,0.1); border-color: var(--blue); }
+        .tile-image { height: 180px; width: 100%; background: #e2e8f0; position: relative; }
+        .tile-image img { width: 100%; height: 100%; object-fit: cover; }
+        .tile-content { padding: 1.5rem; display: flex; flex-direction: column; flex-grow: 1; }
+        .tile-year { font-size: 2.5rem; font-weight: 900; color: var(--primary); text-align: center; margin: auto 0; }
+        .tile-title { color: var(--primary); font-size: 1.2rem; font-weight: bold; margin-bottom: 0.5rem; line-height: 1.3; }
+        .tile-meta { color: #718096; font-size: 0.85rem; margin-bottom: 0.8rem; }
+        .tile-excerpt { color: #4a5568; font-size: 0.95rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+        /* DETAIL ČLÁNKU */
+        .post-detail { background: white; border-radius: 16px; padding: 3rem; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .post-detail-title { color: var(--primary); font-size: 2.5rem; font-weight: 900; margin-bottom: 1rem; line-height: 1.2; }
+        .post-detail-meta { color: #718096; font-size: 1rem; padding-bottom: 1.5rem; margin-bottom: 2rem; border-bottom: 2px solid #edf2f7; display: flex; gap: 15px; align-items: center; }
+        .post-content-body { line-height: 1.8; font-size: 1.15rem; color: #2d3748; white-space: pre-wrap; }
+        
+        .post-gallery { padding-top: 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 2rem; border-top: 1px solid #edf2f7; }
+        .post-gallery img { width: 100%; height: 200px; object-fit: cover; border-radius: 10px; cursor: pointer; transition: transform 0.3s; }
+        .post-gallery img:hover { transform: scale(1.03); z-index: 10; position: relative; box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
+        
+        .section-title { color: var(--primary); font-size: 1.8rem; margin-bottom: 1.5rem; border-left: 5px solid var(--secondary); padding-left: 15px; }
+        
+        .loading { text-align: center; padding: 5rem; color: #a0aec0; font-size: 1.3rem; font-weight: bold; }
+
+        @media (max-width: 768px) {
+            .hero-image { flex: 1 1 100%; height: 250px; }
+            .hero-content { flex: 1 1 100%; padding: 2rem; }
+            .post-detail { padding: 1.5rem; }
+        }
     </style>
 </head>
 <body>
@@ -63,10 +96,8 @@
     </nav>
 </header>
 
-<main>
-    <div id="reportsContainer">
-        <div class="loading">Načítám archiv reportů...</div>
-    </div>
+<main id="appContent">
+    <div class="loading">Načítám archiv reportů...</div>
 </main>
 
 <footer>
@@ -79,98 +110,244 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-    async function loadReports() {
-        const container = document.getElementById('reportsContainer');
-        
+    let allReports = [];
+    let allImages = [];
+    let isAdmin = false;
+
+    // Aplikace začíná zde
+    async function initApp() {
+        // Kontrola, jestli je návštěvník administrátor (kvůli tlačítku Upravit)
+        const { data: { user } } = await db.auth.getUser();
+        if (user) {
+            const { data: prof } = await db.from('profiles').select('role').eq('id', user.id).maybeSingle();
+            if (prof && ['zc', 'zcp', 'superadmin'].includes(prof.role)) {
+                isAdmin = true;
+            }
+        }
+
+        // Stáhnutí všech dat
         const { data: reports, error: reportsErr } = await db.from('reports')
             .select('*')
             .eq('status', 'publikovano')
+            .order('event_date', { ascending: false })
             .order('created_at', { ascending: false });
 
         const { data: images } = await db.from('report_images').select('*');
 
+        const appContent = document.getElementById('appContent');
+
         if (reportsErr || !reports || reports.length === 0) {
-            container.innerHTML = '<div class="loading">Zatím nebyly vydány žádné reporty z turnajů.</div>';
+            appContent.innerHTML = '<div class="loading">Zatím nebyly vydány žádné reporty z turnajů.</div>';
             return;
         }
 
-        let html = '';
+        allReports = reports;
+        allImages = images || [];
+        
+        // Zobrazí hlavní rozcestník
+        renderMainView();
+    }
 
-        reports.forEach(report => {
-            let d = new Date(report.created_at);
-            let dateStr = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth()+1).padStart(2, '0')}.${d.getFullYear()} v ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-            
-            let reportImages = images ? images.filter(img => img.report_id === report.id) : [];
-            let parsedContent = report.content;
-            let usedShortcodes = [];
+    // Pomocná fce pro získání prvního obrázku článku (náhledovky)
+    function getThumbnail(reportId) {
+        let imgs = allImages.filter(img => img.report_id === reportId);
+        return imgs.length > 0 ? imgs[0].image_url : 'https://via.placeholder.com/600x400/e2e8f0/a0aec0?text=Bez+fotografie';
+    }
 
-            // ZCELA NOVÝ A NEPRŮSTŘELNÝ PARSER FOTEK
-            reportImages.forEach(img => {
-                let baseCode = img.shortcode.replace('[', '').replace(']', ''); 
-                // Regex nyní chytne vše uvnitř závorek za názvem fotky
-                let regex = new RegExp(`\\[${baseCode}([^\\]]*)\\]`, 'g');
-                
-                if (parsedContent.match(regex)) {
-                    parsedContent = parsedContent.replace(regex, (match, params) => {
-                        usedShortcodes.push(img.shortcode);
-                        let s = '100'; // Výchozí velikost
-                        let p = 'stred'; // Výchozí pozice
-                        
-                        // Zkusí najít parametry uvnitř textu závorky
-                        if (params) {
-                            let sizeMatch = params.match(/velikost=([0-9]+)/);
-                            if (sizeMatch) s = sizeMatch[1];
-                            
-                            let posMatch = params.match(/pozice=([a-z]+)/);
-                            if (posMatch) p = posMatch[1];
-                        }
-                        
-                        let style = '';
-                        if (p === 'vlevo') {
-                            style = `width: ${s}%; float: left; margin: 0 1.5rem 1rem 0;`;
-                        } else if (p === 'vpravo') {
-                            style = `width: ${s}%; float: right; margin: 0 0 1rem 1.5rem;`;
-                        } else {
-                            style = `width: ${s}%; display: block; margin: 1.5rem auto;`;
-                        }
-                        
-                        return `<img src="${img.image_url}" style="${style} max-height: 600px; object-fit: cover; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);" alt="Fotografie z reportu">`;
-                    });
-                }
-            });
-            
-            parsedContent += '<div style="clear: both;"></div>'; 
+    // Pomocná fce pro vyčištění textu pro úryvek (odstraní [fotoX])
+    function getExcerpt(content) {
+        let cleanText = content.replace(/\[foto.*?\]/g, '');
+        return cleanText.substring(0, 150) + '...';
+    }
 
-            let galleryHtml = '';
-            let unusedImages = reportImages.filter(img => !usedShortcodes.includes(img.shortcode));
+    // ----------------------------------------------------
+    // PATRO 1: HLAVNÍ ROZCESTNÍK (Hero + Ročníky)
+    // ----------------------------------------------------
+    function renderMainView() {
+        const appContent = document.getElementById('appContent');
+        const latestPost = allReports[0]; // První je absolutně nejnovější díky řazení
+        let heroThumb = getThumbnail(latestPost.id);
+        
+        let d = latestPost.event_date ? new Date(latestPost.event_date) : new Date(latestPost.created_at);
+        let dateStr = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth()+1).padStart(2, '0')}.${d.getFullYear()}`;
+
+        let html = `
+            <div class="hero-section" onclick="renderPostView('${latestPost.id}')">
+                <div class="hero-image">
+                    <img src="${heroThumb}" alt="Nejnovější událost">
+                </div>
+                <div class="hero-content">
+                    <span class="hero-badge">Nejnovější report</span>
+                    <h2 class="hero-title">${latestPost.title}</h2>
+                    <div style="color: #718096; font-size: 0.9rem; margin-bottom: 1rem; font-weight: bold;">📅 ${dateStr}</div>
+                    <p class="hero-excerpt">${getExcerpt(latestPost.content)}</p>
+                    <div style="color: var(--blue); font-weight: bold;">Číst celý report →</div>
+                </div>
+            </div>
             
-            if (unusedImages.length > 0) {
-                galleryHtml = `<div class="post-gallery">`;
-                unusedImages.forEach(img => {
-                    galleryHtml += `<a href="${img.image_url}" target="_blank"><img src="${img.image_url}" alt="Galerie reportu"></a>`;
-                });
-                galleryHtml += `</div>`;
+            <h2 class="section-title">Archiv turnajů podle ročníků</h2>
+            <div class="grid-container">
+        `;
+
+        // Seskupení do ročníků
+        let yearsMap = {};
+        allReports.forEach(post => {
+            let year = post.event_date ? new Date(post.event_date).getFullYear() : new Date(post.created_at).getFullYear();
+            if (!yearsMap[year]) {
+                yearsMap[year] = [];
             }
+            yearsMap[year].push(post);
+        });
+
+        // Vypsání dlaždic s roky
+        Object.keys(yearsMap).sort((a,b) => b - a).forEach(year => {
+            // Náhledovka pro celý rok = fotka z prvního (nejnovějšího) turnaje v tom roce
+            let yearThumb = getThumbnail(yearsMap[year][0].id);
+            let postCount = yearsMap[year].length;
 
             html += `
-                <article class="post-card">
-                    <div class="post-header">
-                        <h2 class="post-title">${report.title}</h2>
-                        <div class="post-meta">
-                            <span class="author-badge">✍️ ${report.author_name || 'Asociace'}</span>
-                            <span>📅 ${dateStr}</span>
-                        </div>
+                <div class="tile-card" onclick="renderYearView('${year}')">
+                    <div class="tile-image" style="opacity: 0.85;">
+                        <img src="${yearThumb}" alt="Ročník ${year}">
                     </div>
-                    <div class="post-content">${parsedContent}</div>
-                    ${galleryHtml}
-                </article>
+                    <div class="tile-content" style="align-items: center; justify-content: center; padding: 2rem;">
+                        <div class="tile-year">${year}</div>
+                        <div style="color: #718096; font-weight: bold; margin-top: 10px;">Turnajů v ročníku: ${postCount}</div>
+                    </div>
+                </div>
             `;
         });
 
-        container.innerHTML = html;
+        html += `</div>`;
+        appContent.innerHTML = html;
+        window.scrollTo(0, 0);
     }
 
-    window.onload = loadReports;
+    // ----------------------------------------------------
+    // PATRO 2: VÝPIS TURNAJŮ V KONKRÉTNÍM ROCE
+    // ----------------------------------------------------
+    function renderYearView(year) {
+        const appContent = document.getElementById('appContent');
+        
+        let html = `
+            <button class="back-btn" onclick="renderMainView()">← Zpět na ročníky</button>
+            <h2 class="section-title">Turnaje odehrané v roce ${year}</h2>
+            <div class="grid-container">
+        `;
+
+        let yearPosts = allReports.filter(post => {
+            let y = post.event_date ? new Date(post.event_date).getFullYear() : new Date(post.created_at).getFullYear();
+            return y.toString() === year.toString();
+        });
+
+        yearPosts.forEach(post => {
+            let thumb = getThumbnail(post.id);
+            let d = post.event_date ? new Date(post.event_date) : new Date(post.created_at);
+            let dateStr = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth()+1).padStart(2, '0')}.${d.getFullYear()}`;
+            
+            // Tlačítko upravit přesměruje přímo do editoru novinky.html s ID v adrese
+            let adminBtn = isAdmin ? `<div style="margin-top: 10px;"><a href="novinky.html#edit-${post.id}" class="admin-edit-btn" onclick="event.stopPropagation();">✏️ Upravit v administraci</a></div>` : '';
+
+            html += `
+                <div class="tile-card" onclick="renderPostView('${post.id}')">
+                    <div class="tile-image">
+                        <img src="${thumb}" alt="Náhled turnaje">
+                    </div>
+                    <div class="tile-content">
+                        <h3 class="tile-title">${post.title}</h3>
+                        <div class="tile-meta">📅 ${dateStr} | ✍️ ${post.author_name || 'Asociace'}</div>
+                        <p class="tile-excerpt">${getExcerpt(post.content)}</p>
+                        ${adminBtn}
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `</div>`;
+        appContent.innerHTML = html;
+        window.scrollTo(0, 0);
+    }
+
+    // ----------------------------------------------------
+    // PATRO 3: DETAIL KONKRÉTNÍHO ČLÁNKU
+    // ----------------------------------------------------
+    function renderPostView(postId) {
+        const appContent = document.getElementById('appContent');
+        const post = allReports.find(p => p.id === postId);
+        
+        // Zjištění roku pro tlačítko "zpět", aby se uživatel vrátil do správného patra
+        let postYear = post.event_date ? new Date(post.event_date).getFullYear() : new Date(post.created_at).getFullYear();
+
+        let d = post.event_date ? new Date(post.event_date) : new Date(post.created_at);
+        let dateStr = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth()+1).padStart(2, '0')}.${d.getFullYear()}`;
+        
+        let postImages = allImages.filter(img => img.report_id === post.id);
+        let parsedContent = post.content;
+        let usedShortcodes = [];
+
+        // NEPRŮSTŘELNÝ PARSER
+        postImages.forEach(img => {
+            let baseCode = img.shortcode.replace('[', '').replace(']', ''); 
+            let regex = new RegExp(`\\[${baseCode}([^\\]]*)\\]`, 'g');
+            
+            if (parsedContent.match(regex)) {
+                parsedContent = parsedContent.replace(regex, (match, params) => {
+                    usedShortcodes.push(img.shortcode);
+                    let s = '100'; let p = 'stred';
+                    
+                    if (params) {
+                        let sizeMatch = params.match(/velikost=([0-9]+)/);
+                        if (sizeMatch) s = sizeMatch[1];
+                        let posMatch = params.match(/pozice=([a-z]+)/);
+                        if (posMatch) p = posMatch[1];
+                    }
+                    
+                    let style = '';
+                    if (p === 'vlevo') { style = `width: ${s}%; float: left; margin: 0 1.5rem 1rem 0;`; } 
+                    else if (p === 'vpravo') { style = `width: ${s}%; float: right; margin: 0 0 1rem 1.5rem;`; } 
+                    else { style = `width: ${s}%; display: block; margin: 1.5rem auto;`; }
+                    
+                    return `<img src="${img.image_url}" style="${style} max-height: 600px; object-fit: cover; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08);" alt="Fotografie k reportu">`;
+                });
+            }
+        });
+        
+        parsedContent += '<div style="clear: both;"></div>'; 
+
+        let galleryHtml = '';
+        let unusedImages = postImages.filter(img => !usedShortcodes.includes(img.shortcode));
+        
+        if (unusedImages.length > 0) {
+            galleryHtml = `<div class="post-gallery">`;
+            unusedImages.forEach(img => {
+                galleryHtml += `<a href="${img.image_url}" target="_blank"><img src="${img.image_url}" alt="Galerie"></a>`;
+            });
+            galleryHtml += `</div>`;
+        }
+
+        let adminBtn = isAdmin ? `<a href="novinky.html#edit-${post.id}" class="admin-edit-btn" style="margin-top: 0;">✏️ Upravit příspěvek</a>` : '';
+
+        let html = `
+            <button class="back-btn" onclick="renderYearView('${postYear}')">← Zpět na ročník ${postYear}</button>
+            <div class="post-detail">
+                <h1 class="post-detail-title">${post.title}</h1>
+                <div class="post-detail-meta">
+                    <span>📅 Turnaj odehrán: ${dateStr}</span>
+                    <span>|</span>
+                    <span>✍️ Autor: ${post.author_name || 'Asociace'}</span>
+                    ${adminBtn ? `<span>|</span> ${adminBtn}` : ''}
+                </div>
+                <div class="post-content-body">${parsedContent}</div>
+                ${galleryHtml}
+            </div>
+        `;
+
+        appContent.innerHTML = html;
+        window.scrollTo(0, 0);
+    }
+
+    // Start!
+    window.onload = initApp;
 </script>
 </body>
 </html>
