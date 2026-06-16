@@ -45,10 +45,11 @@
         button:hover { background: var(--secondary); }
         .btn-green { background: var(--green); }
         .btn-blue { background: var(--blue); }
+        .btn-orange { background: var(--orange); }
+        .btn-orange:hover { background: #c05621; }
         .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
         .btn-outline:hover { background: var(--gray); color: var(--primary); }
 
-        /* EDITOR A DROP ZÓNA */
         .drop-zone { border: 2px dashed var(--blue); padding: 3rem 1rem; text-align: center; background: #ebf8ff; border-radius: 12px; cursor: pointer; transition: 0.2s; font-weight: bold; color: var(--blue); margin-bottom: 1rem; }
         .drop-zone.dragover { background: #bee3f8; border-color: var(--primary); color: var(--primary); transform: scale(1.02); }
         .gallery-preview { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 1.5rem; }
@@ -66,13 +67,11 @@
         .error { background: #fed7d7; color: #c53030; display: block; }
         .success { background: #c6f6d5; color: #2f855a; display: block; }
 
-        /* MODÁLNÍ OKNA */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
         .modal-box { background: white; padding: 2rem; border-radius: 12px; width: 95%; position: relative; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
         .modal-close { position: absolute; top: 15px; right: 15px; background: transparent; color: var(--secondary); border: none; font-size: 1.5rem; cursor: pointer; width: auto; padding: 0; }
         .cropper-container-box { max-height: 60vh; background: #eee; margin-bottom: 1.5rem; display: flex; justify-content: center; align-items: center; overflow: hidden; border-radius: 8px; border: 1px solid #ccc; }
 
-        /* MODERNÍ VÝPIS ČLÁNKŮ */
         .post-card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 3rem; transition: transform 0.3s ease, box-shadow 0.3s ease; border: 1px solid #edf2f7; }
         .post-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
         .post-header { padding: 2rem 2rem 0.5rem 2rem; }
@@ -135,8 +134,9 @@
                 <textarea id="postContent" rows="12" required placeholder="Tady pište svůj text..."></textarea>
                 
                 <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
-                    <button type="button" id="submitBtn" class="btn-blue" style="flex: 2; font-size: 1.1rem; padding: 1rem;" onclick="submitPost('publikovano')">🚀 Vydat a publikovat článek</button>
-                    <button type="button" id="draftBtn" class="btn-green" style="flex: 1; font-size: 1.1rem; padding: 1rem;" onclick="submitPost('koncept')">💾 Uložit jako koncept</button>
+                    <button type="button" id="submitBtn" class="btn-blue" style="flex: 2; font-size: 1.1rem; padding: 1rem;" onclick="submitPost('publikovano', false)">🚀 Vydat článek</button>
+                    <button type="button" id="sendBtn" class="btn-orange" style="flex: 2; font-size: 1.1rem; padding: 1rem;" onclick="submitPost('publikovano', true)">📧 Vydat a rozeslat všem</button>
+                    <button type="button" id="draftBtn" class="btn-green" style="flex: 1; font-size: 1.1rem; padding: 1rem;" onclick="submitPost('koncept', false)">💾 Uložit koncept</button>
                     <button type="button" id="cancelEditBtn" class="btn-outline" style="display: none; padding: 1rem;" onclick="cancelEditing()">✖ Zrušit úpravy</button>
                 </div>
                 <div id="uploadMsg" class="msg"></div>
@@ -220,8 +220,10 @@
             if (prof && ['zc', 'zcp', 'superadmin', 'pc'].includes(prof.role)) {
                 myProfileData = prof;
                 document.getElementById('adminZone').style.display = 'block';
+                
                 if (prof.role === 'pc') {
                     document.getElementById('submitBtn').innerText = 'Odeslat článek ke schválení';
+                    document.getElementById('sendBtn').style.display = 'none';
                 }
             }
         }
@@ -396,7 +398,9 @@
         
         document.getElementById('editorTitle').innerText = '✏️ Úprava existujícího článku';
         if (myProfileData.role !== 'pc') {
-            document.getElementById('submitBtn').innerText = '🚀 Uložit změny a Publikovat';
+            document.getElementById('submitBtn').innerText = '🚀 Uložit změny (Bez rozeslání)';
+            document.getElementById('sendBtn').innerText = '📧 Uložit změny a Rozeslat';
+            document.getElementById('sendBtn').style.display = 'inline-block';
         }
         document.getElementById('draftBtn').innerText = '💾 Uložit úpravy jako Koncept';
         document.getElementById('cancelEditBtn').style.display = 'inline-block';
@@ -414,16 +418,21 @@
         document.getElementById('eventDate').value = new Date().toISOString().split('T')[0];
         
         document.getElementById('editorTitle').innerText = '+ Vydat nový článek';
+        
         if (myProfileData.role !== 'pc') {
-            document.getElementById('submitBtn').innerText = '🚀 Vydat a publikovat článek';
+            document.getElementById('submitBtn').innerText = '🚀 Vydat článek';
+            document.getElementById('sendBtn').innerText = '📧 Vydat a rozeslat všem';
+            document.getElementById('sendBtn').style.display = 'inline-block';
         } else {
             document.getElementById('submitBtn').innerText = 'Odeslat článek ke schválení';
+            document.getElementById('sendBtn').style.display = 'none';
         }
+        
         document.getElementById('draftBtn').innerText = '💾 Uložit jako koncept';
         document.getElementById('cancelEditBtn').style.display = 'none';
     };
 
-    window.submitPost = async function(requestedStatus) {
+    window.submitPost = async function(requestedStatus, sendMail = false) {
         const title = document.getElementById('postTitle').value.trim();
         const content = document.getElementById('postContent').value.trim();
         const eventDate = document.getElementById('eventDate').value;
@@ -433,11 +442,16 @@
             return;
         }
 
+        if (sendMail && !confirm('Opravdu chcete vydat tento článek a upozornit na něj VŠECHNY hráče a odběratele e-mailem?')) {
+            return;
+        }
+
         const btnPub = document.getElementById('submitBtn');
+        const btnSend = document.getElementById('sendBtn');
         const btnDraft = document.getElementById('draftBtn');
         const msgBox = document.getElementById('uploadMsg');
         
-        btnPub.disabled = true; btnDraft.disabled = true;
+        btnPub.disabled = true; btnSend.disabled = true; btnDraft.disabled = true;
         msgBox.className = 'msg';
         msgBox.innerText = 'Zpracovávám a ukládám do databáze... Prosím čekejte.';
         msgBox.style.display = 'block';
@@ -492,8 +506,60 @@
                 });
             }
 
+            // --- LOGIKA PRO HROMADNÉ ROZESLÁNÍ MAILŮ PŘES API ---
+            if (sendMail && finalStatus === 'publikovano') {
+                msgBox.innerText = 'Článek byl uložen. Nyní načítám databázi kontaktů a rozesílám e-maily...';
+                
+                try {
+                    let finalEmailSet = new Set();
+
+                    const { data: profs } = await db.from('profiles').select('email');
+                    if (profs) profs.forEach(p => { if (p.email && p.email.includes('@')) finalEmailSet.add(p.email.toLowerCase()); });
+
+                    const { data: subs } = await db.from('newsletter_subscribers').select('email');
+                    if (subs) subs.forEach(s => { if (s.email && s.email.includes('@')) finalEmailSet.add(s.email.toLowerCase()); });
+
+                    const allEmails = Array.from(finalEmailSet);
+
+                    if (allEmails.length > 0) {
+                        const subj = `Nový článek z turnajů: ${title}`;
+                        let cleanContent = content.replace(/\[foto.*?\]/g, '').substring(0, 350) + '...';
+                        
+                        const msgText = `Dobrý den,\n\nprávě jsme vydali nový report z turnajů na webu asociace!\n\n📑 Téma: ${title}\n📅 Z turnaje odehraného: ${eventDate}\n\nKrátká ukázka:\n"${cleanContent}"\n\nCelý článek i s přiloženou fotogalerií si můžete přečíst na našem oficiálním webu v sekci Reporty:\nhttps://www.asociaceprsi.cz/reporty.html\n\nTěšíme se na Vás u stolů!\nČeská asociace v karetní hře prší z.s.`;
+
+                        let sentCount = 0;
+                        for (let i = 0; i < allEmails.length; i += 50) {
+                            const batch = allEmails.slice(i, i + 50); 
+                            msgBox.innerText = `Odesílám... zpracováno ${sentCount} z ${allEmails.length} kontaktů (Zabráněno duplicitám)`;
+                            
+                            const promises = batch.map(async (email) => {
+                                try {
+                                    await fetch('https://www.asociaceprsi.cz/api/mail', { 
+                                        method: 'POST', 
+                                        headers: { 'Content-Type': 'application/json' }, 
+                                        body: JSON.stringify({ 
+                                            subject: subj, 
+                                            message: msgText + `\n\n---\nOdhlášení z odběru novinek: https://www.asociaceprsi.cz?unsubscribe=${encodeURIComponent(email)}`, 
+                                            to: email 
+                                        })
+                                    });
+                                } catch (e) { console.error('Chyba odeslání na', email, e); }
+                            });
+                            
+                            await Promise.all(promises); 
+                            sentCount += batch.length; 
+                            await new Promise(r => setTimeout(r, 1000));
+                        }
+                    }
+                } catch (mailErr) {
+                    console.error("Chyba při rozesílání:", mailErr);
+                }
+            }
+
             msgBox.className = 'msg success';
-            msgBox.innerText = finalStatus === 'publikovano' ? 'Článek byl úspěšně publikován!' : 'Úspěšně uloženo jako Koncept / Ke schválení.';
+            msgBox.innerText = finalStatus === 'publikovano' 
+                ? (sendMail ? 'Článek byl úspěšně vydán a oznámení rozesláno všem hráčům a odběratelům!' : 'Článek byl úspěšně publikován na web!') 
+                : 'Úspěšně uloženo jako Koncept / Ke schválení.';
             
             cancelEditing(); 
             loadPosts();     
@@ -503,7 +569,7 @@
             msgBox.className = 'msg error';
             msgBox.innerText = 'Došlo k chybě: ' + err.message;
         } finally {
-            btnPub.disabled = false; btnDraft.disabled = false;
+            btnPub.disabled = false; btnSend.disabled = false; btnDraft.disabled = false;
         }
     };
 
