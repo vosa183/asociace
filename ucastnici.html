@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Účastníci turnaje | Administrace</title>
+    
+    <!-- Supabase a Excel export -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="font.js"></script>
+    
+    <style>
+        :root { 
+            --primary: #1a365d; 
+            --secondary: #c53030; 
+            --bg: #f4f7f6; 
+            --text: #2d3748; 
+            --white: #ffffff; 
+            --gray: #e2e8f0; 
+            --orange: #dd6b20; 
+            --blue: #3182ce;   
+            --green: #2f855a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg); color: var(--text); line-height: 1.6; }
+        
+        header { background: var(--white); padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .logo-container { display: flex; align-items: center; gap: 1rem; text-decoration: none; }
+        .logo-container img { height: 40px; }
+        .logo-container h1 { font-size: 1.2rem; color: var(--primary); text-transform: uppercase; margin: 0; }
+        
+        nav a { text-decoration: none; color: var(--white); background: var(--primary); font-weight: 600; padding: 0.6rem 1.2rem; border-radius: 6px; transition: 0.2s; display: inline-block; cursor: pointer; }
+        nav a:hover { background: var(--secondary); }
+
+        main { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; min-height: 70vh; }
+        .card { background: var(--white); padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); margin-bottom: 2rem; border-top: 4px solid var(--blue); }
+        
+        h2 { color: var(--primary); margin-bottom: 0.5rem; font-size: 1.8rem; }
+        .subtitle { color: #718096; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--gray); font-size: 1rem; }
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 2rem; }
+        .stat-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 1.5rem; border-radius: 8px; text-align: center; }
+        .stat-box.green { border-color: #9ae6b4; background: #f0fff4; }
+        .stat-box.red { border-color: #feb2b2; background: #fff5f5; }
+        .stat-value { font-size: 2rem; font-weight: 900; color: var(--primary); line-height: 1; margin-top: 5px; }
+        .stat-label { font-size: 0.85rem; color: #4a5568; font-weight: bold; text-transform: uppercase; }
+
+        .stats-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.95rem; background: white; }
+        .stats-table th, .stats-table td { padding: 1rem; text-align: left; border-bottom: 1px solid #cbd5e0; }
+        .stats-table th { background: var(--primary); color: white; font-weight: 600; position: sticky; top: 0; }
+        .stats-table tr:hover { background: #f7fafc; }
+        
+        button { border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; font-size: 0.85rem; }
+        .btn-green { background: var(--green); color: white; }
+        .btn-red { background: var(--secondary); color: white; }
+        .btn-blue { background: var(--blue); color: white; }
+        .btn-export { background: var(--gold); color: white; padding: 0.8rem 1.5rem; font-size: 1rem; margin-bottom: 1rem; width: 100%; }
+        
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; color: white; display: inline-block; }
+        .badge-paid { background: #38a169; }
+        .badge-unpaid { background: #e53e3e; }
+
+        .loader { text-align: center; padding: 4rem; font-size: 1.2rem; color: var(--primary); font-weight: bold; }
+        .error-screen { text-align: center; padding: 4rem; color: var(--secondary); }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="index.html" class="logo-container">
+        <img src="logo.png" alt="Logo" onerror="this.style.display='none';">
+        <h1>Administrace | Účastníci</h1>
+    </a>
+    <nav>
+        <a onclick="window.close()">Zavřít okno ✖</a>
+    </nav>
+</header>
+
+<main id="appContent">
+    <div class="loader">🔐 Ověřuji zabezpečení a načítám data...</div>
+</main>
+
+<script>
+    const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
+    const db = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+    let tournamentId = new URLSearchParams(window.location.search).get('tid');
+    let tournamentData = null;
+    let registrationsData = [];
+
+    // Formátování data
+    function formatDateTime(dtStr) {
+        if (!dtStr) return '';
+        const d = new Date(dtStr);
+        if (isNaN(d)) return dtStr;
+        const pad = n => n < 10 ? '0' + n : n;
+        return `${pad(d.getDate())}. ${pad(d.getMonth()+1)}. ${d.getFullYear()} v ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    // Bezpečnostní kontrola - pustí jen adminy
+    async function checkAuthAndLoad() {
+        if (!tournamentId) {
+            showError('Chybí ID turnaje. Zavřete okno a zkuste to znovu z administrace.');
+            return;
+        }
+
+        const { data: { user } } = await db.auth.getUser();
+        if (!user) {
+            showError('Přístup odepřen. Nejste přihlášeni.');
+            return;
+        }
+
+        const { data: prof } = await db.from('profiles').select('role').eq('id', user.id).maybeSingle();
+        if (!prof || !['zc', 'zcp', 'superadmin'].includes(prof.role)) {
+            showError('🛑 Bezpečnostní zámek aktivní: K této stránce nemáte oprávnění (Vyžadována role ZČ nebo vyšší).');
+            return;
+        }
+
+        loadTournamentData();
+    }
+
+    function showError(msg) {
+        document.getElementById('appContent').innerHTML = `
+            <div class="card error-screen" style="border-top-color: var(--secondary);">
+                <h1>🔒 Přístup odepřen</h1>
+                <p style="margin-top: 1rem; font-size: 1.2rem;">${msg}</p>
+                <button class="btn-blue" style="margin-top: 2rem; width: auto;" onclick="window.close()">Vrátit se zpět</button>
+            </div>
+        `;
+    }
+
+    async function loadTournamentData() {
+        // 1. Získání detailů o turnaji
+        const { data: tData, error: tErr } = await db.from('tournaments').select('*').eq('id', tournamentId).single();
+        if (tErr || !tData) {
+            showError('Turnaj nebyl v databázi nalezen.');
+            return;
+        }
+        tournamentData = tData;
+
+        // 2. Získání registrací
+        const { data: regs } = await db.from('registrations').select('*').eq('tournament_id', tournamentId);
+        
+        // 3. Spárování jmen z centrální databáze
+        if (regs && regs.length > 0) {
+            const playerIds = regs.map(r => r.player_id_card);
+            const { data: playersInfo } = await db.from('player_database').select('player_id_card, full_name, city').in('player_id_card', playerIds);
+            
+            // Propojení registrace se jménem
+            registrationsData = regs.map(r => {
+                const info = playersInfo?.find(p => p.player_id_card === r.player_id_card);
+                return {
+                    ...r,
+                    full_name: info ? info.full_name : 'Neznámý hráč',
+                    city: info ? (info.city || '-') : '-'
+                };
+            });
+        } else {
+            registrationsData = [];
+        }
+
+        renderApp();
+    }
+
+    function renderApp() {
+        const capacity = tournamentData.capacity || 0;
+        const totalRegs = registrationsData.length;
+        const paidRegs = registrationsData.filter(r => r.payment_status).length;
+        const unpaidRegs = totalRegs - paidRegs;
+        
+        let html = `
+            <div class="card">
+                <h2>${tournamentData.title}</h2>
+                <div class="subtitle">📅 ${formatDateTime(tournamentData.event_date)} | 💰 Zápisné: ${tournamentData.fee} Kč</div>
+                
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-label">Přihlášeno</div>
+                        <div class="stat-value">${totalRegs} / ${capacity}</div>
+                    </div>
+                    <div class="stat-box green">
+                        <div class="stat-label">Zaplaceno</div>
+                        <div class="stat-value" style="color: var(--green);">${paidRegs}</div>
+                    </div>
+                    <div class="stat-box red">
+                        <div class="stat-label">Čeká na platbu</div>
+                        <div class="stat-value" style="color: var(--secondary);">${unpaidRegs}</div>
+                    </div>
+                </div>
+
+                <button class="btn-export" onclick="exportToExcel()">📥 Stáhnout seznam do Excelu (Pro prezenci u vstupu)</button>
+
+                <div style="overflow-x: auto;">
+                    <table class="stats-table">
+                        <tr>
+                            <th>#</th>
+                            <th>Jméno a Příjmení</th>
+                            <th>ID Značka</th>
+                            <th>Město</th>
+                            <th>Stav platby</th>
+                            <th>Akce správce</th>
+                        </tr>
+        `;
+
+        if (totalRegs === 0) {
+            html += `<tr><td colspan="6" style="text-align:center; padding: 2rem; color: #718096; font-style: italic;">Na tento turnaj zatím není nikdo přihlášený.</td></tr>`;
+        } else {
+            // Seřazení podle toho, kdy se přihlásili (nejstarší nahoře = první v pořadí)
+            registrationsData.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).forEach((r, index) => {
+                let badge = r.payment_status 
+                    ? `<span class="badge badge-paid">✅ Zaplaceno</span>` 
+                    : `<span class="badge badge-unpaid">⏳ Nezaplaceno</span>`;
+                
+                let toggleBtn = r.payment_status 
+                    ? `<button class="btn-red" onclick="togglePayment('${r.id}', true)">Zrušit platbu</button>` 
+                    : `<button class="btn-green" onclick="togglePayment('${r.id}', false)">Potvrdit platbu</button>`;
+
+                html += `
+                    <tr>
+                        <td style="font-weight: bold; color: #a0aec0;">${index + 1}.</td>
+                        <td style="font-weight: bold; color: var(--primary);">${r.full_name}</td>
+                        <td style="font-family: monospace; color: #4a5568;">${formatSPZ(r.player_id_card)}</td>
+                        <td>${r.city}</td>
+                        <td>${badge}</td>
+                        <td>
+                            <div style="display:flex; gap: 5px;">
+                                ${toggleBtn}
+                                <button class="btn-blue" style="background:#718096;" onclick="removePlayer('${r.id}', '${r.full_name}')">Odhlásit</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        html += `</table></div></div>`;
+        document.getElementById('appContent').innerHTML = html;
+    }
+
+    // Pomocná funkce na formátování SPZ pro hezčí výpis
+    function formatSPZ(pureId) {
+        if (!pureId) return '-';
+        const okresyList = [
+            { id: 0, zkratka: 'MB' }, { id: 1, zkratka: 'PR' }, { id: 2, zkratka: 'BM' }, { id: 3, zkratka: 'OS' },
+            { id: 4, zkratka: 'PM' }, { id: 5, zkratka: 'CB' }, { id: 6, zkratka: 'HK' }, { id: 7, zkratka: 'UL' },
+            { id: 8, zkratka: 'PU' }, { id: 9, zkratka: 'LB' }, { id: 10, zkratka: 'KV' }, { id: 11, zkratka: 'KD' },
+            { id: 12, zkratka: 'ZL' }, { id: 13, zkratka: 'OL' }, { id: 14, zkratka: 'JI' }, { id: 15, zkratka: 'BN' }
+            // V administrátorském výpisu stačí základní sada nebo raw ID, protože hlavní logika je už vyřešena. Pro jistotu vkládáme jen fallback.
+        ];
+        const num = parseInt(pureId);
+        if (isNaN(num)) return pureId;
+        if (num < 100000) return 'MB' + num; 
+        
+        const okresId = Math.floor(num / 1000000);
+        const okres = okresyList.find(o => o.id === okresId);
+        if (okres) {
+            const zbytek = num % 1000000;
+            return okres.zkratka + zbytek.toString().padStart(6, '0');
+        }
+        return pureId;
+    }
+
+    // Měnění stavu platby administrátorem
+    window.togglePayment = async function(regId, currentStatus) {
+        document.getElementById('appContent').style.opacity = '0.5';
+        const { error } = await db.from('registrations').update({ payment_status: !currentStatus }).eq('id', regId);
+        if (error) {
+            alert('Chyba při ukládání do DB: ' + error.message);
+        }
+        document.getElementById('appContent').style.opacity = '1';
+        loadTournamentData(); // Znovu načte a vykreslí s čerstvými daty
+    }
+
+    // Odhlášení hráče administrátorem
+    window.removePlayer = async function(regId, name) {
+        if (confirm(`Opravdu chcete TRVALE odhlásit hráče ${name} z tohoto turnaje?`)) {
+            document.getElementById('appContent').style.opacity = '0.5';
+            const { error } = await db.from('registrations').delete().eq('id', regId);
+            if (error) {
+                alert('Chyba při mazání: ' + error.message);
+            }
+            document.getElementById('appContent').style.opacity = '1';
+            loadTournamentData();
+        }
+    }
+
+    // Export do Excelu pro tisk u prezence
+    window.exportToExcel = function() {
+        if (registrationsData.length === 0) {
+            alert("Není co exportovat.");
+            return;
+        }
+
+        // Vytvoření čistého pole pro Excel
+        const exportData = registrationsData.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).map((r, i) => ({
+            "Pořadí": i + 1,
+            "Jméno a Příjmení": r.full_name,
+            "Značka (ID)": formatSPZ(r.player_id_card),
+            "Město": r.city,
+            "Platba Startovného": r.payment_status ? "ZAPLACENO" : "NEZAPLACENO",
+            "Datum a čas přihlášení": new Date(r.created_at).toLocaleString('cs-CZ')
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Účastníci");
+
+        // Nastavení šířky sloupců pro hezčí Excel
+        const wscols = [ {wch:6}, {wch:25}, {wch:15}, {wch:20}, {wch:18}, {wch:22} ];
+        ws['!cols'] = wscols;
+
+        // Stažení
+        const safeTitle = tournamentData.title.replace(/[^a-zA-Z0-9]/g, '_');
+        XLSX.writeFile(wb, `Prezencni_listina_${safeTitle}.xlsx`);
+    }
+
+    // Spuštění po načtení okna
+    checkAuthAndLoad();
+</script>
+</body>
+</html>
