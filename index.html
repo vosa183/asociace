@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -175,9 +174,7 @@
         .btn-edit { background: var(--blue); color: white; }
         .btn-edit:hover { background: #2b6cb0; }
     </style>
-
 </head>
-
 <body>
 
 <header class="no-print">
@@ -937,18 +934,16 @@
     </div>
 
 </main>
-
 <footer>
     <p><strong>Česká asociace v karetní hře prší z.s.</strong><br>
     Sídlo: Kurzova 2222/16, Stodůlky, 155 00 Praha 5 | IČO: 29650186</p>
 </footer>
-
 <script>
     // ==========================================
     // --- 1. INICIALIZACE A GLOBÁLNÍ PROMĚNNÉ ---
     // ==========================================
     const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKFDY7Wk3syckQObPFjEfYRgEK-k';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null;
@@ -1338,7 +1333,6 @@
         if (actualUserRole === 'superadmin') { document.getElementById('menu-admin').style.display = 'block'; document.getElementById('superAdminZone').style.display = 'block'; document.getElementById('roleSwitcher').value = simulatedRole; }
         const pT = document.getElementById('proposalHeaderTitle'); if(pT) pT.innerText = simulatedRole === 'pc' ? 'Zadat nový podnět k diskuzi' : 'Založit novou diskuzi';
     }
-
     document.getElementById('roleSwitcher')?.addEventListener('change', (e) => { simulatedRole = e.target.value; updateMenuByRole(); switchTab(document.querySelector('.page-section.active')?.id || 'dashboard'); });
     
     // ==========================================
@@ -1359,10 +1353,9 @@
         document.getElementById('editProfileBox').style.display = show ? 'block' : 'none';
         if(show) { document.getElementById('editEmail').value = myProfileData.email; document.getElementById('editPhone').value = myProfileData.phone; document.getElementById('editCity').value = myProfileData.city; }
     };
-
     window.saveProfileEdits = async function() {
         const { error } = await db.from('profiles').update({ email: document.getElementById('editEmail').value, phone: document.getElementById('editPhone').value, city: document.getElementById('editCity').value }).eq('id', currentUser.id);
-        if (!error) location.reload(); else alert('Chyba: ' + error.message);
+        if(!error) location.reload(); else alert('Chyba: ' + error.message);
     };
 
     document.getElementById('addFamilyForm').addEventListener('submit', async (e) => {
@@ -1379,21 +1372,18 @@
     // --- 5. TISK PRŮKAZŮ ---
     // ==========================================
     function generateMultipleCardsHTML(players) {
-        let cardsHtml = players.map(p => `<div class="card"><div class="header">Průkaz Hráče</div><div class="content"><img class="qr" src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(p.id)}" /><div class="info"><label>Jméno a příjmení</label><div>${p.name}</div><label>Bydliště</label><div>${p.city || '-'}</div><label>Identifikátor (ID)</label><div class="id-box">${p.id}</div></div></div></div>`).join('');
+        let cardsHtml = players.map(p => `<div class="card"><div class="header">Průkaz Hráče</div><div class="content"><img class="qr" src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(p.id)}" /><div class="info"><label>Jméno a příjmení</label><div>${p.name}</div><label>Bydliště</label><div>${p.city || '-'}</div><label>Identifikátor (ID)</label><div class="id-box">${p.spz || p.id}</div></div></div></div>`).join('');
         return `<html><head><title>Tisk</title><style>body { font-family: 'Arial', sans-serif; margin: 0; padding: 20px; background: #fff; } .print-grid { display: grid; grid-template-columns: repeat(auto-fill, 85.6mm); gap: 10mm; justify-content: center; } .card { width: 85.6mm; height: 53.98mm; border: 2px dashed #a0aec0; border-radius: 12px; overflow: hidden; position: relative; box-sizing: border-box; page-break-inside: avoid; } .header { background: #1a365d; color: white; text-align: center; padding: 6px 0; font-size: 16px; font-weight: bold; text-transform: uppercase; } .content { display: flex; padding: 12px; align-items: center; } .qr { width: 80px; height: 80px; margin-right: 15px; } .info label { display: block; font-size: 10px; color: #718096; margin-top: 6px; text-transform: uppercase; } .info div { font-size: 15px; font-weight: bold; } .info .id-box { color: #c53030; font-family: monospace; font-size: 16px; } @media print { .card { border: 1px solid #e2e8f0; } }</style></head><body><div class="print-grid">${cardsHtml}</div><script>window.onload=function(){window.print(); setTimeout(function(){window.close();}, 500);}<\/script></body></html>`;
     }
-
-    window.printMyCard = function() { if(!myProfileData) return; const w = window.open('', '_blank'); w.document.write(generateMultipleCardsHTML([{id: myProfileData.player_id_card, name: myProfileData.full_name, city: myProfileData.city}])); w.document.close(); };
-
+    window.printMyCard = function() { if(!myProfileData) return; const w = window.open('', '_blank'); w.document.write(generateMultipleCardsHTML([{id: myProfileData.player_id_card, spz: formatSPZ(myProfileData.player_id_card), name: myProfileData.full_name, city: myProfileData.city}])); w.document.close(); };
     window.filterPrintList = function() { const term = document.getElementById('printSearchInput').value.toLowerCase(); document.querySelectorAll('#adminPrintList label').forEach(lbl => { lbl.style.display = lbl.innerText.toLowerCase().includes(term) ? 'flex' : 'none'; }); };
     
     window.adminPrintSelectedCards = function() {
         const cbs = document.querySelectorAll('.print-check:checked'); if(cbs.length === 0) { alert('Nevybrali jste hráče.'); return; }
-        let toPrint = []; cbs.forEach(cb => { toPrint.push({ id: cb.value, name: cb.dataset.name, city: cb.dataset.city }); });
+        let toPrint = []; cbs.forEach(cb => { toPrint.push({ id: cb.value, spz: formatSPZ(cb.value), name: cb.dataset.name, city: cb.dataset.city }); });
         const w = window.open('', '_blank'); w.document.write(generateMultipleCardsHTML(toPrint)); w.document.close();
         cbs.forEach(cb => cb.checked = false); if(document.getElementById('printSelectionCount')) document.getElementById('printSelectionCount').innerText = 0;
     };
-
     document.addEventListener('change', function(e) { if(e.target && e.target.classList.contains('print-check')) { if(document.getElementById('printSelectionCount')) document.getElementById('printSelectionCount').innerText = document.querySelectorAll('.print-check:checked').length; } });
 
     // ==========================================
@@ -1490,17 +1480,20 @@
         myRegs.forEach(reg => {
             const t = reg.tournaments; 
             let pName = reg.player_id_card === myProfileData.player_id_card ? 'VY' : (myFamily.find(f => f.player_id_card === reg.player_id_card)?.full_name + ' (Rodina)' || 'Cizí přihláška');
-            let payUI = reg.payment_status ? `<span class="badge" style="background:#38a169;">Uhrazeno</span>` : `<button class="btn-small" style="background:#2b6cb0;" onclick="toggleQR('qr_${reg.id}', '${t.fee}', '${reg.player_id_card}', '${t.title.replace(/'/g, "\\'")}')" title="Kód k platbě za turnaj ${t.title}">💳 Kód k platbě</button>`;
+            let payUI = reg.payment_status ? `<span class="badge" style="background:#38a169;">Uhrazeno</span>` : `<button class="btn-small" style="background:#2b6cb0;" onclick="toggleQR('qr_${reg.id}', '${t.fee}', '${reg.player_id_card}')">Kód k platbě</button>`;
             
             list.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:start; background:#fff; border:1px solid #e2e8f0;">
                 <h4 style="color:#2f855a;">${t.title}</h4>
                 <p>Hráč: ${pName} | Datum: ${formatDateTime(t.event_date)}</p>
                 <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; align-items:center;">
                     ${payUI}
-                    <button class="btn-small" style="background:#4a5568;" onclick="downloadCalendar('${t.title}', '${t.event_date}')">📅 Kalendář</button>
-                    <button class="btn-small btn-danger" onclick="cancelRegistration('${reg.id}')">❌ Zrušit</button>
+                    <button class="btn-small" style="background:#4a5568;" onclick="downloadCalendar('${t.title}', '${t.event_date}')">Kalendář</button>
+                    <button class="btn-small btn-danger" onclick="cancelRegistration('${reg.id}')">Zrušit</button>
                 </div>
-                <div id="qr_${reg.id}" class="qr-container" style="display:none; width:100%; text-align:center; margin-top: 15px;"></div>
+                <div id="qr_${reg.id}" class="qr-container" style="display:none; width:100%; text-align:center;">
+                    <p style="font-size:0.8rem;">Zápisné: ${t.fee} Kč | Značka: ${formatSPZ(reg.player_id_card)}</p>
+                    <img id="img_qr_${reg.id}">
+                </div>
             </div>`;
         });
     }
@@ -1564,41 +1557,21 @@
         } 
     };
 
-    window.toggleQR = function(cid, fee, vs, tournamentName) { 
+    window.toggleQR = function(cid, fee, vs) { 
         const c = document.getElementById(cid), i = document.getElementById('img_' + cid); 
-        
         if (c.style.display === 'block') {
             c.style.display = 'none'; 
         } else { 
             const cleanAccount = globalBankAccount.replace(/\s+/g, '');
             const cleanVS = String(vs).replace(/\D/g, '').substring(0, 10);
             const cleanFee = parseFloat(fee).toFixed(2);
-            const cleanMsg = (tournamentName || 'Turnaj').substring(0, 20);
             
-            // Ověřování IBAN
             if (!cleanAccount.toUpperCase().startsWith('CZ')) {
                 alert('CHYBA FAKTURACE: Bankovní účet asociace ("' + cleanAccount + '") není ve správném formátu IBAN. Požádejte předsedu o nápravu v Administraci systému.');
                 return;
             }
             
-            // Generování QR kódu se všemi parametry
-            const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`SPD*1.0*ACC:${cleanAccount}*AM:${cleanFee}*CC:CZK*X-VS:${cleanVS}*X-MSG:${cleanMsg}`)}`;
-            
-            // Příprava informačního textu pod QR kódem
-            const bankInfo = `
-                <div style="text-align: center; margin-top: 15px; padding: 12px; background: #f7fafc; border-radius: 8px; border: 1px solid #cbd5e0;">
-                    <img src="${qrSrc}" style="width: 200px; height: 200px; margin-bottom: 15px;">
-                    <p style="margin: 5px 0; font-size: 0.85rem; color: #2d3748;"><strong>Platební údaje:</strong></p>
-                    <p style="margin: 5px 0; font-size: 0.9rem; font-family: monospace; color: var(--primary);"><strong>Účet:</strong> ${cleanAccount}</p>
-                    <p style="margin: 5px 0; font-size: 0.9rem; font-family: monospace;"><strong>Částka:</strong> ${cleanFee} CZK</p>
-                    <p style="margin: 5px 0; font-size: 0.9rem; font-family: monospace;"><strong>VS (Vaše číslo):</strong> ${cleanVS}</p>
-                    <p style="margin: 5px 0; font-size: 0.9rem; font-family: monospace;"><strong>Zpráva:</strong> ${cleanMsg}</p>
-                    <hr style="margin: 10px 0; border: none; border-top: 1px solid #cbd5e0;">
-                    <p style="margin: 5px 0; font-size: 0.8rem; color: #718096;"><em>Zadejte údaje v bankovní aplikaci nebo naskenujte QR kód výše.</em></p>
-                </div>
-            `;
-            
-            c.innerHTML = bankInfo;
+            i.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`SPD*1.0*ACC:${cleanAccount}*AM:${cleanFee}*CC:CZK*X-VS:${cleanVS}`)}`; 
             c.style.display = 'block'; 
         } 
     };
@@ -1636,7 +1609,6 @@
         }, msToNextHour);
     }
     scheduleBankCheck();
-
     // ==========================================
     // --- 7. STATISTIKY A KOMENTÁŘE ---
     // ==========================================
@@ -2141,7 +2113,7 @@
         if(redZone) redZone.innerHTML = ''; 
         if(blueZone) blueZone.innerHTML = ''; 
         if(debateList) debateList.innerHTML = '';
-
+        
         let pMap = {}; 
         try { const { data } = await db.from('profiles').select('id, full_name'); data?.forEach(p => pMap[p.id] = p.full_name); } catch(e) {}
         
@@ -2233,6 +2205,7 @@
     // --- 10. ADMINISTRACE A NEWSLETTER ---
     // ==========================================
     
+    // NOVÉ: Modal pro zobrazení online uživatelů
     window.showOnlineUsersModal = function() {
         const list = document.getElementById('onlineUsersList');
         list.innerHTML = '';
@@ -2440,6 +2413,7 @@
         }
     };
 
+    // NOVÉ: Vyhledávání uživatelů
     window.filterAdminUsers = function() {
         const term = document.getElementById('adminUserSearch').value.toLowerCase();
         document.querySelectorAll('.admin-user-row').forEach(row => {
@@ -2458,7 +2432,7 @@
             profiles.forEach(user => {
                 let roleSelect = user.role === 'superadmin' ? 'Super Admin' : `<select id="role_sel_${user.id}" style="margin:0;">${availableRoles.map(k => `<option value="${k}" ${user.role === k ? 'selected' : ''}>${roleNames[k]}</option>`).join('')}</select>`;
                 let actionBtn = user.role !== 'superadmin' ? `<button class="btn-small btn-green" onclick="changeUserRole('${user.id}','${user.full_name}')">Uložit</button>` : '';
-                usersHtml += `<tr class="admin-user-row"><td>${user.full_name || 'Nekompletní'} (${user.player_id_card || '-'})</td><td>${roleSelect}</td><td style="display:flex;gap:5px;"><button class="btn-small btn-blue" onclick="viewUserDetail('${user.id}')">Náhled</button>${actionBtn}</td></tr>`;
+                usersHtml += `<tr class="admin-user-row"><td>${user.full_name || 'Nekompletní'} (${formatSPZ(user.player_id_card) || '-'})</td><td>${roleSelect}</td><td style="display:flex;gap:5px;"><button class="btn-small btn-blue" onclick="viewUserDetail('${user.id}')">Náhled</button>${actionBtn}</td></tr>`;
             });
             document.getElementById('adminUsersList').innerHTML = usersHtml + '</table>';
         }
@@ -2467,7 +2441,7 @@
             const { data: dbPlayers } = await db.from('player_database').select('*').order('full_name');
             if (dbPlayers) { 
                 document.getElementById('totalDbPlayersCount').innerText = dbPlayers.length; 
-                document.getElementById('adminPrintList').innerHTML = dbPlayers.map(c => `<label class="print-item"><input type="checkbox" class="print-check" value="${c.player_id_card}" data-name="${c.full_name}" data-city="${c.city||''}">${c.full_name} — ${c.city||'Město neznámé'} (${c.player_id_card})</label>`).join(''); 
+                document.getElementById('adminPrintList').innerHTML = dbPlayers.map(c => `<label class="print-item"><input type="checkbox" class="print-check" value="${c.player_id_card}" data-name="${c.full_name}" data-city="${c.city||''}">${c.full_name} — ${c.city||'Město neznámé'} (${formatSPZ(c.player_id_card)})</label>`).join(''); 
             }
             loadAssets();
             loadApiKeys();
@@ -2641,7 +2615,7 @@
         const { data: u } = await db.from('profiles').select('*').eq('id', uid).single(); let r = [];
         if(u?.player_id_card) { const { data } = await db.from('registrations').select('*, tournaments(*)').eq('player_id_card', u.player_id_card); r = data || []; }
         document.getElementById('detailName').innerText = u.full_name || 'Nekompletní profil';
-        document.getElementById('detailContent').innerHTML = `<div><p><b>Značka (ID):</b> ${u.player_id_card||'-'}</p><p><b>E-mail:</b> ${u.email||'-'}</p><p><b>Město:</b> ${u.city||'-'}</p><p><b>Telefon:</b> ${u.phone||'-'}</p></div><div><b>Aktuální přihlášky na turnaje:</b><br>${r.length > 0 ? r.map(reg => `<li>${reg.tournaments.title}</li>`).join('') : 'Žádné přihlášky.'}</div>`;
+        document.getElementById('detailContent').innerHTML = `<div><p><b>Značka (ID):</b> ${formatSPZ(u.player_id_card)||'-'}</p><p><b>E-mail:</b> ${u.email||'-'}</p><p><b>Město:</b> ${u.city||'-'}</p><p><b>Telefon:</b> ${u.phone||'-'}</p></div><div><b>Aktuální přihlášky na turnaje:</b><br>${r.length > 0 ? r.map(reg => `<li>${reg.tournaments.title}</li>`).join('') : 'Žádné přihlášky.'}</div>`;
         document.getElementById('userDetailModal').style.display = 'block';
     };
     
@@ -2777,7 +2751,64 @@
     };
 
     // ==========================================
-    // --- 12. REPORTY Z TURNAJŮ A EDITOR ---
+    // --- 12. KONTROLA BANKY A ČISTKA (72H) ---
+    // ==========================================
+    
+    window.toggleQR = function(cid, fee, vs) { 
+        const c = document.getElementById(cid), i = document.getElementById('img_' + cid); 
+        if (c.style.display === 'block') {
+            c.style.display = 'none'; 
+        } else { 
+            const cleanAccount = globalBankAccount.replace(/\s+/g, '');
+            const cleanVS = String(vs).replace(/\D/g, '').substring(0, 10);
+            const cleanFee = parseFloat(fee).toFixed(2);
+            
+            if (!cleanAccount.toUpperCase().startsWith('CZ')) {
+                alert('CHYBA FAKTURACE: Bankovní účet asociace ("' + cleanAccount + '") není ve správném formátu IBAN. Požádejte předsedu o nápravu v Administraci systému.');
+                return;
+            }
+            
+            i.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`SPD*1.0*ACC:${cleanAccount}*AM:${cleanFee}*CC:CZK*X-VS:${cleanVS}`)}`; 
+            c.style.display = 'block'; 
+        } 
+    };
+
+    async function checkBankPayments() { 
+        if (!globalFioToken) return; 
+        console.log("Kontrola banky a kapacity turnajů běží na pozadí..."); 
+        try {
+            const timeLimit = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
+            const { data: oldRegs } = await db.from('registrations')
+                .select('id, player_id_card, tournaments(title)')
+                .eq('payment_status', false)
+                .lt('created_at', timeLimit);
+                
+            if(oldRegs && oldRegs.length > 0) {
+                for(let r of oldRegs) {
+                    await db.from('registrations').delete().eq('id', r.id);
+                    const { data: p } = await db.from('profiles').select('email').eq('player_id_card', r.player_id_card).maybeSingle();
+                    if(p && p.email && p.email.includes('@')) {
+                        const cancelMsg = `Dobrý den,\n\nVaše registrace na turnaj "${r.tournaments?.title || ''}" byla automaticky zrušena. Do 72 hodin jsme neobdrželi platbu startovného a Vaše místo tak muselo být uvolněno dalším zájemcům.\n\nPokud se chcete turnaje přesto zúčastnit, proveďte prosím novou registraci na webu a platbu obratem uhradte.\n\nDěkujeme za pochopení,\nČeská asociace v karetní hře prší z.s.`;
+                        sendEmailNotification("Storno registrace pro nezaplacení", cancelMsg, [p.email]);
+                    }
+                }
+                if (document.getElementById('tournaments').classList.contains('active')) loadPublicTournaments();
+            }
+        } catch(e) { console.error('Auto purge error:', e); }
+    }
+    
+    function scheduleBankCheck() {
+        const now = new Date();
+        const msToNextHour = (60 - now.getMinutes()) * 60000 - (now.getSeconds() * 1000) - now.getMilliseconds();
+        setTimeout(function() {
+            checkBankPayments();
+            setInterval(checkBankPayments, 3600000); 
+        }, msToNextHour);
+    }
+    scheduleBankCheck();
+
+    // ==========================================
+    // --- 13. REPORTY Z TURNAJŮ A EDITOR ---
     // ==========================================
     let allReports = [];
     let allReportImages = [];
@@ -3058,7 +3089,5 @@
     };
 
 </script>
-
 </body>
 </html>
-```
