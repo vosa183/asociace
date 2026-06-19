@@ -46,7 +46,7 @@
         
         .sponsor-info { padding: 1.5rem; flex-grow: 1; display: flex; flex-direction: column; }
         .sponsor-name { color: var(--primary); font-size: 1.4rem; font-weight: 900; margin-bottom: 0.5rem; }
-        .sponsor-desc { color: #4a5568; font-size: 0.95rem; line-height: 1.5; }
+        .sponsor-desc { color: #4a5568; font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; }
 
         .btn-delete { position: absolute; top: 10px; right: 10px; background: rgba(229, 62, 62, 0.9); color: white; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-weight: bold; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; transition: 0.2s; z-index: 10; }
         .btn-delete:hover { background: #c53030; transform: scale(1.1); }
@@ -62,6 +62,7 @@
         
         button.btn-submit { background: var(--green); color: white; border: none; padding: 1rem 2rem; border-radius: 6px; font-weight: bold; font-size: 1.1rem; cursor: pointer; width: 100%; transition: 0.2s; }
         button.btn-submit:hover { background: #236838; }
+        button:disabled { opacity: 0.7; cursor: not-allowed; }
 
         .msg { margin-top: 1rem; font-weight: bold; padding: 1rem; border-radius: 6px; display: none; text-align: center; }
         .loading { text-align: center; font-size: 1.2rem; color: #a0aec0; padding: 3rem; font-weight: bold; }
@@ -130,11 +131,10 @@
         const { data: { user } } = await db.auth.getUser();
         
         if (user) {
-            // Zjistíme, jestli má uživatel roli ZC nebo ZCP nebo Superadmin
             const { data: prof } = await db.from('profiles').select('role').eq('id', user.id).maybeSingle();
             if (prof && ['zc', 'zcp', 'superadmin'].includes(prof.role)) {
                 isZcAdmin = true;
-                document.getElementById('adminZone').style.display = 'block'; // Odkryje formulář
+                document.getElementById('adminZone').style.display = 'block';
             }
         }
         
@@ -144,10 +144,11 @@
     // 2. Načtení a vykreslení sponzorů
     async function loadSponsors() {
         const container = document.getElementById('sponsorsContainer');
-        const { data: sponsors, error } = await db.from('sponsors').select('*').order('created_at', { ascending: true });
+        // ZMĚNA: Dotaz směřuje na tabulku sponzori
+        const { data: sponsors, error } = await db.from('sponzori').select('*').order('created_at', { ascending: true });
 
         if (error) {
-            container.innerHTML = `<div class="loading" style="color:#c53030;">Chyba načítání: ${error.message}</div>`;
+            container.innerHTML = `<div class="loading" style="color:#c53030;">Chyba načítání z databáze: ${error.message}</div>`;
             return;
         }
 
@@ -158,7 +159,6 @@
 
         let html = '';
         sponsors.forEach(sp => {
-            // Pokud je přihlášený ZČ, přidáme křížek pro smazání
             let deleteBtn = isZcAdmin 
                 ? `<button class="btn-delete" onclick="deleteSponsor('${sp.id}', '${sp.name.replace(/'/g, "\\'")}')" title="Smazat sponzora">×</button>` 
                 : '';
@@ -202,22 +202,21 @@
         msgBox.innerText = 'Nahrávám logo do cloudu...';
 
         try {
-            // A. Nahrání fotky do Storage
             const safeName = `logo_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
             const { error: uploadError } = await db.storage.from('sponzori').upload(safeName, file, {
                 cacheControl: '3600',
                 upsert: false
             });
 
-            if (uploadError) throw new Error("Chyba při nahrávání obrázku. Zkontrolujte, zda jste v Supabase vytvořili Storage bucket 'sponzori'. Detail: " + uploadError.message);
+            if (uploadError) throw new Error("Chyba při nahrávání obrázku. Detail: " + uploadError.message);
 
-            // B. Získání veřejné URL
             const { data: urlData } = db.storage.from('sponzori').getPublicUrl(safeName);
             const publicUrl = urlData.publicUrl;
 
-            // C. Uložení do databáze
             msgBox.innerText = 'Ukládám informace do databáze...';
-            const { error: dbError } = await db.from('sponsors').insert({
+            
+            // ZMĚNA: Ukládání do tabulky sponzori
+            const { error: dbError } = await db.from('sponzori').insert({
                 name: name,
                 description: desc,
                 logo_url: publicUrl
@@ -225,16 +224,14 @@
 
             if (dbError) throw new Error("Chyba databáze: " + dbError.message);
 
-            // Úspěch
             msgBox.className = 'msg success';
             msgBox.style.backgroundColor = '#c6f6d5';
             msgBox.style.color = '#2f855a';
             msgBox.innerText = 'Sponzor úspěšně přidán!';
             
             document.getElementById('addSponsorForm').reset();
-            loadSponsors(); // Okamžitě obnoví výpis
+            loadSponsors();
 
-            // Skrytí hlášky po 3 vteřinách
             setTimeout(() => { msgBox.style.display = 'none'; }, 3000);
 
         } catch (error) {
@@ -251,18 +248,17 @@
     // 4. Smazání sponzora
     window.deleteSponsor = async function(id, name) {
         if(confirm(`Opravdu chcete trvale odstranit sponzora "${name}" z webu?`)) {
-            const { error } = await db.from('sponsors').delete().eq('id', id);
+            // ZMĚNA: Mazání z tabulky sponzori
+            const { error } = await db.from('sponzori').delete().eq('id', id);
             if (error) {
                 alert("Chyba při mazání: " + error.message);
             } else {
-                loadSponsors(); // Obnoví výpis
+                loadSponsors();
             }
         }
     };
 
-    // Spuštění
     window.onload = initPage;
-
 </script>
 </body>
 </html>
