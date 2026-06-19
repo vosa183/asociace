@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sponzoři a partneři | Česká asociace prší</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="font.js"></script>
+    
+    <style>
+        :root { 
+            --primary: #1a365d; 
+            --secondary: #c53030; 
+            --bg: #f4f7f6; 
+            --text: #2d3748; 
+            --white: #ffffff; 
+            --gray: #e2e8f0; 
+            --blue: #3182ce;   
+            --green: #2f855a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg); color: var(--text); line-height: 1.6; display: flex; flex-direction: column; min-height: 100vh; }
+        
+        header { background: var(--white); padding: 1rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+        .logo-container { display: flex; align-items: center; gap: 1rem; text-decoration: none; }
+        .logo-container img { height: 50px; }
+        .logo-container h1 { font-size: 1.2rem; color: var(--primary); text-transform: uppercase; margin: 0; }
+        nav a { text-decoration: none; color: var(--white); background: var(--primary); font-weight: 600; padding: 0.6rem 1.2rem; border-radius: 6px; transition: 0.2s; display: inline-block; cursor: pointer; }
+        nav a:hover { background: var(--secondary); }
+
+        main { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; flex-grow: 1; width: 100%; }
+        
+        .page-header { text-align: center; margin-bottom: 3rem; }
+        .page-header h2 { color: var(--primary); font-size: 2.5rem; margin-bottom: 0.5rem; border-bottom: 3px solid var(--secondary); display: inline-block; padding-bottom: 0.5rem; }
+        .page-header p { color: #718096; font-size: 1.1rem; max-width: 700px; margin: 1rem auto 0; }
+
+        /* Mřížka sponzorů */
+        .sponsors-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 2rem; }
+        .sponsor-card { background: var(--white); border-radius: 12px; overflow: hidden; box-shadow: 0 6px 15px rgba(0,0,0,0.04); border: 1px solid var(--gray); display: flex; flex-direction: column; transition: transform 0.2s; position: relative; }
+        .sponsor-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
+        
+        .sponsor-logo-box { height: 200px; padding: 1.5rem; background: #fff; display: flex; justify-content: center; align-items: center; border-bottom: 1px solid var(--gray); }
+        .sponsor-logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        
+        .sponsor-info { padding: 1.5rem; flex-grow: 1; display: flex; flex-direction: column; }
+        .sponsor-name { color: var(--primary); font-size: 1.4rem; font-weight: 900; margin-bottom: 0.5rem; }
+        .sponsor-desc { color: #4a5568; font-size: 0.95rem; line-height: 1.5; }
+
+        .btn-delete { position: absolute; top: 10px; right: 10px; background: rgba(229, 62, 62, 0.9); color: white; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-weight: bold; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; transition: 0.2s; z-index: 10; }
+        .btn-delete:hover { background: #c53030; transform: scale(1.1); }
+
+        /* Administrace */
+        .admin-zone { display: none; background: #ebf8ff; border: 2px solid var(--blue); padding: 2rem; border-radius: 12px; margin-bottom: 3rem; }
+        .admin-zone h3 { color: var(--blue); margin-bottom: 1.5rem; font-size: 1.3rem; border-bottom: 1px solid #90cdf4; padding-bottom: 0.5rem; }
+        
+        .form-group { margin-bottom: 1.2rem; }
+        label { display: block; font-weight: bold; margin-bottom: 0.4rem; color: var(--primary); font-size: 0.9rem; }
+        input[type="text"], textarea, input[type="file"] { width: 100%; padding: 0.8rem; border-radius: 6px; border: 1px solid #cbd5e0; font-family: inherit; font-size: 1rem; }
+        input[type="text"]:focus, textarea:focus { outline: none; border-color: var(--blue); }
+        
+        button.btn-submit { background: var(--green); color: white; border: none; padding: 1rem 2rem; border-radius: 6px; font-weight: bold; font-size: 1.1rem; cursor: pointer; width: 100%; transition: 0.2s; }
+        button.btn-submit:hover { background: #236838; }
+
+        .msg { margin-top: 1rem; font-weight: bold; padding: 1rem; border-radius: 6px; display: none; text-align: center; }
+        .loading { text-align: center; font-size: 1.2rem; color: #a0aec0; padding: 3rem; font-weight: bold; }
+
+        footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); background: var(--white); margin-top: auto; }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="index.html" class="logo-container">
+        <img src="logo.png" alt="Logo" onerror="this.style.display='none';">
+        <h1>Česká asociace v karetní hře prší</h1>
+    </a>
+    <nav>
+        <a href="index.html">← Zpět na hlavní web</a>
+    </nav>
+</header>
+
+<main>
+    <div class="page-header">
+        <h2>Naši Sponzoři a Partneři</h2>
+        <p>Děkujeme všem společnostem a jednotlivcům, kteří podporují Českou asociaci v karetní hře prší a pomáhají nám udržovat tuto národní tradici na profesionální úrovni.</p>
+    </div>
+
+    <div id="adminZone" class="admin-zone">
+        <h3>⚙️ Administrace: Přidat nového sponzora</h3>
+        <form id="addSponsorForm">
+            <div class="form-group">
+                <label>Název sponzora / společnosti</label>
+                <input type="text" id="spName" required placeholder="Např. Pivovar Svijany">
+            </div>
+            <div class="form-group">
+                <label>Krátký textový popis</label>
+                <textarea id="spDesc" rows="3" required placeholder="Napište pár slov o sponzorovi a jeho podpoře..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Logo sponzora (Ideálně formát PNG s průhledným pozadím nebo JPG)</label>
+                <input type="file" id="spLogo" accept="image/png, image/jpeg, image/webp" required style="background: white;">
+            </div>
+            <button type="submit" class="btn-submit" id="submitBtn">Nahrát a zveřejnit sponzora</button>
+            <div id="uploadMsg" class="msg"></div>
+        </form>
+    </div>
+
+    <div id="sponsorsContainer" class="sponsors-grid">
+        <div class="loading">Načítám seznam partnerů...</div>
+    </div>
+</main>
+
+<footer>
+    <p><strong>Česká asociace v karetní hře prší z.s.</strong><br>
+    Sídlo: Kurzova 2222/16, Stodůlky, 155 00 Praha 5 | IČO: 29650186</p>
+</footer>
+
+<script>
+    // Inicializace Supabase
+    const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
+    const db = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+    let isZcAdmin = false;
+
+    // 1. Ověření uživatele při načtení
+    async function initPage() {
+        const { data: { user } } = await db.auth.getUser();
+        
+        if (user) {
+            // Zjistíme, jestli má uživatel roli ZC nebo ZCP nebo Superadmin
+            const { data: prof } = await db.from('profiles').select('role').eq('id', user.id).maybeSingle();
+            if (prof && ['zc', 'zcp', 'superadmin'].includes(prof.role)) {
+                isZcAdmin = true;
+                document.getElementById('adminZone').style.display = 'block'; // Odkryje formulář
+            }
+        }
+        
+        loadSponsors();
+    }
+
+    // 2. Načtení a vykreslení sponzorů
+    async function loadSponsors() {
+        const container = document.getElementById('sponsorsContainer');
+        const { data: sponsors, error } = await db.from('sponsors').select('*').order('created_at', { ascending: true });
+
+        if (error) {
+            container.innerHTML = `<div class="loading" style="color:#c53030;">Chyba načítání: ${error.message}</div>`;
+            return;
+        }
+
+        if (!sponsors || sponsors.length === 0) {
+            container.innerHTML = '<div class="loading">Zatím neevidujeme žádné partnery.</div>';
+            return;
+        }
+
+        let html = '';
+        sponsors.forEach(sp => {
+            // Pokud je přihlášený ZČ, přidáme křížek pro smazání
+            let deleteBtn = isZcAdmin 
+                ? `<button class="btn-delete" onclick="deleteSponsor('${sp.id}', '${sp.name.replace(/'/g, "\\'")}')" title="Smazat sponzora">×</button>` 
+                : '';
+
+            html += `
+                <div class="sponsor-card">
+                    ${deleteBtn}
+                    <div class="sponsor-logo-box">
+                        <img src="${sp.logo_url}" alt="Logo ${sp.name}">
+                    </div>
+                    <div class="sponsor-info">
+                        <div class="sponsor-name">${sp.name}</div>
+                        <div class="sponsor-desc">${sp.description.replace(/\n/g, '<br>')}</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    // 3. Přidání nového sponzora
+    document.getElementById('addSponsorForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const name = document.getElementById('spName').value.trim();
+        const desc = document.getElementById('spDesc').value.trim();
+        const fileInput = document.getElementById('spLogo');
+        const file = fileInput.files[0];
+        
+        const btn = document.getElementById('submitBtn');
+        const msgBox = document.getElementById('uploadMsg');
+
+        if (!file) {
+            alert("Vyberte prosím logo sponzora!"); return;
+        }
+
+        btn.disabled = true;
+        msgBox.className = 'msg';
+        msgBox.style.display = 'block';
+        msgBox.innerText = 'Nahrávám logo do cloudu...';
+
+        try {
+            // A. Nahrání fotky do Storage
+            const safeName = `logo_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+            const { error: uploadError } = await db.storage.from('sponzori').upload(safeName, file, {
+                cacheControl: '3600',
+                upsert: false
+            });
+
+            if (uploadError) throw new Error("Chyba při nahrávání obrázku. Zkontrolujte, zda jste v Supabase vytvořili Storage bucket 'sponzori'. Detail: " + uploadError.message);
+
+            // B. Získání veřejné URL
+            const { data: urlData } = db.storage.from('sponzori').getPublicUrl(safeName);
+            const publicUrl = urlData.publicUrl;
+
+            // C. Uložení do databáze
+            msgBox.innerText = 'Ukládám informace do databáze...';
+            const { error: dbError } = await db.from('sponsors').insert({
+                name: name,
+                description: desc,
+                logo_url: publicUrl
+            });
+
+            if (dbError) throw new Error("Chyba databáze: " + dbError.message);
+
+            // Úspěch
+            msgBox.className = 'msg success';
+            msgBox.style.backgroundColor = '#c6f6d5';
+            msgBox.style.color = '#2f855a';
+            msgBox.innerText = 'Sponzor úspěšně přidán!';
+            
+            document.getElementById('addSponsorForm').reset();
+            loadSponsors(); // Okamžitě obnoví výpis
+
+            // Skrytí hlášky po 3 vteřinách
+            setTimeout(() => { msgBox.style.display = 'none'; }, 3000);
+
+        } catch (error) {
+            console.error(error);
+            msgBox.className = 'msg error';
+            msgBox.style.backgroundColor = '#fed7d7';
+            msgBox.style.color = '#c53030';
+            msgBox.innerText = error.message;
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    // 4. Smazání sponzora
+    window.deleteSponsor = async function(id, name) {
+        if(confirm(`Opravdu chcete trvale odstranit sponzora "${name}" z webu?`)) {
+            const { error } = await db.from('sponsors').delete().eq('id', id);
+            if (error) {
+                alert("Chyba při mazání: " + error.message);
+            } else {
+                loadSponsors(); // Obnoví výpis
+            }
+        }
+    };
+
+    // Spuštění
+    window.onload = initPage;
+
+</script>
+</body>
+</html>
