@@ -1,14 +1,12 @@
 export default async function handler(req, res) {
-    // Bezpečnostní klíč, aby skript nespouštěl někdo cizí
-    const secretKey = 'asociace2026';
-    if (req.query.key !== secretKey) {
+    if (req.query.key !== 'asociace2026') {
         return res.status(401).send("Neoprávněný přístup.");
     }
 
     const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
 
-    // Pomocná funkce pro Supabase (místo cURL v PHP)
+    // Pomocná funkce pro Supabase
     async function supabaseRequest(method, endpoint, body = null) {
         const options = {
             method,
@@ -24,20 +22,27 @@ export default async function handler(req, res) {
         return r.json();
     }
 
-    // Pomocná funkce pro odeslání mailu přes tvé API
+    // Pomocná funkce pro e-maily
     async function sendMailAPI(to, subject, message) {
-        await fetch('https://www.asociaceprsi.cz/api/mail', { 
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ to, subject, message })
-        });
+        try {
+            await fetch('https://www.asociaceprsi.cz/api/mail', { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ to, subject, message })
+            });
+        } catch (e) {
+            console.error("Chyba odesílání mailu:", e.message);
+        }
     }
 
     try {
-        // 1. Zjistíme Fio token
-        const settings = await supabaseRequest('GET', 'system_settings?id=eq.1&select=fio_token');
+        // 1. ZÍSKÁNÍ TOKENU Z TVÉ REÁLNÉ TABULKY (system_setings s jedním t)
+        const settings = await supabaseRequest('GET', 'system_setings?id=eq.1&select=fio_token');
         const fioToken = settings && settings[0] ? settings[0].fio_token : null;
-        if (!fioToken) throw new Error("Fio token nenalezen.");
+        
+        if (!fioToken) {
+            throw new Error("Fio token nebyl v tabulce system_setings nalezen.");
+        }
 
         // 2. Stažení dat z banky
         const toDate = new Date().toISOString().split('T')[0];
@@ -45,23 +50,32 @@ export default async function handler(req, res) {
         fromDateObj.setDate(fromDateObj.getDate() - 14);
         const fromDate = fromDateObj.toISOString().split('T')[0];
         
-        const fioUrl = `https://www.fio.cz/ib_api/rest/periods/${encodeURIComponent(fioToken.trim())}/${fromDate}/${toDate}/transactions.json`;
-        const fioRes = await fetch(fioUrl);
+        const cleanToken = fioToken.trim();
+        const fioUrl = `https://fioapi.fio.cz/v1/rest/periods/${encodeURIComponent(cleanToken)}/${fromDate}/${toDate}/transactions.json`;
+        
+        const fioRes = await fetch(fioUrl, { method: 'GET', headers: { 'Accept': 'application/json' }});
+
+        if (!fioRes.ok) {
+            throw new Error(`Fio API vrátilo chybu HTTP ${fioRes.status}. (Pravděpodobně porušeno pravidlo 30 sekund)`);
+        }
+
         const fioData = await fioRes.json();
         const transactions = fioData?.accountStatement?.transactionList?.transaction || [];
 
-        // 3. Načtení registrací a profilů
+        // 3. Načtení dat ze Supabase
         const regs = await supabaseRequest('GET', 'registrations?payment_status=eq.false&select=*,tournaments(title)');
+        if (!Array.isArray(regs)) throw new Error("Chyba čtení registrací z databáze.");
+        
         const profiles = await supabaseRequest('GET', 'profiles?select=player_id_card,email');
-
         const emailMap = {};
         if (Array.isArray(profiles)) {
             profiles.forEach(p => { if (p.email) emailMap[p.player_id_card] = p.email; });
         }
 
+        let matchedCount = 0;
         const matchedRegIds = [];
 
-        // 4. Automatické párování
+        // 4. Párování plateb
         for (let t of transactions) {
             const castka = t.column1 ? parseFloat(t.column1.value) : 0;
             const vs = t.column5 ? String(t.column5.value).trim() : null;
@@ -69,11 +83,10 @@ export default async function handler(req, res) {
             if (castka > 0 && vs) {
                 for (let reg of regs) {
                     if (reg.player_id_card === vs && !matchedRegIds.includes(reg.id)) {
-                        // Aktualizace v databázi
                         await supabaseRequest('PATCH', `registrations?id=eq.${reg.id}`, { payment_status: true });
                         matchedRegIds.push(reg.id);
+                        matchedCount++;
                         
-                        // Odeslání mailu o platbě
                         const email = emailMap[vs];
                         if (email) {
                             const tTitle = reg.tournaments?.title || 'Turnaj';
@@ -86,7 +99,7 @@ export default async function handler(req, res) {
             }
         }
 
-        // 5. Hlídání času (varování 48h a smazání 72h)
+        // 5. Hlídání času (varování po 48h a smazání po 72h)
         const unpaidRegs = regs.filter(r => !matchedRegIds.includes(r.id));
         const now = Date.now();
         const limit48h = now - (48 * 60 * 60 * 1000);
@@ -99,14 +112,12 @@ export default async function handler(req, res) {
             const tTitle = reg.tournaments?.title || 'Turnaj';
 
             if (regTime < limit72h) {
-                // SMAZAT A POSLAT STORNO
                 await supabaseRequest('DELETE', `registrations?id=eq.${reg.id}`);
                 if (email) {
-                    const cancelMsg = `Dobrý den,\n\nVaše registrace na turnaj "${tTitle}" byla automaticky zrušena.\n\nDo 72 hodin jsme neobdrželi platbu startovného a Vaše místo tak muselo být uvolněno dalším zájemcům.\n\nPokud se chcete turnaje přesto zúčastnit, proveďte prosím novou registraci na webu a platbu obratem uhradte.\n\nDěkujeme za pochopení,\nČeská asociace v karetní hře prší z.s.`;
+                    const cancelMsg = `Dobrý den,\n\nVaše registrace na turnaj "${tTitle}" byla automaticky zrušena.\n\nDo 72 hodin jsme neobdrželi platbu startovného a Vaše místo tak muselo být uvolněno dalším zájemcům.\n\nPokud se chcete turnaje přesto zúčastnit, proveďte prosím novou registraci na webu a platbu obratem uhradte.\n\nDěkujeme za pohopení,\nČeská asociace v karetní hře prší z.s.`;
                     await sendMailAPI(email, `Storno registrace pro nezaplacení - ${tTitle}`, cancelMsg);
                 }
             } else if (regTime < limit48h && !reg.warning_sent) {
-                // POSLAT VAROVÁNÍ
                 await supabaseRequest('PATCH', `registrations?id=eq.${reg.id}`, { warning_sent: true });
                 if (email) {
                     const warnMsg = `Dobrý den,\n\nblíží se termín splatnosti Vašeho startovného na turnaj "${tTitle}".\n\nPokud nedojde k úhradě a spárování platby do 24 hodin, bude Vaše registrace systémem automaticky zrušena a místo přenecháno dalším zájemcům.\n\nPlatební údaje a rychlý QR kód k platbě naleznete po přihlášení na webu asociace v sekci Turnaje.\n\nDěkujeme za pochopení,\nČeská asociace v karetní hře prší z.s.`;
@@ -115,8 +126,9 @@ export default async function handler(req, res) {
             }
         }
 
-        return res.status(200).send(`ÚDRŽBA DOKONČENA. Spárováno plateb: ${matchedRegIds.length}`);
+        return res.status(200).send(`ÚDRŽBA DOKONČENA. Spárováno nových plateb: ${matchedCount}`);
     } catch (e) {
-        return res.status(500).send(`CHYBA: ${e.message}`);
+        console.error("Chyba automatu:", e);
+        return res.status(500).send(`CHYBA AUTOMATU: ${e.message}`);
     }
 }
