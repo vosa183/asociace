@@ -37,7 +37,7 @@ export default async function handler(req, res) {
     }
 
     try {
-        // 1. ZÍSKÁNÍ TOKENU ZE SPRÁVNÉ TABULKY (system_settings se dvěma t)
+        // 1. ZÍSKÁNÍ TOKENU ZE SPRÁVNÉ TABULKY
         const settings = await supabaseRequest('GET', 'system_settings?id=eq.1&select=fio_token');
         const fioToken = settings && settings[0] ? settings[0].fio_token : null;
         
@@ -76,18 +76,20 @@ export default async function handler(req, res) {
         let matchedCount = 0;
         const matchedRegIds = [];
 
-        // 4. CHYTRÉ PÁROVÁNÍ PLATEB (VS i Zpráva, nezávisle na velkých/malých písmenech)
+        // 4. PŘÍSNÉ PÁROVÁNÍ (VS = ID A Zpráva obsahuje název turnaje)
         for (let t of transactions) {
             const castka = t.column1 ? parseFloat(t.column1.value) : 0;
             const vs = t.column5 ? String(t.column5.value).trim().toLowerCase() : '';
             const zprava = t.column16 ? String(t.column16.value).trim().toLowerCase() : '';
 
-            if (castka > 0 && (vs !== '' || zprava !== '')) {
+            // Obě pole (VS i zpráva) musí být v bance vyplněna
+            if (castka > 0 && vs !== '' && zprava !== '') {
                 for (let reg of regs) {
                     const hracId = String(reg.player_id_card).trim().toLowerCase();
+                    const nazevTurnaje = String(reg.tournaments?.title || '').trim().toLowerCase();
 
-                    // Pokud se VS shoduje s ID NEBO zpráva obsahuje ID hráče
-                    if ((vs === hracId || zprava.includes(hracId)) && !matchedRegIds.includes(reg.id)) {
+                    // BEZPODMÍNEČNÁ KONTROLA
+                    if (vs === hracId && zprava.includes(nazevTurnaje) && !matchedRegIds.includes(reg.id)) {
                         
                         // Zápis zaplacení do databáze
                         await supabaseRequest('PATCH', `registrations?id=eq.${reg.id}`, { payment_status: true });
@@ -101,7 +103,7 @@ export default async function handler(req, res) {
                             const msg = `Dobrý den,\n\npotvrzujeme, že Vaše platba za turnaj "${tTitle}" byla úspěšně zpracována a spárována.\n\nTěšíme se na Vás u stolu!\nČeská asociace v karetní hře prší z.s.`;
                             await sendMailAPI(email, `Potvrzení přijetí platby - ${tTitle}`, msg);
                         }
-                        break; // Spárováno, přesuneme se na další bankovní transakci
+                        break; 
                     }
                 }
             }
