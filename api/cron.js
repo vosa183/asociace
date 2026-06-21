@@ -37,12 +37,12 @@ export default async function handler(req, res) {
     }
 
     try {
-        // 1. ZÍSKÁNÍ TOKENU Z TABULKY (správný název: system_setings)
-        const settings = await supabaseRequest('GET', 'system_setings?id=eq.1&select=fio_token');
+        // 1. ZÍSKÁNÍ TOKENU ZE SPRÁVNÉ TABULKY (system_settings se dvěma t)
+        const settings = await supabaseRequest('GET', 'system_settings?id=eq.1&select=fio_token');
         const fioToken = settings && settings[0] ? settings[0].fio_token : null;
         
         if (!fioToken) {
-            throw new Error("Fio token nebyl v tabulce system_setings nalezen.");
+            throw new Error("Fio token nebyl v tabulce system_settings nalezen.");
         }
 
         // 2. Stažení dat z banky
