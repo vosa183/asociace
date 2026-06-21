@@ -64,6 +64,7 @@
             return;
         }
 
+        // TADY JE TA OPRAVA: Voláme system_settings přesně podle struktury
         const { data: settings } = await db.from('system_settings').select('fio_token').eq('id', 1).single();
         if (!settings || !settings.fio_token) {
             document.getElementById('bankContent').innerHTML = '<div class="error-msg">API klíč pro Fio banku nebyl nalezen.</div>';
@@ -95,6 +96,7 @@
             var fStr = getLocalDateString(fromDate);
             var tStr = getLocalDateString(toDate);
             
+            // VOLÁNÍ NOVÉHO JAVASCRIPTOVÉHO API NA VERCELU
             var proxyUrl = "/api/fio?token=" + encodeURIComponent(cleanToken) + "&from=" + encodeURIComponent(fStr) + "&to=" + encodeURIComponent(tStr);
             
             var response = await fetch(proxyUrl);
@@ -104,7 +106,7 @@
             try {
                 data = JSON.parse(rawText);
             } catch (err) {
-                throw new Error("Server poslal HTML stránku místo dat. Pravděpodobně pravidlo 30 sekund.");
+                throw new Error("Server poslal neplatnou odpověď místo dat. Ujistěte se, že máte nasazený soubor api/fio.js na Vercelu.");
             }
 
             if (data.error) {
@@ -153,7 +155,7 @@
 
         } catch (err) {
             diagnostika += "\n>>> CHYBA: " + err.message + "\n";
-            var errorHtml = '<div class="error-msg">❌ Aplikaci se nepodařilo přečíst data.</div>';
+            var errorHtml = '<div class="error-msg">❌ Aplikaci se nepodařilo přečšit data z bankovního API.</div>';
             errorHtml += '<div class="debug-log">' + diagnostika + '</div>';
             document.getElementById('bankContent').innerHTML = errorHtml;
         }
@@ -184,7 +186,6 @@
                         .single();
 
                     if (data) {
-                        // Ověření zápisu vynucením návratu dat přes .select()
                         const { data: updatedData, error: updateError } = await db
                             .from('registrations')
                             .update({ payment_status: true })
