@@ -64,7 +64,6 @@
             return;
         }
 
-        // TADY JE TA OPRAVA: Voláme system_settings přesně podle struktury
         const { data: settings } = await db.from('system_settings').select('fio_token').eq('id', 1).single();
         if (!settings || !settings.fio_token) {
             document.getElementById('bankContent').innerHTML = '<div class="error-msg">API klíč pro Fio banku nebyl nalezen.</div>';
@@ -85,6 +84,12 @@
         return (unsafe || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
+    // Převede text na malá písmena a odstraní háčky/čárky
+    function removeAccents(str) {
+        if (!str) return "";
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    }
+
     async function fetchAndRenderBankData(token) {
         let diagnostika = "START DIAGNOSTIKY\n=================\n";
         try {
@@ -96,7 +101,6 @@
             var fStr = getLocalDateString(fromDate);
             var tStr = getLocalDateString(toDate);
             
-            // VOLÁNÍ NOVÉHO JAVASCRIPTOVÉHO API NA VERCELU
             var proxyUrl = "/api/fio?token=" + encodeURIComponent(cleanToken) + "&from=" + encodeURIComponent(fStr) + "&to=" + encodeURIComponent(tStr);
             
             var response = await fetch(proxyUrl);
@@ -150,7 +154,6 @@
             
             document.getElementById('bankContent').innerHTML = html;
 
-            // Automatické spuštění párování po úspěšném vykreslení tabulky
             await autoMatchPayments();
 
         } catch (err) {
@@ -171,40 +174,61 @@
         for (const t of window.globalTransactions) {
             const castka = t.column1 ? parseFloat(t.column1.value) : 0;
             const vs = t.column5 ? String(t.column5.value).trim() : null;
+            const zpravaOriginal = t.column16 ? String(t.column16.value).trim() : "";
+            const zpravaOrezana = removeAccents(zpravaOriginal);
 
             if (castka > 0 && vs) {
-                logText += `Hledám VS: ${vs} (Částka: ${castka} CZK)...\n`;
+                logText += `Hledám VS: ${vs} (Částka: ${castka} CZK, Zpráva: "${zpravaOriginal}")...\n`;
 
                 try {
-                    const { data, error } = await db
+                    // Upravený dotaz: Získáme VŠECHNY nezaplacené registrace hráče (nejen .single())
+                    // Předpokládáme, že existuje tabulka "tournaments" ze které lze brát název přes "tournaments(name)"
+                    const { data: regs, error } = await db
                         .from('registrations')
-                        .select('id, payment_status, created_at, tournament_id, player_id_card')
+                        .select('id, payment_status, created_at, tournament_id, player_id_card, tournaments(name)')
                         .eq('player_id_card', vs)
                         .eq('payment_status', false)
-                        .order('created_at', { ascending: true })
-                        .limit(1)
-                        .single();
+                        .order('created_at', { ascending: true });
 
-                    if (data) {
-                        const { data: updatedData, error: updateError } = await db
-                            .from('registrations')
-                            .update({ payment_status: true })
-                            .eq('id', data.id)
-                            .select();
-                            
-                        if (updateError) {
-                            logText += ` -> CHYBA PŘI AKTUALIZACI V DB: ${updateError.message}\n`;
-                        } else if (!updatedData || updatedData.length === 0) {
-                            logText += ` -> ZAMÍTNUTO DATABÁZÍ: Zápis zablokován. Zkontroluj, zda je vypnuté RLS v Supabase u tabulky registrations!\n`;
-                        } else {
-                            matchedCount++;
-                            logText += ` -> ÚSPĚCH ZÁPISU: Spárováno! (Hráč: ${data.player_id_card}, Turnaj: ${data.tournament_id})\n`;
+                    if (regs && regs.length > 0) {
+                        let matchesFoundThisTransaction = false;
+
+                        for (const reg of regs) {
+                            const turnajNazev = reg.tournaments?.name || ""; // Nahraď podle skutečné struktury DB
+                            const turnajNazevOrezany = removeAccents(turnajNazev);
+
+                            // Kontrolujeme, zda se název turnaje bez diakritiky vyskytuje ve zprávě bez diakritiky
+                            // Použijeme zpravaOrezana.includes() pro případ, že hráč připsal něco jako "Petr Novak Turnaj Brno"
+                            if (turnajNazevOrezany !== "" && zpravaOrezana.includes(turnajNazevOrezany)) {
+                                matchesFoundThisTransaction = true;
+                                
+                                const { data: updatedData, error: updateError } = await db
+                                    .from('registrations')
+                                    .update({ payment_status: true })
+                                    .eq('id', reg.id)
+                                    .select();
+                                    
+                                if (updateError) {
+                                    logText += ` -> CHYBA PŘI AKTUALIZACI V DB: ${updateError.message}\n`;
+                                } else if (!updatedData || updatedData.length === 0) {
+                                    logText += ` -> ZAMÍTNUTO DATABÁZÍ: Zápis zablokován. Zkontroluj RLS v Supabase!\n`;
+                                } else {
+                                    matchedCount++;
+                                    logText += ` -> ÚSPĚCH ZÁPISU: Spárováno! (Hráč: ${reg.player_id_card}, Turnaj: ${turnajNazev})\n`;
+                                }
+                                break; // Jakmile spárujeme, ukončíme cyklus pro tento jeden záznam transakce
+                            }
                         }
+
+                        if (!matchesFoundThisTransaction) {
+                            logText += ` -> PŘESKOČENO: Nalezeny nezaplacené registrace, ale žádná se neshoduje s názvem turnaje ze zprávy.\n`;
+                        }
+
                     } else {
                         logText += ` -> PŘESKOČENO: Hráč s VS ${vs} nemá žádnou nezaplacenou registraci.\n`;
                     }
                 } catch (e) {
-                    logText += ` -> PŘESKOČENO: Nenalezena žádná shoda v dlužnících.\n`;
+                    logText += ` -> PŘESKOČENO: Nastala chyba při ověřování. (${e.message})\n`;
                 }
             }
         }
