@@ -42,7 +42,6 @@
         </div>
         
         <div id="bankContent" class="loading">Spojuji se s bankou... ⏳</div>
-        <div id="matchLog"></div>
     </div>
 </main>
 
@@ -50,8 +49,6 @@
     const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
-
-    window.globalTransactions = [];
 
     window.addEventListener('DOMContentLoaded', async function() {
         const { data: { user } } = await db.auth.getUser();
@@ -84,12 +81,6 @@
         return (unsafe || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
-    // Převede text na malá písmena a odstraní háčky/čárky
-    function removeAccents(str) {
-        if (!str) return "";
-        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-    }
-
     async function fetchAndRenderBankData(token) {
         let diagnostika = "START DIAGNOSTIKY\n=================\n";
         try {
@@ -113,18 +104,11 @@
                 throw new Error("Server poslal neplatnou odpověď místo dat. Ujistěte se, že máte nasazený soubor api/fio.js na Vercelu.");
             }
 
-            if (data.error) {
-                throw new Error(data.error);
-            }
-
-            if (!data.accountStatement) {
-                throw new Error("Objekt accountStatement chybí v datech.");
-            }
+            if (data.error) throw new Error(data.error);
+            if (!data.accountStatement) throw new Error("Objekt accountStatement chybí v datech.");
 
             var info = data.accountStatement.info;
             var trans = data.accountStatement.transactionList.transaction || [];
-
-            window.globalTransactions = trans;
 
             var html = '<div class="balance-box"><h3>' + info.closingBalance.toLocaleString('cs-CZ') + ' ' + info.currency + '</h3><p>Zůstatek k dnešnímu dni (' + info.iban + ')</p></div>';
             html += '<h3>Historie pohybů (posledních 14 dní)</h3>';
@@ -154,87 +138,12 @@
             
             document.getElementById('bankContent').innerHTML = html;
 
-            await autoMatchPayments();
-
         } catch (err) {
             diagnostika += "\n>>> CHYBA: " + err.message + "\n";
-            var errorHtml = '<div class="error-msg">❌ Aplikaci se nepodařilo přečšit data z bankovního API.</div>';
+            var errorHtml = '<div class="error-msg">❌ Aplikaci se nepodařilo přečíst data z bankovního API.</div>';
             errorHtml += '<div class="debug-log">' + diagnostika + '</div>';
             document.getElementById('bankContent').innerHTML = errorHtml;
         }
-    }
-
-    async function autoMatchPayments() {
-        if (!window.globalTransactions || window.globalTransactions.length === 0) return;
-
-        let matchedCount = 0;
-        let logText = "START AUTOMATICKÉHO PÁROVÁNÍ S DATABÁZÍ\n=========================================\n";
-        document.getElementById('matchLog').innerHTML = `<div class="debug-log">Páruji platby na pozadí... ⏳</div>`;
-
-        for (const t of window.globalTransactions) {
-            const castka = t.column1 ? parseFloat(t.column1.value) : 0;
-            const vs = t.column5 ? String(t.column5.value).trim() : null;
-            const zpravaOriginal = t.column16 ? String(t.column16.value).trim() : "";
-            const zpravaOrezana = removeAccents(zpravaOriginal);
-
-            if (castka > 0 && vs) {
-                logText += `Hledám VS: ${vs} (Částka: ${castka} CZK, Zpráva: "${zpravaOriginal}")...\n`;
-
-                try {
-                    // Upravený dotaz: Získáme VŠECHNY nezaplacené registrace hráče (nejen .single())
-                    // Předpokládáme, že existuje tabulka "tournaments" ze které lze brát název přes "tournaments(name)"
-                    const { data: regs, error } = await db
-                        .from('registrations')
-                        .select('id, payment_status, created_at, tournament_id, player_id_card, tournaments(name)')
-                        .eq('player_id_card', vs)
-                        .eq('payment_status', false)
-                        .order('created_at', { ascending: true });
-
-                    if (regs && regs.length > 0) {
-                        let matchesFoundThisTransaction = false;
-
-                        for (const reg of regs) {
-                            const turnajNazev = reg.tournaments?.name || ""; // Nahraď podle skutečné struktury DB
-                            const turnajNazevOrezany = removeAccents(turnajNazev);
-
-                            // Kontrolujeme, zda se název turnaje bez diakritiky vyskytuje ve zprávě bez diakritiky
-                            // Použijeme zpravaOrezana.includes() pro případ, že hráč připsal něco jako "Petr Novak Turnaj Brno"
-                            if (turnajNazevOrezany !== "" && zpravaOrezana.includes(turnajNazevOrezany)) {
-                                matchesFoundThisTransaction = true;
-                                
-                                const { data: updatedData, error: updateError } = await db
-                                    .from('registrations')
-                                    .update({ payment_status: true })
-                                    .eq('id', reg.id)
-                                    .select();
-                                    
-                                if (updateError) {
-                                    logText += ` -> CHYBA PŘI AKTUALIZACI V DB: ${updateError.message}\n`;
-                                } else if (!updatedData || updatedData.length === 0) {
-                                    logText += ` -> ZAMÍTNUTO DATABÁZÍ: Zápis zablokován. Zkontroluj RLS v Supabase!\n`;
-                                } else {
-                                    matchedCount++;
-                                    logText += ` -> ÚSPĚCH ZÁPISU: Spárováno! (Hráč: ${reg.player_id_card}, Turnaj: ${turnajNazev})\n`;
-                                }
-                                break; // Jakmile spárujeme, ukončíme cyklus pro tento jeden záznam transakce
-                            }
-                        }
-
-                        if (!matchesFoundThisTransaction) {
-                            logText += ` -> PŘESKOČENO: Nalezeny nezaplacené registrace, ale žádná se neshoduje s názvem turnaje ze zprávy.\n`;
-                        }
-
-                    } else {
-                        logText += ` -> PŘESKOČENO: Hráč s VS ${vs} nemá žádnou nezaplacenou registraci.\n`;
-                    }
-                } catch (e) {
-                    logText += ` -> PŘESKOČENO: Nastala chyba při ověřování. (${e.message})\n`;
-                }
-            }
-        }
-
-        logText += `\n=========================================\nHOTOVO. Nově propsáno do databáze plateb: ${matchedCount}`;
-        document.getElementById('matchLog').innerHTML = `<div class="debug-log">${logText}</div>`;
     }
 </script>
 </body>
