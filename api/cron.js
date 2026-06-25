@@ -7,6 +7,12 @@ export default async function handler(req, res) {
     const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
 
+    // FUNKCE NA ODSTRANĚNÍ HÁČKŮ A ČÁREK (Tohle předtím chybělo!)
+    function removeAccents(str) {
+        if (!str) return "";
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    }
+
     // Pomocná funkce pro požadavky na Supabase
     async function supabaseRequest(method, endpoint, body = null) {
         const options = {
@@ -76,20 +82,26 @@ export default async function handler(req, res) {
         let matchedCount = 0;
         const matchedRegIds = [];
 
-        // 4. PŘÍSNÉ PÁROVÁNÍ (VS = ID A Zpráva obsahuje název turnaje)
+        // 4. PŘÍSNÉ PÁROVÁNÍ
         for (let t of transactions) {
             const castka = t.column1 ? parseFloat(t.column1.value) : 0;
             const vs = t.column5 ? String(t.column5.value).trim().toLowerCase() : '';
-            const zprava = t.column16 ? String(t.column16.value).trim().toLowerCase() : '';
+            // Zprávu rovnou ořežeme o diakritiku
+            const zpravaPuvodni = t.column16 ? String(t.column16.value) : '';
+            const zpravaOrezana = removeAccents(zpravaPuvodni);
 
             // Obě pole (VS i zpráva) musí být v bance vyplněna
-            if (castka > 0 && vs !== '' && zprava !== '') {
+            if (castka > 0 && vs !== '' && zpravaOrezana !== '') {
                 for (let reg of regs) {
                     const hracId = String(reg.player_id_card).trim().toLowerCase();
-                    const nazevTurnaje = String(reg.tournaments?.title || '').trim().toLowerCase();
+                    const nazevTurnajePuvodni = String(reg.tournaments?.title || '');
+                    const nazevTurnajeOrezany = removeAccents(nazevTurnajePuvodni);
 
-                    // BEZPODMÍNEČNÁ KONTROLA
-                    if (vs === hracId && zprava.includes(nazevTurnaje) && !matchedRegIds.includes(reg.id)) {
+                    // Bezpečnostní pojistka: pokud turnaj nemá název, přeskočíme, ať se nespáruje omylem cokoliv
+                    if (nazevTurnajeOrezany === '') continue;
+
+                    // BEZPODMÍNEČNÁ KONTROLA S OŘEZANÝMI TEXTY
+                    if (vs === hracId && zpravaOrezana.includes(nazevTurnajeOrezany) && !matchedRegIds.includes(reg.id)) {
                         
                         // Zápis zaplacení do databáze
                         await supabaseRequest('PATCH', `registrations?id=eq.${reg.id}`, { payment_status: true });
