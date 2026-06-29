@@ -110,13 +110,29 @@
         .k-val-rsvp { position: absolute; color: #2d3748; font-family: 'Inter', sans-serif; white-space: nowrap;}
         .k-val-phone { position: absolute; font-weight: bold; color: #2d3748; white-space: nowrap;}
 
+        /* --- NOVÝ PLAKÁT VTELENKA --- */
+        .poster-vtelenka {
+            width: 900px; height: 368px; /* Uprav rozměry podle toho, jaké má originál Vtelenka.png */
+            background-image: url('https://www.asociaceprsi.cz/Vtelenka.png'); 
+            background-size: 100% 100%; 
+            background-position: center; background-repeat: no-repeat; position: relative; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: none; overflow: hidden;
+            font-family: 'Georgia', serif; color: #2d3748; /* Změň písmo a barvu podle potřeby */
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+        }
+        .v-title { position: absolute; font-family: 'Arial Black', sans-serif; font-size: 24px; color: #fff; width: 440px; text-align: center; }
+        .v-date { position: absolute; width: 440px; text-align: center; font-weight: bold; color: #fff; }
+        .v-loc { position: absolute; width: 440px; text-align: center; color: #fff; }
+        .v-time { position: absolute; width: 440px; text-align: center; color: #fff; }
+        .v-val-fee { position: absolute; font-weight: bold; color: #fff; width: 50px; text-align: center; }
+
         #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.9); z-index: 1000; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: var(--primary); font-weight: bold; font-family: 'Inter', sans-serif; flex-direction: column; }
         
         @media print {
             body { background: white; margin: 0; padding: 0; }
             body * { visibility: hidden; }
-            #livePosterRetro, #livePosterRetro *, #livePosterKapka, #livePosterKapka * { visibility: visible; }
-            .poster-retro, .poster-kapka { position: absolute; left: 0; top: 0; margin: 0; box-shadow: none; border: none;}
+            #livePosterRetro, #livePosterRetro *, #livePosterKapka, #livePosterKapka *, #livePosterVtelenka, #livePosterVtelenka * { visibility: visible; }
+            .poster-retro, .poster-kapka, .poster-vtelenka { position: absolute; left: 0; top: 0; margin: 0; box-shadow: none; border: none;}
         }
     </style>
 </head>
@@ -136,6 +152,7 @@
             <select id="tplSelect" onchange="toggleTemplate()">
                 <option value="retro">Série RETRO (Základ clear.png)</option>
                 <option value="kapka" selected>BUKOVENSKÁ KAPKA</option>
+                <option value="vtelenka">VTELENKA</option>
             </select>
         </div>
 
@@ -192,6 +209,23 @@
             </div>
         </div>
 
+        <div id="vtelenkaSettings" style="display: none;">
+            <div class="form-group"><label>Název turnaje</label><input type="text" id="inVtelenkaTitle" value="TURNAJ V PRŠÍ - VTELENKA"></div>
+            <div class="form-group"><label>Datum turnaje</label><input type="text" id="inVtelenkaDate" value="5. 9. 2026"></div>
+            <div class="form-group"><label>Místo konání</label><input type="text" id="inVtelenkaLoc" value="Jizerní Vtelno 34"></div>
+            <div class="form-group"><label>Čas začátku</label><input type="text" id="inVtelenkaTime" value="od 11:00 hodin"></div>
+            <div class="form-group"><label>Zápisné (Kč)</label><input type="text" id="inVtelenkaFee" value="300"></div>
+
+            <div class="tuning-box">
+                <h3>⚙️ Ladění polohy a velikosti písma (S) - VTELENKA</h3>
+                <div class="tune-row"><label>Název turnaje</label><div class="tune-inputs">X: <input type="number" id="t_vtelenka_title_x" value="230"> Y: <input type="number" id="t_vtelenka_title_y" value="50"> S: <input type="number" id="t_vtelenka_title_s" value="24"></div></div>
+                <div class="tune-row"><label>Datum</label><div class="tune-inputs">X: <input type="number" id="t_vtelenka_date_x" value="230"> Y: <input type="number" id="t_vtelenka_date_y" value="100"> S: <input type="number" id="t_vtelenka_date_s" value="20"></div></div>
+                <div class="tune-row"><label>Místo</label><div class="tune-inputs">X: <input type="number" id="t_vtelenka_loc_x" value="230"> Y: <input type="number" id="t_vtelenka_loc_y" value="130"> S: <input type="number" id="t_vtelenka_loc_s" value="18"></div></div>
+                <div class="tune-row"><label>Čas</label><div class="tune-inputs">X: <input type="number" id="t_vtelenka_time_x" value="230"> Y: <input type="number" id="t_vtelenka_time_y" value="160"> S: <input type="number" id="t_vtelenka_time_s" value="18"></div></div>
+                <div class="tune-row"><label>Cena</label><div class="tune-inputs">X: <input type="number" id="t_vtelenka_fee_x" value="450"> Y: <input type="number" id="t_vtelenka_fee_y" value="220"> S: <input type="number" id="t_vtelenka_fee_s" value="18"></div></div>
+            </div>
+        </div>
+
         <div class="btn-group" style="margin-top: 1rem; border-bottom: 2px solid #e2e8f0; padding-bottom: 1rem;">
             <div class="btn-row">
                 <button type="button" class="btn-print" onclick="window.print()">🖨️ Pouze Tisk (PDF)</button>
@@ -240,7 +274,6 @@
         </div>
 
     </div>
-
     <div class="panel-right">
         <div id="livePosterRetro" class="poster-retro" style="display: none;">
             <div class="r-color-pruh" id="retroBannerStyle">
@@ -280,6 +313,15 @@
             <div class="k-val-rsvp" id="outKapkaRsvp">10.04.2026</div>
             <div class="k-val-phone" id="outKapkaPhone">605 938 458</div>
         </div>
+
+        <div id="livePosterVtelenka" class="poster-vtelenka" style="display: none;">
+            <div class="v-title" id="outVtelenkaTitle">TURNAJ V PRŠÍ - VTELENKA</div>
+            <div class="v-date" id="outVtelenkaDate">5. 9. 2026</div>
+            <div class="v-loc" id="outVtelenkaLoc">Jizerní Vtelno 34</div>
+            <div class="v-time" id="outVtelenkaTime">od 11:00 hodin</div>
+            <div class="v-val-fee" id="outVtelenkaFee">300</div>
+        </div>
+
     </div>
 </main>
 
@@ -344,25 +386,37 @@
     function toggleTemplate() {
         const val = document.getElementById('tplSelect').value;
         const pageStyle = document.getElementById('printPageStyle');
+        
+        // Skrytí všech nastavení a plakátů
+        document.getElementById('retroSettings').style.display = 'none';
+        document.getElementById('kapkaSettings').style.display = 'none';
+        document.getElementById('vtelenkaSettings').style.display = 'none';
+        
+        document.getElementById('livePosterRetro').style.display = 'none';
+        document.getElementById('livePosterKapka').style.display = 'none';
+        document.getElementById('livePosterVtelenka').style.display = 'none';
+
         if(val === 'retro') {
             document.getElementById('retroSettings').style.display = 'block';
-            document.getElementById('kapkaSettings').style.display = 'none';
             document.getElementById('livePosterRetro').style.display = 'block';
-            document.getElementById('livePosterKapka').style.display = 'none';
             pageStyle.innerHTML = "@page { size: A4 portrait; margin: 0; }";
             document.getElementById('dbTitle').value = "TURNAJ V PRŠÍ - " + document.getElementById('inRetroCity').value;
-        } else {
-            document.getElementById('retroSettings').style.display = 'none';
+        } else if (val === 'kapka') {
             document.getElementById('kapkaSettings').style.display = 'block';
-            document.getElementById('livePosterRetro').style.display = 'none';
             document.getElementById('livePosterKapka').style.display = 'block';
             pageStyle.innerHTML = "@page { size: A4 landscape; margin: 0; }";
             document.getElementById('dbTitle').value = document.getElementById('inKapkaRocnik').value + " Kapka - " + document.getElementById('inKapkaLoc').value;
+        } else if (val === 'vtelenka') {
+            // Zobrazení nové šablony Vtelenka
+            document.getElementById('vtelenkaSettings').style.display = 'block';
+            document.getElementById('livePosterVtelenka').style.display = 'block';
+            pageStyle.innerHTML = "@page { size: A4 landscape; margin: 0; }"; // Změň na portrait, pokud je Vtelenka na výšku
+            document.getElementById('dbTitle').value = document.getElementById('inVtelenkaTitle').value;
         }
         updateContent();
     }
-
     function updateContent() {
+        // --- 1. Aktualizace RETRO ---
         const retroBgUrl = document.getElementById('inRetroBgUrl').value;
         document.getElementById('livePosterRetro').style.backgroundImage = retroBgUrl ? `url('${retroBgUrl}')` : 'none';
         const themeColor = document.getElementById('retroColorSelect').value;
@@ -383,6 +437,7 @@
         document.getElementById('outRetroCity').style.color = themeColor;
         document.querySelector('.r-cat-title').style.color = themeColor;
 
+        // --- 2. Aktualizace KAPKA ---
         const kapkaBgUrl = document.getElementById('inKapkaBgUrl').value;
         document.getElementById('livePosterKapka').style.backgroundImage = kapkaBgUrl ? `url('${kapkaBgUrl}')` : 'none';
         document.getElementById('outKapkaRocnik').innerText = document.getElementById('inKapkaRocnik').value;
@@ -402,31 +457,32 @@
             const inS = document.getElementById('t_kapka_' + id.toLowerCase() + '_s');
             if(el && inX && inY && inS) { el.style.left = inX.value + 'px'; el.style.top = inY.value + 'px'; el.style.fontSize = inS.value + 'px'; }
         });
-    }
 
-    document.querySelectorAll('input, select').forEach(input => {
-        if(input.id !== 'inRetroPenzion' && !input.id.startsWith('db')) input.addEventListener('input', updateContent);
-    });
+        // --- 3. NOVÉ: Aktualizace VTELENKA ---
+        document.getElementById('outVtelenkaTitle').innerText = document.getElementById('inVtelenkaTitle').value;
+        document.getElementById('outVtelenkaDate').innerText = document.getElementById('inVtelenkaDate').value;
+        document.getElementById('outVtelenkaLoc').innerText = document.getElementById('inVtelenkaLoc').value;
+        document.getElementById('outVtelenkaTime').innerText = document.getElementById('inVtelenkaTime').value;
+        document.getElementById('outVtelenkaFee').innerText = document.getElementById('inVtelenkaFee').value;
 
-    function saveAsJpeg() {
-        const overlay = document.getElementById('loadingOverlay');
-        overlay.innerHTML = "Generuji obrázek ke stažení...<br><span style='font-size:0.8rem;font-weight:normal;margin-top:10px;'>Tohle se do databáze ještě neuloží.</span>";
-        overlay.style.display = 'flex';
-
-        const isRetro = document.getElementById('tplSelect').value === 'retro';
-        const activePosterId = isRetro ? 'livePosterRetro' : 'livePosterKapka';
-        
-        html2canvas(document.getElementById(activePosterId), { scale: 2, useCORS: true, allowTaint: true }).then(canvas => {
-            const link = document.createElement('a');
-            link.download = `pozvanka-${isRetro ? 'retro' : 'kapka'}-${new Date().toISOString().slice(0,10)}.jpg`;
-            link.href = canvas.toDataURL('image/jpeg', 0.9);
-            link.click();
-            overlay.style.display = 'none';
-        }).catch(err => {
-            console.error(err); alert("Chyba při generování JPEGu."); overlay.style.display = 'none';
+        const vtelenkaIds = ['Title', 'Date', 'Loc', 'Time', 'Fee'];
+        vtelenkaIds.forEach(id => {
+            const el = document.getElementById('outVtelenka' + id);
+            const inX = document.getElementById('t_vtelenka_' + id.toLowerCase() + '_x');
+            const inY = document.getElementById('t_vtelenka_' + id.toLowerCase() + '_y');
+            const inS = document.getElementById('t_vtelenka_' + id.toLowerCase() + '_s');
+            if(el && inX && inY && inS) { 
+                el.style.left = inX.value + 'px'; 
+                el.style.top = inY.value + 'px'; 
+                el.style.fontSize = inS.value + 'px'; 
+            }
         });
     }
 
+    // Automatický překreslovač při psaní
+    document.querySelectorAll('input, select').forEach(input => {
+        if(input.id !== 'inRetroPenzion' && !input.id.startsWith('db')) input.addEventListener('input', updateContent);
+    });
     async function publishTournament() {
         const title = document.getElementById('dbTitle').value.trim();
         const date = document.getElementById('dbDate').value;
@@ -449,8 +505,12 @@
         overlay.style.display = 'flex';
 
         try {
-            const isRetro = document.getElementById('tplSelect').value === 'retro';
-            const element = document.getElementById(isRetro ? 'livePosterRetro' : 'livePosterKapka');
+            const val = document.getElementById('tplSelect').value;
+            let elementId = 'livePosterRetro';
+            if(val === 'kapka') elementId = 'livePosterKapka';
+            if(val === 'vtelenka') elementId = 'livePosterVtelenka';
+
+            const element = document.getElementById(elementId);
             
             const canvas = await html2canvas(element, { scale: 2, useCORS: true, allowTaint: true });
             const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
@@ -459,7 +519,7 @@
             const fileName = `poster_${Date.now()}.jpg`;
             const { data: uploadData, error: uploadError } = await db.storage.from('posters').upload(fileName, blob);
             
-            if (uploadError) throw new Error("Nelze nahrát plakát do cloudu. Zkontrolujte, zda máte v Supabase vytvořený public bucket 'posters'. Detail: " + uploadError.message);
+            if (uploadError) throw new Error("Nelze nahrát plakát do cloudu. Detail: " + uploadError.message);
 
             const { data: urlData } = db.storage.from('posters').getPublicUrl(fileName);
             const imageUrl = urlData.publicUrl;
@@ -478,7 +538,7 @@
 
             overlay.innerHTML = "📧 Připravuji rozeslání e-mailů...";
             
-            alert(`🎉 ÚSPĚCH!\n\nTurnaj "${title}" byl úspěšně vypsán.\nPlakát je nahrán v cloudu a turnaj se ihned objeví na stránce /turnaje.\n\nE-maily budou v další fázi automaticky rozeslány hráčům.`);
+            alert(`🎉 ÚSPĚCH!\n\nTurnaj "${title}" byl úspěšně vypsán.\nPlakát je nahrán a turnaj se ihned objeví na stránce /turnaje.`);
             
             document.getElementById('dbTitle').value = "";
             document.getElementById('dbDate').value = "";
