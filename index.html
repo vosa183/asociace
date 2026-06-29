@@ -2255,48 +2255,71 @@
         document.getElementById('onlineUsersModal').style.display = 'flex';
     };
 
-    window.generateApiKey = async function() {
-        const name = document.getElementById('newApiKeyName').value.trim();
-        if(!name) return alert('Zadejte prosím název klíče (např. Notebook Turnaje).');
-        
-        const key = 'sk_' + Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
-        
-        const { error } = await db.from('api_keys').insert({ key_name: name, api_key: key });
-        if(!error) { 
-            document.getElementById('newApiKeyName').value = ''; 
-            loadApiKeys(); 
-        } else {
-            alert('Chyba při generování klíče: ' + error.message);
-        }
-    };
+window.generateApiKey = async function() {
+    const name = document.getElementById('newApiKeyName').value.trim();
+    if (!name) {
+        return alert('Zadejte prosím název klíče (např. Notebook Turnaje).');
+    }
+    
+    const key = 'sk_' + Array.from(crypto.getRandomValues(new Uint8Array(16)))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+    
+    const { error } = await db.from('api_keys').insert({
+        key_name: name,
+        key_value: key,
+        is_active: true,
+        district_prefix: null,
+        person: myProfileData?.full_name || null
+    });
 
-    window.loadApiKeys = async function() {
-        const list = document.getElementById('apiKeysList');
-        if(!list) return;
-        
-        const { data, error } = await db.from('api_keys').select('*');
-        if (error || !data) { 
-            list.innerHTML = '<p class="error">Chyba načítání. Zkontrolujte RLS pravidla pro tabulku api_keys.</p>'; 
-            return; 
-        }
-        if (data.length === 0) { 
-            list.innerHTML = 'Zatím nebyly vygenerovány žádné API klíče.'; 
-            return; 
-        }
-        
-        list.innerHTML = data.map(k => {
-            const hodnotaKlice = k.api_key || k.key || k.value || k.key_value || 'CHYBA_SLOUPCE';
-            return `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid #eee; flex-wrap:wrap; gap:10px;">
-                <span><strong>${k.key_name}</strong></span>
-                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                    <span class="hash-box">${hodnotaKlice}</span>
-                    <button class="btn-small btn-green" onclick="navigator.clipboard.writeText('${hodnotaKlice}'); alert('Klíč zkopírován do schránky!');">📋 Kopírovat</button>
-                    <button class="btn-small btn-danger" onclick="deleteApiKey('${k.id}')">❌ Smazat</button>
-                </div>
-            </div>`;
-        }).join('');
-    };
+    if (!error) { 
+        document.getElementById('newApiKeyName').value = ''; 
+        loadApiKeys(); 
+    } else {
+        alert('Chyba při generování klíče: ' + error.message);
+    }
+};
 
+window.loadApiKeys = async function() {
+    const list = document.getElementById('apiKeysList');
+    if (!list) return;
+    
+    const { data, error } = await db
+        .from('api_keys')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error || !data) { 
+        list.innerHTML = '<p class="error">Chyba načítání API klíčů: ' + (error?.message || 'Neznámá chyba') + '</p>'; 
+        return; 
+    }
+
+    if (data.length === 0) { 
+        list.innerHTML = 'Zatím nebyly vygenerovány žádné API klíče.'; 
+        return; 
+    }
+    
+    list.innerHTML = data.map(k => {
+        const hodnotaKlice = k.key_value || 'CHYBÍ_KEY_VALUE';
+        const stav = k.is_active ? 'Aktivní' : 'Neaktivní';
+        const stavColor = k.is_active ? '#2f855a' : '#c53030';
+
+        return `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border-bottom:1px solid #eee; flex-wrap:wrap; gap:10px;">
+            <div>
+                <strong>${k.key_name || 'Bez názvu'}</strong><br>
+                <span style="font-size:0.8rem; color:${stavColor}; font-weight:bold;">${stav}</span>
+                ${k.person ? `<br><span style="font-size:0.8rem; color:#718096;">Vytvořil: ${k.person}</span>` : ''}
+                ${k.district_prefix ? `<br><span style="font-size:0.8rem; color:#718096;">Okres: ${k.district_prefix}</span>` : ''}
+            </div>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <span class="hash-box">${hodnotaKlice}</span>
+                <button class="btn-small btn-green" onclick="navigator.clipboard.writeText('${hodnotaKlice}'); alert('Klíč zkopírován do schránky!');">📋 Kopírovat</button>
+                <button class="btn-small btn-danger" onclick="deleteApiKey('${k.id}')">❌ Smazat</button>
+            </div>
+        </div>`;
+    }).join('');
+};
     window.deleteApiKey = async function(id) {
         if(confirm('Skutečně chcete tento přístupový klíč trvale smazat a zneplatnit?')) {
             await db.from('api_keys').delete().eq('id', id);
