@@ -70,6 +70,7 @@
         .tune-row label { margin: 0; width: 100px; font-size: 0.75rem; color: #2d3748; }
         .tune-inputs { display: flex; gap: 8px; align-items: center; font-size: 0.7rem; font-weight: bold; color: #4a5568;}
         .tune-inputs input[type="number"] { width: 50px; height: 26px; padding: 2px 4px; font-size: 0.75rem; margin: 0; background: white; border: 1px solid #a0aec0;}
+        .tune-inputs input[type="color"] { padding: 0; width: 30px; height: 26px; border: none; cursor: pointer; border-radius: 4px; }
 
         /* --- ABSOLUTNÍ POZICOVÁNÍ TEXTŮ --- */
         .poster-retro {
@@ -110,19 +111,19 @@
         .k-val-rsvp { position: absolute; color: #2d3748; font-family: 'Inter', sans-serif; white-space: nowrap;}
         .k-val-phone { position: absolute; font-weight: bold; color: #2d3748; white-space: nowrap;}
 
-        /* --- NOVÝ PLAKÁT VTELENKA (Upraveno na vertikální formát a .png) --- */
+        /* --- NOVÝ PLAKÁT VTELENKA (Úprava rozměrů na formát letáku) --- */
         .poster-vtelenka {
-            width: 600px; 
-            height: 800px; 
+            width: 595px; 
+            height: 842px; 
             background-image: url('https://www.asociaceprsi.cz/Vtelenka.png'); 
-            background-size: cover; 
+            background-size: 100% 100%; /* Pevně zajišťuje, že se obrázek neořízne, ať je jakýkoliv */
             background-position: center; background-repeat: no-repeat; position: relative; 
             box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: none; overflow: hidden;
             font-family: 'Arial Black', sans-serif; color: #ffffff;
             -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
         }
         /* Výchozí centrování textů v ose X */
-        .v-text-element { position: absolute; text-align: center; width: 100%; white-space: pre-wrap; }
+        .v-text-element { position: absolute; text-align: center; width: 100%; white-space: pre-wrap; line-height: 1.2; }
         .v-title { text-transform: uppercase; letter-spacing: 1px; color: #ffffff;}
         .v-date { color: #ffeb3b; }
         .v-loc { color: #ffffff;}
@@ -227,13 +228,13 @@
 
             <div class="tuning-box">
                 <h3>⚙️ Ladění polohy, velikosti (S) a barvy (C)</h3>
-                <div class="tune-row"><label>Název</label><div class="tune-inputs">X: <input type="number" id="t_vt_title_x" value="0"> Y: <input type="number" id="t_vt_title_y" value="520"> S: <input type="number" id="t_vt_title_s" value="34"> C: <input type="color" id="t_vt_title_c" value="#ffffff" style="padding:0; width:30px; height:26px; border:none; cursor:pointer;"></div></div>
-                <div class="tune-row"><label>Datum</label><div class="tune-inputs">X: <input type="number" id="t_vt_date_x" value="0"> Y: <input type="number" id="t_vt_date_y" value="580"> S: <input type="number" id="t_vt_date_s" value="28"> C: <input type="color" id="t_vt_date_c" value="#ffeb3b" style="padding:0; width:30px; height:26px; border:none; cursor:pointer;"></div></div>
-                <div class="tune-row"><label>Místo</label><div class="tune-inputs">X: <input type="number" id="t_vt_loc_x" value="0"> Y: <input type="number" id="t_vt_loc_y" value="630"> S: <input type="number" id="t_vt_loc_s" value="22"> C: <input type="color" id="t_vt_loc_c" value="#ffffff" style="padding:0; width:30px; height:26px; border:none; cursor:pointer;"></div></div>
-                <div class="tune-row"><label>Čas</label><div class="tune-inputs">X: <input type="number" id="t_vt_time_x" value="0"> Y: <input type="number" id="t_vt_time_y" value="670"> S: <input type="number" id="t_vt_time_s" value="22"> C: <input type="color" id="t_vt_time_c" value="#ffffff" style="padding:0; width:30px; height:26px; border:none; cursor:pointer;"></div></div>
-                <div class="tune-row"><label>Cena</label><div class="tune-inputs">X: <input type="number" id="t_vt_fee_x" value="0"> Y: <input type="number" id="t_vt_fee_y" value="720"> S: <input type="number" id="t_vt_fee_s" value="24"> C: <input type="color" id="t_vt_fee_c" value="#ffeb3b" style="padding:0; width:30px; height:26px; border:none; cursor:pointer;"></div></div>
-                <div class="tune-row"><label>Extra Text 1</label><div class="tune-inputs">X: <input type="number" id="t_vt_extra1_x" value="0"> Y: <input type="number" id="t_vt_extra1_y" value="760"> S: <input type="number" id="t_vt_extra1_s" value="18"> C: <input type="color" id="t_vt_extra1_c" value="#ffffff" style="padding:0; width:30px; height:26px; border:none; cursor:pointer;"></div></div>
-                <div class="tune-row"><label>Extra Text 2</label><div class="tune-inputs">X: <input type="number" id="t_vt_extra2_x" value="0"> Y: <input type="number" id="t_vt_extra2_y" value="785"> S: <input type="number" id="t_vt_extra2_s" value="18"> C: <input type="color" id="t_vt_extra2_c" value="#ffffff" style="padding:0; width:30px; height:26px; border:none; cursor:pointer;"></div></div>
+                <div class="tune-row"><label>Název</label><div class="tune-inputs">X: <input type="number" id="t_vt_title_x" value="0"> Y: <input type="number" id="t_vt_title_y" value="520"> S: <input type="number" id="t_vt_title_s" value="34"> C: <input type="color" id="t_vt_title_c" value="#ffffff"></div></div>
+                <div class="tune-row"><label>Datum</label><div class="tune-inputs">X: <input type="number" id="t_vt_date_x" value="0"> Y: <input type="number" id="t_vt_date_y" value="580"> S: <input type="number" id="t_vt_date_s" value="28"> C: <input type="color" id="t_vt_date_c" value="#ffeb3b"></div></div>
+                <div class="tune-row"><label>Místo</label><div class="tune-inputs">X: <input type="number" id="t_vt_loc_x" value="0"> Y: <input type="number" id="t_vt_loc_y" value="630"> S: <input type="number" id="t_vt_loc_s" value="22"> C: <input type="color" id="t_vt_loc_c" value="#ffffff"></div></div>
+                <div class="tune-row"><label>Čas</label><div class="tune-inputs">X: <input type="number" id="t_vt_time_x" value="0"> Y: <input type="number" id="t_vt_time_y" value="670"> S: <input type="number" id="t_vt_time_s" value="22"> C: <input type="color" id="t_vt_time_c" value="#ffffff"></div></div>
+                <div class="tune-row"><label>Cena</label><div class="tune-inputs">X: <input type="number" id="t_vt_fee_x" value="0"> Y: <input type="number" id="t_vt_fee_y" value="720"> S: <input type="number" id="t_vt_fee_s" value="24"> C: <input type="color" id="t_vt_fee_c" value="#ffeb3b"></div></div>
+                <div class="tune-row"><label>Extra Text 1</label><div class="tune-inputs">X: <input type="number" id="t_vt_extra1_x" value="0"> Y: <input type="number" id="t_vt_extra1_y" value="760"> S: <input type="number" id="t_vt_extra1_s" value="18"> C: <input type="color" id="t_vt_extra1_c" value="#ffffff"></div></div>
+                <div class="tune-row"><label>Extra Text 2</label><div class="tune-inputs">X: <input type="number" id="t_vt_extra2_x" value="0"> Y: <input type="number" id="t_vt_extra2_y" value="785"> S: <input type="number" id="t_vt_extra2_s" value="18"> C: <input type="color" id="t_vt_extra2_c" value="#ffffff"></div></div>
             </div>
         </div>
 
@@ -490,7 +491,7 @@
             const inX = document.getElementById('t_vt_' + id.toLowerCase() + '_x');
             const inY = document.getElementById('t_vt_' + id.toLowerCase() + '_y');
             const inS = document.getElementById('t_vt_' + id.toLowerCase() + '_s');
-            const inC = document.getElementById('t_vt_' + id.toLowerCase() + '_c'); // Přidáno načtení barvy
+            const inC = document.getElementById('t_vt_' + id.toLowerCase() + '_c'); // Načtení barvy
             
             if(el && inX && inY && inS && inC) { 
                 el.style.left = inX.value + 'px'; 
