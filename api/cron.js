@@ -7,10 +7,53 @@ export default async function handler(req, res) {
     const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
 
-    // FUNKCE NA ODSTRANĚNÍ HÁČKŮ A ČÁREK (Tohle předtím chybělo!)
-    function removeAccents(str) {
+    // FUNKCE NA ODSTRANĚNÍ HÁČKŮ, ČÁREK, INTERPUNKCE A VÍCENÁSOBNÝCH MEZER
+    // (řeší např. "1 rocnik" vs "1. rocnik" - chybějící tečka dřív rozbila celé párování)
+    function normalizeForMatch(str) {
         if (!str) return "";
-        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        return str
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")   // diakritika (háčky, čárky)
+            .toLowerCase()
+            .replace(/[.,;:!?"'`]/g, "")       // interpunkce
+            .replace(/\s+/g, " ")              // více mezer -> jedna
+            .trim();
+    }
+
+    // Levenshteinova vzdálenost - kolik znaků se musí změnit, aby byly dva řetězce stejné
+    function levenshtein(a, b) {
+        const m = a.length, n = b.length;
+        const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+        for (let i = 0; i <= m; i++) dp[i][0] = i;
+        for (let j = 0; j <= n; j++) dp[0][j] = j;
+        for (let i = 1; i <= m; i++) {
+            for (let j = 1; j <= n; j++) {
+                dp[i][j] = a[i - 1] === b[j - 1]
+                    ? dp[i - 1][j - 1]
+                    : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+            }
+        }
+        return dp[m][n];
+    }
+
+    // Fuzzy "obsahuje" - v haystack hledá okno podobně dlouhé jako needle (název turnaje),
+    // které se od něj liší nejvýš o pár znaků (překlep, chybějící/přebývající písmeno).
+    // Tolerance je omezená (max 4 znaky), takže se to nikdy nespáruje s úplně jiným turnajem.
+    function fuzzyIncludes(haystack, needle, maxErrorRate = 0.15, minTolerance = 1, maxTolerance = 4) {
+        if (!needle) return false;
+        const nLen = needle.length;
+        const maxDist = Math.min(maxTolerance, Math.max(minTolerance, Math.round(nLen * maxErrorRate)));
+
+        if (haystack.length < nLen - maxDist) return false;
+
+        for (let start = 0; start <= haystack.length - (nLen - maxDist); start++) {
+            for (let winLen = nLen - maxDist; winLen <= nLen + maxDist; winLen++) {
+                if (winLen <= 0 || start + winLen > haystack.length) continue;
+                const window = haystack.substring(start, start + winLen);
+                if (levenshtein(window, needle) <= maxDist) return true;
+            }
+        }
+        return false;
     }
 
     // Pomocná funkce pro požadavky na Supabase
@@ -82,26 +125,29 @@ export default async function handler(req, res) {
         let matchedCount = 0;
         const matchedRegIds = [];
 
-        // 4. PŘÍSNÉ PÁROVÁNÍ
+        // 4. PÁROVÁNÍ: VS musí sedět přesně (je to číslo, tolerance by mohla spárovat cizí platbu
+        // jinému hráči), zpráva se porovnává s tolerancí na drobné překlepy/interpunkci.
         for (let t of transactions) {
             const castka = t.column1 ? parseFloat(t.column1.value) : 0;
             const vs = t.column5 ? String(t.column5.value).trim().toLowerCase() : '';
-            // Zprávu rovnou ořežeme o diakritiku
+            // Zprávu normalizujeme (diakritika, interpunkce, mezery)
             const zpravaPuvodni = t.column16 ? String(t.column16.value) : '';
-            const zpravaOrezana = removeAccents(zpravaPuvodni);
+            const zpravaNorm = normalizeForMatch(zpravaPuvodni);
 
             // Obě pole (VS i zpráva) musí být v bance vyplněna
-            if (castka > 0 && vs !== '' && zpravaOrezana !== '') {
+            if (castka > 0 && vs !== '' && zpravaNorm !== '') {
                 for (let reg of regs) {
                     const hracId = String(reg.player_id_card).trim().toLowerCase();
                     const nazevTurnajePuvodni = String(reg.tournaments?.title || '');
-                    const nazevTurnajeOrezany = removeAccents(nazevTurnajePuvodni);
+                    const nazevTurnajeNorm = normalizeForMatch(nazevTurnajePuvodni);
 
                     // Bezpečnostní pojistka: pokud turnaj nemá název, přeskočíme, ať se nespáruje omylem cokoliv
-                    if (nazevTurnajeOrezany === '') continue;
+                    if (nazevTurnajeNorm === '') continue;
 
-                    // BEZPODMÍNEČNÁ KONTROLA S OŘEZANÝMI TEXTY
-                    if (vs === hracId && zpravaOrezana.includes(nazevTurnajeOrezany) && !matchedRegIds.includes(reg.id)) {
+                    // VS přesně + zpráva odpovídá názvu turnaje (přesně, nebo s tolerancí na malý překlep)
+                    const zpravaSedi = zpravaNorm.includes(nazevTurnajeNorm) || fuzzyIncludes(zpravaNorm, nazevTurnajeNorm);
+
+                    if (vs === hracId && zpravaSedi && !matchedRegIds.includes(reg.id)) {
                         
                         // Zápis zaplacení do databáze
                         await supabaseRequest('PATCH', `registrations?id=eq.${reg.id}`, { payment_status: true });
