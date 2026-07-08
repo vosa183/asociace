@@ -56,6 +56,15 @@ export default async function handler(req, res) {
         return false;
     }
 
+    // Vrátí pole samostatných čísel obsažených ve zprávě (např. "startovne 123" -> ["123"]).
+    // Používá se pro párování podle ID-T: číslo turnaje musí být ve zprávě jako CELÉ samostatné
+    // číslo, ne jen jako podřetězec jiného čísla (fuzzy/Levenshtein na krátká čísla je nebezpečný -
+    // "123" by se snadno spletlo s "124" nebo "12"), proto se zde záměrně NEPOUŽÍVÁ tolerance na překlep.
+    function extractDigitTokens(str) {
+        if (!str) return [];
+        return str.match(/\d+/g) || [];
+    }
+
     // Pomocná funkce pro požadavky na Supabase
     async function supabaseRequest(method, endpoint, body = null) {
         const options = {
@@ -113,7 +122,7 @@ export default async function handler(req, res) {
         const transactions = fioData?.accountStatement?.transactionList?.transaction || [];
 
         // 3. Načtení dat ze Supabase
-        const regs = await supabaseRequest('GET', 'registrations?payment_status=eq.false&select=*,tournaments(title)');
+        const regs = await supabaseRequest('GET', 'registrations?payment_status=eq.false&select=*,tournaments(title,ID_T)');
         if (!Array.isArray(regs)) throw new Error("Chyba čtení registrací z databáze.");
         
         const profiles = await supabaseRequest('GET', 'profiles?select=player_id_card,email');
@@ -126,7 +135,11 @@ export default async function handler(req, res) {
         const matchedRegIds = [];
 
         // 4. PÁROVÁNÍ: VS musí sedět přesně (je to číslo, tolerance by mohla spárovat cizí platbu
-        // jinému hráči), zpráva se porovnává s tolerancí na drobné překlepy/interpunkci.
+        // jinému hráči). Zpráva pro příjemce se nyní páruje primárně podle ID-T turnaje - musí se
+        // ve zprávě objevit jako CELÉ samostatné číslo (žádná tolerance na překlep - u krátkých čísel
+        // by fuzzy porovnání snadno spárovalo platbu k jinému turnaji). Pokud turnaj ještě nemá
+        // přidělené ID-T (starší turnaje založené před zavedením ID-T), použije se jako záloha
+        // původní porovnání podle názvu turnaje s tolerancí na drobný překlep.
         for (let t of transactions) {
             const castka = t.column1 ? parseFloat(t.column1.value) : 0;
             const vs = t.column5 ? String(t.column5.value).trim().toLowerCase() : '';
@@ -138,14 +151,21 @@ export default async function handler(req, res) {
             if (castka > 0 && vs !== '' && zpravaNorm !== '') {
                 for (let reg of regs) {
                     const hracId = String(reg.player_id_card).trim().toLowerCase();
+                    const idT = reg.tournaments?.ID_T ? String(reg.tournaments.ID_T).trim() : '';
                     const nazevTurnajePuvodni = String(reg.tournaments?.title || '');
                     const nazevTurnajeNorm = normalizeForMatch(nazevTurnajePuvodni);
 
-                    // Bezpečnostní pojistka: pokud turnaj nemá název, přeskočíme, ať se nespáruje omylem cokoliv
-                    if (nazevTurnajeNorm === '') continue;
-
-                    // VS přesně + zpráva odpovídá názvu turnaje (přesně, nebo s tolerancí na malý překlep)
-                    const zpravaSedi = zpravaNorm.includes(nazevTurnajeNorm) || fuzzyIncludes(zpravaNorm, nazevTurnajeNorm);
+                    let zpravaSedi = false;
+                    if (idT !== '') {
+                        // Primární metoda: zpráva pro příjemce musí obsahovat přesně toto ID-T jako samostatné číslo
+                        const cislaVeZprave = extractDigitTokens(zpravaNorm);
+                        zpravaSedi = cislaVeZprave.includes(idT);
+                    } else if (nazevTurnajeNorm !== '') {
+                        // Záložní metoda pro turnaje bez ID-T: shoda podle názvu (přesně, nebo s tolerancí na malý překlep)
+                        zpravaSedi = zpravaNorm.includes(nazevTurnajeNorm) || fuzzyIncludes(zpravaNorm, nazevTurnajeNorm);
+                    }
+                    // Bezpečnostní pojistka: pokud turnaj nemá ani ID-T, ani název, přeskočíme,
+                    // ať se nespáruje omylem cokoliv
 
                     if (vs === hracId && zpravaSedi && !matchedRegIds.includes(reg.id)) {
                         
