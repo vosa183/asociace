@@ -569,20 +569,26 @@
             const imageUrl = urlData.publicUrl;
 
             overlay.innerHTML = "💾 Ukládám turnaj do databáze...";
+
+            // Automatické vygenerování ID-T turnaje (vždy +1 oproti poslednímu, start od 100)
+            const { data: maxIdData } = await db.from('tournaments').select('ID_T').order('ID_T', { ascending: false }).limit(1);
+            const nextIdT = (maxIdData && maxIdData.length > 0 && maxIdData[0].ID_T) ? maxIdData[0].ID_T + 1 : 100;
+
             const { error: dbError } = await db.from('tournaments').insert({
                 title: title,
                 event_date: date,
                 fee: parseInt(fee),
                 capacity: parseInt(cap),
                 kraj: kraj,
-                image_url: imageUrl
+                image_url: imageUrl,
+                ID_T: nextIdT
             });
 
             if (dbError) throw new Error("Nepodařilo se vytvořit turnaj v databázi: " + dbError.message);
 
             overlay.innerHTML = "📧 Připravuji rozeslání e-mailů...";
             
-            alert(`🎉 ÚSPĚCH!\n\nTurnaj "${title}" byl úspěšně vypsán.\nPlakát je nahrán v cloudu a turnaj se ihned objeví na stránce /turnaje.\n\nE-maily budou v další fázi automaticky rozeslány hráčům.`);
+            alert(`🎉 ÚSPĚCH!\n\nTurnaj "${title}" (ID-T: ${nextIdT}) byl úspěšně vypsán.\nPlakát je nahrán v cloudu a turnaj se ihned objeví na stránce /turnaje.\n\nE-maily budou v další fázi automaticky rozeslány hráčům.`);
             
             document.getElementById('dbTitle').value = "";
             document.getElementById('dbDate').value = "";
