@@ -1482,7 +1482,7 @@
 
     async function loadMyRegistrations() {
         const { data: myRegs, error } = await db.from('registrations')
-            .select(`id, player_id_card, registered_by, payment_status, tournaments ( id, title, event_date, fee )`)
+            .select(`id, player_id_card, registered_by, payment_status, tournaments ( id, title, event_date, fee, ID_T )`)
             .or(`registered_by.eq.${currentUser.id},player_id_card.eq.${myProfileData.player_id_card}`);
             
         const list = document.getElementById('myRegistrationsList'); list.innerHTML = '';
@@ -1493,7 +1493,7 @@
             const t = reg.tournaments; 
             let pName = reg.player_id_card === myProfileData.player_id_card ? 'VY' : (myFamily.find(f => f.player_id_card === reg.player_id_card)?.full_name + ' (Rodina)' || 'Cizí přihláška');
             
-            let payUI = reg.payment_status ? `<span class="badge" style="background:#38a169;">Uhrazeno</span>` : `<button class="btn-small" style="background:#2b6cb0;" onclick="toggleQR('qr_${reg.id}', '${t.fee}', '${reg.player_id_card}', '${t.title.replace(/'/g, "\\'")}')">Kód k platbě</button>`;
+            let payUI = reg.payment_status ? `<span class="badge" style="background:#38a169;">Uhrazeno</span>` : `<button class="btn-small" style="background:#2b6cb0;" onclick="toggleQR('qr_${reg.id}', '${t.fee}', '${reg.player_id_card}', '${t.ID_T || ''}')">Kód k platbě</button>`;
             
             list.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:start; background:#fff; border:1px solid #e2e8f0;">
                 <h4 style="color:#2f855a;">${t.title}</h4>
@@ -1519,9 +1519,9 @@
         if (!error) { 
             alert('Přihlášeno!'); 
             
-            const { data: tData } = await db.from('tournaments').select('title, event_date, fee').eq('id', tId).single();
+            const { data: tData } = await db.from('tournaments').select('title, event_date, fee, ID_T').eq('id', tId).single();
             if(tData && myProfileData.email) {
-                const msg = `Dobrý den,\n\núspěšně jsme Vás zaregistrovali na turnaj:\n🏆 ${tData.title}\n📅 ${formatDateTime(tData.event_date)}\n\nNezapomeňte prosím uhradit startovné ve výši ${tData.fee} Kč nejpozději do 72 hodin od této registrace. V opačném případě bude vaše místo automaticky uvolněno dalším hráčům.\n\nQR kód pro rychlou platbu najdete po přihlášení do svého profilu na webu www.asociaceprsi.cz v sekci Turnaje.\n\nTěšíme se na Vás!`;
+                const msg = `Dobrý den,\n\núspěšně jsme Vás zaregistrovali na turnaj:\n🏆 ${tData.title}\n📅 ${formatDateTime(tData.event_date)}\n\nNezapomeňte prosím uhradit startovné ve výši ${tData.fee} Kč nejpozději do 72 hodin od této registrace. V opačném případě bude vaše místo automaticky uvolněno dalším hráčům.\n\n🏦 Údaje k platbě:\nVariabilní symbol (VS): ${myProfileData.player_id_card}\nZpráva pro příjemce: ${tData.ID_T || ''}\n\n⚠️ Pokud nebude řádně vyplněná zpráva pro příjemce a ID hráče jako VS, bude platba považována za dar.\n\nQR kód pro rychlou platbu najdete po přihlášení do svého profilu na webu www.asociaceprsi.cz v sekci Turnaje.\n\nTěšíme se na Vás!`;
                 await sendEmailNotification(`Potvrzení registrace: ${tData.title}`, msg, [myProfileData.email]);
             }
             
@@ -1539,11 +1539,11 @@
             alert('Člen rodiny byl úspěšně přihlášen.'); 
             
             const { data: famProf } = await db.from('profiles').select('email').eq('player_id_card', fId).maybeSingle();
-            const { data: tData } = await db.from('tournaments').select('title, event_date, fee').eq('id', tId).single();
+            const { data: tData } = await db.from('tournaments').select('title, event_date, fee, ID_T').eq('id', tId).single();
             const famName = document.getElementById('famSel_' + tId).options[document.getElementById('famSel_' + tId).selectedIndex].text;
             
             if(tData) {
-                const msg = `Dobrý den,\n\nhráč ${famName} byl úspěšně zaregistrován na turnaj:\n🏆 ${tData.title}\n📅 ${formatDateTime(tData.event_date)}\n\nZápisné činí ${tData.fee} Kč a je nutné jej uhradit do 72 hodin od přihlášení, jinak bude místo uvolněno.\n\nQR kód k platbě naleznete ve svém profilu na webu www.asociaceprsi.cz v sekci Turnaje.\n\nS pozdravem,\nČeská asociace v karetní hře prší z.s.`;
+                const msg = `Dobrý den,\n\nhráč ${famName} byl úspěšně zaregistrován na turnaj:\n🏆 ${tData.title}\n📅 ${formatDateTime(tData.event_date)}\n\nZápisné činí ${tData.fee} Kč a je nutné jej uhradit do 72 hodin od přihlášení, jinak bude místo uvolněno.\n\n🏦 Údaje k platbě:\nVariabilní symbol (VS): ${fId}\nZpráva pro příjemce: ${tData.ID_T || ''}\n\n⚠️ Pokud nebude řádně vyplněná zpráva pro příjemce a ID hráče jako VS, bude platba považována za dar.\n\nQR kód k platbě naleznete ve svém profilu na webu www.asociaceprsi.cz v sekci Turnaje.\n\nS pozdravem,\nČeská asociace v karetní hře prší z.s.`;
                 
                 if(myProfileData.email) sendEmailNotification(`Registrace člena rodiny: ${tData.title}`, msg, [myProfileData.email]);
                 if(famProf && famProf.email && famProf.email !== myProfileData.email) {
@@ -1570,7 +1570,7 @@
         } 
     };
 
-    window.toggleQR = function(cid, fee, vs, tournamentName) { 
+    window.toggleQR = function(cid, fee, vs, idT) { 
         const c = document.getElementById(cid);
         const i = document.getElementById('img_' + cid); 
         const txtBox = document.getElementById('txt_' + cid);
@@ -1578,9 +1578,12 @@
         if (c.style.display === 'block') {
             c.style.display = 'none'; 
         } else { 
+            alert('⚠️ UPOZORNĚNÍ\n\nPokud nebude řádně vyplněná zpráva pro příjemce a ID hráče jako variabilní symbol (VS), bude platba považována za dar.');
+
             const cleanAccount = globalBankAccount.replace(/\s+/g, '');
             const cleanVS = String(vs).replace(/\D/g, '').substring(0, 10);
             const cleanFee = parseFloat(fee).toFixed(2);
+            const cleanIdT = String(idT || '').replace(/\D/g, '');
             
             if (!cleanAccount.toUpperCase().startsWith('CZ')) {
                 alert('CHYBA FAKTURACE: Bankovní účet asociace ("' + cleanAccount + '") není ve správném formátu IBAN. Požádejte předsedu o nápravu v Administraci systému.');
@@ -1588,9 +1591,8 @@
             }
             
             let spayd = `SPD*1.0*ACC:${cleanAccount}*AM:${cleanFee}*CC:CZK*X-VS:${cleanVS}`;
-            if (tournamentName) {
-                const cleanName = tournamentName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").substring(0, 60);
-                spayd += `*MSG:${cleanName}`;
+            if (cleanIdT) {
+                spayd += `*MSG:${cleanIdT}`;
             }
             
             i.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(spayd)}`; 
@@ -1602,7 +1604,8 @@
                         <p style="margin-bottom: 5px;"><strong>Číslo účtu:</strong> <span style="font-family: monospace; font-size: 1.1rem; color: var(--secondary);">${ibanToClassic(globalBankAccount)}</span></p>
                         <p style="margin-bottom: 5px;"><strong>Částka k úhradě:</strong> ${fee} Kč</p>
                         <p style="margin-bottom: 5px;"><strong>Variabilní symbol (VS):</strong> ${cleanVS}</p>
-                        <p style="margin-bottom: 0;"><strong>Zpráva pro příjemce:</strong> ${tournamentName || 'Startovné'}</p>
+                        <p style="margin-bottom: 10px;"><strong>Zpráva pro příjemce (ID turnaje):</strong> ${cleanIdT || '-'}</p>
+                        <p style="margin-bottom: 0; color: var(--secondary); font-size: 0.85rem;"><strong>⚠️ Bez správně vyplněné zprávy pro příjemce a VS bude platba považována za dar.</strong></p>
                     </div>
                 `;
             }
@@ -2365,7 +2368,7 @@ window.loadApiKeys = async function() {
             
             html += `<tr>
                 <td>
-                    <strong style="color:var(--primary); font-size:0.95rem;">${t.title}</strong><br>
+                    <strong style="color:var(--primary); font-size:0.95rem;">${t.title}</strong> <span style="font-family:monospace; background:#edf2f7; color:var(--secondary); padding:1px 6px; border-radius:4px; font-size:0.8rem;">ID-T: ${t.ID_T || '-'}</span><br>
                     <span style="font-size:0.8rem;color:#4a5568;">📅 ${formatDateTime(t.event_date)} | 💰 ${t.fee} Kč | 👥 Kapacita: ${t.capacity}</span>
                 </td>
                 <td>
@@ -2390,16 +2393,21 @@ window.loadApiKeys = async function() {
         const fee = prompt("Zadejte zápisné v Kč (číslo):"); if (!fee) return;
 
         let finalDateObj = new Date(eventDate.replace(' ', 'T'));
+
+        // Automatické vygenerování ID-T turnaje (vždy +1 oproti poslednímu, start od 100)
+        const { data: maxIdData } = await db.from('tournaments').select('ID_T').order('ID_T', { ascending: false }).limit(1);
+        const nextIdT = (maxIdData && maxIdData.length > 0 && maxIdData[0].ID_T) ? maxIdData[0].ID_T + 1 : 100;
         
         const { error } = await db.from('tournaments').insert({
             title: title.trim(),
             capacity: parseInt(capacity) || 0,
             fee: parseInt(fee) || 0,
-            event_date: isNaN(finalDateObj) ? new Date().toISOString() : finalDateObj.toISOString()
+            event_date: isNaN(finalDateObj) ? new Date().toISOString() : finalDateObj.toISOString(),
+            ID_T: nextIdT
         });
 
         if(!error) {
-            alert("Turnaj byl úspěšně vypsán na web! Nyní rozesílám e-mailové pozvánky všem hráčům s účtem...");
+            alert(`Turnaj byl úspěšně vypsán na web (ID-T: ${nextIdT})! Nyní rozesílám e-mailové pozvánky všem hráčům s účtem...`);
             
             const { data: profs } = await db.from('profiles').select('email');
             const emails = profs ? profs.map(p => p.email).filter(e => e && e.includes('@')) : [];
@@ -2809,84 +2817,7 @@ window.loadApiKeys = async function() {
     };
 
     // ==========================================
-    // --- 12. KONTROLA BANKY A ČISTKA (72H) ---
-    // ==========================================
-    window.toggleQR = function(cid, fee, vs, tournamentName) { 
-        const c = document.getElementById(cid), i = document.getElementById('img_' + cid); 
-        const txtBox = document.getElementById('txt_' + cid);
-        
-        if (c.style.display === 'block') {
-            c.style.display = 'none'; 
-        } else { 
-            const cleanAccount = globalBankAccount.replace(/\s+/g, '');
-            const cleanVS = String(vs).replace(/\D/g, '').substring(0, 10);
-            const cleanFee = parseFloat(fee).toFixed(2);
-            
-            if (!cleanAccount.toUpperCase().startsWith('CZ')) {
-                alert('CHYBA FAKTURACE: Bankovní účet asociace ("' + cleanAccount + '") není ve správném formátu IBAN. Požádejte předsedu o nápravu v Administraci systému.');
-                return;
-            }
-            
-            let spayd = `SPD*1.0*ACC:${cleanAccount}*AM:${cleanFee}*CC:CZK*X-VS:${cleanVS}`;
-            if (tournamentName) {
-                const cleanName = tournamentName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").substring(0, 60);
-                spayd += `*MSG:${cleanName}`;
-            }
-            
-            i.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(spayd)}`; 
-            
-            if (txtBox) {
-                txtBox.innerHTML = `
-                    <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px dashed #a0aec0; margin-top: 15px; text-align: left; display: inline-block;">
-                        <p style="margin-bottom: 10px; color: var(--primary);"><strong>🏦 Pokyny pro ruční platbu:</strong></p>
-                        <p style="margin-bottom: 5px;"><strong>Číslo účtu:</strong> <span style="font-family: monospace; font-size: 1.1rem; color: var(--secondary);">${ibanToClassic(globalBankAccount)}</span></p>
-                        <p style="margin-bottom: 5px;"><strong>Částka k úhradě:</strong> ${fee} Kč</p>
-                        <p style="margin-bottom: 5px;"><strong>Variabilní symbol (VS):</strong> ${cleanVS}</p>
-                        <p style="margin-bottom: 0;"><strong>Zpráva pro příjemce:</strong> ${tournamentName || 'Startovné'}</p>
-                    </div>
-                `;
-            }
-
-            c.style.display = 'block'; 
-        } 
-    };
-
-    async function checkBankPayments() { 
-        if (!globalFioToken) return; 
-        console.log("Kontrola banky a kapacity turnajů běží na pozadí..."); 
-        try {
-            const timeLimit = new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString();
-            const { data: oldRegs } = await db.from('registrations')
-                .select('id, player_id_card, tournaments(title)')
-                .eq('payment_status', false)
-                .lt('created_at', timeLimit);
-                
-            if(oldRegs && oldRegs.length > 0) {
-                for(let r of oldRegs) {
-                    await db.from('registrations').delete().eq('id', r.id);
-                    const { data: p } = await db.from('profiles').select('email').eq('player_id_card', r.player_id_card).maybeSingle();
-                    if(p && p.email && p.email.includes('@')) {
-                        const cancelMsg = `Dobrý den,\n\nVaše registrace na turnaj "${r.tournaments?.title || ''}" byla automaticky zrušena. Do 72 hodin jsme neobdrželi platbu startovného a Vaše místo tak muselo být uvolněno dalším zájemcům.\n\nPokud se chcete turnaje přesto zúčastnit, proveďte prosím novou registraci na webu a platbu obratem uhradte.\n\nDěkujeme za pochopení,\nČeská asociace v karetní hře prší z.s.`;
-                        sendEmailNotification("Storno registrace pro nezaplacení", cancelMsg, [p.email]);
-                    }
-                }
-                if (document.getElementById('tournaments').classList.contains('active')) loadPublicTournaments();
-            }
-        } catch(e) { console.error('Auto purge error:', e); }
-    }
-    
-    function scheduleBankCheck() {
-        const now = new Date();
-        const msToNextHour = (60 - now.getMinutes()) * 60000 - (now.getSeconds() * 1000) - now.getMilliseconds();
-        setTimeout(function() {
-            checkBankPayments();
-            setInterval(checkBankPayments, 3600000); 
-        }, msToNextHour);
-    }
-    scheduleBankCheck();
-
-    // ==========================================
-    // --- 13. REPORTY Z TURNAJŮ A EDITOR ---
+    // --- 12. REPORTY Z TURNAJŮ A EDITOR ---
     // ==========================================
     let allReports = [];
     let allReportImages = [];
