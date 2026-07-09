@@ -84,13 +84,20 @@ export default async function handler(req, res) {
     // Pomocná funkce pro odeslání mailu přes tvé API
     async function sendMailAPI(to, subject, message) {
         try {
-            await fetch('https://www.asociaceprsi.cz/api/mail', { 
+            const r = await fetch('https://www.asociaceprsi.cz/api/mail', { 
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ to, subject, message })
             });
+            if (!r.ok) {
+                const errBody = await r.text().catch(() => '');
+                console.error(`Chyba odesílání mailu (${to}): HTTP ${r.status} - ${errBody}`);
+                return false;
+            }
+            return true;
         } catch (e) {
-            console.error("Chyba odesílání mailu:", e.message);
+            console.error(`Chyba odesílání mailu (${to}):`, e.message);
+            return false;
         }
     }
 
@@ -144,6 +151,7 @@ export default async function handler(req, res) {
         }
 
         let matchedCount = 0;
+        let mailFailCount = 0;
         const matchedRegIds = [];
 
         // 4. PÁROVÁNÍ: VS musí sedět přesně (je to číslo, tolerance by mohla spárovat cizí platbu
@@ -191,7 +199,11 @@ export default async function handler(req, res) {
                         if (email) {
                             const tTitle = reg.tournaments?.title || 'Turnaj';
                             const msg = `Dobrý den,\n\npotvrzujeme, že Vaše platba za turnaj "${tTitle}" byla úspěšně zpracována a spárována.\n\nTěšíme se na Vás u stolu!\nČeská asociace v karetní hře prší z.s.`;
-                            await sendMailAPI(email, `Potvrzení přijetí platby - ${tTitle}`, msg);
+                            const mailOk = await sendMailAPI(email, `Potvrzení přijetí platby - ${tTitle}`, msg);
+                            if (!mailOk) mailFailCount++;
+                        } else {
+                            console.error(`Platba spárována (reg ${reg.id}, hráč ${reg.player_id_card}), ale v profilu chybí e-mail - potvrzovací mail neodeslán.`);
+                            mailFailCount++;
                         }
                         break; 
                     }
@@ -228,7 +240,7 @@ export default async function handler(req, res) {
             }
         }
 
-        return res.status(200).send(`ÚDRŽBA DOKONČENA. Spárováno nových plateb: ${matchedCount}`);
+        return res.status(200).send(`ÚDRŽBA DOKONČENA. Spárováno nových plateb: ${matchedCount}. Neodeslané potvrzovací e-maily: ${mailFailCount}.`);
     } catch (e) {
         console.error("Chyba automatu:", e);
         return res.status(500).send(`CHYBA AUTOMATU: ${e.message}`);
