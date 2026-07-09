@@ -112,7 +112,19 @@ export default async function handler(req, res) {
         const cleanToken = fioToken.trim();
         const fioUrl = `https://fioapi.fio.cz/v1/rest/periods/${encodeURIComponent(cleanToken)}/${fromDate}/${toDate}/transactions.json`;
         
-        const fioRes = await fetch(fioUrl, { method: 'GET', headers: { 'Accept': 'application/json' }});
+        const fioController = new AbortController();
+        const fioTimeout = setTimeout(() => fioController.abort(), 15000);
+        let fioRes;
+        try {
+            fioRes = await fetch(fioUrl, { method: 'GET', headers: { 'Accept': 'application/json' }, signal: fioController.signal });
+        } catch (fetchErr) {
+            if (fetchErr.name === 'AbortError') {
+                throw new Error("Fio API neodpovědělo do 15 sekund (pravděpodobně porušeno pravidlo 30 sekund mezi dotazy na stejný token, nebo Fio momentálně nereaguje).");
+            }
+            throw fetchErr;
+        } finally {
+            clearTimeout(fioTimeout);
+        }
 
         if (!fioRes.ok) {
             throw new Error(`Fio API vrátilo chybu HTTP ${fioRes.status}. (Pravděpodobně porušeno pravidlo 30 sekund)`);
