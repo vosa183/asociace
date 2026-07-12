@@ -152,6 +152,23 @@
 
 <main>
     <div class="panel-left">
+        <div class="tuning-box" style="border-color:#38a169; background:#f0fff4; margin-top:0;">
+            <h3 style="color:#2f855a; border-bottom:1px solid #9ae6b4;">💾 Uložené pozvánky</h3>
+            <div class="form-group">
+                <label>Vybrat uloženou pozvánku</label>
+                <select id="draftSelect"><option value="">-- Vyberte uloženou pozvánku --</option></select>
+            </div>
+            <div class="btn-row" style="margin-bottom:1rem;">
+                <button type="button" class="btn-jpeg" onclick="loadSelectedDraft()">📂 Načíst</button>
+                <button type="button" style="background:#c53030;" onclick="deleteSelectedDraft()">🗑️ Smazat</button>
+            </div>
+            <div class="form-group">
+                <label>Název této pozvánky (pro uložení)</label>
+                <input type="text" id="draftNameInput" placeholder="Např. Podzimní turnaj Vtelenka 2026" autocomplete="off">
+            </div>
+            <button type="button" class="btn-print" id="btnSaveDraft" onclick="saveDraft()">💾 Uložit tuto pozvánku</button>
+        </div>
+
         <h2>Výběr šablony a úprava plakátu</h2>
         <div class="form-group">
             <select id="tplSelect" onchange="toggleTemplate()">
@@ -355,8 +372,85 @@
         }
         document.getElementById('loadingOverlay').style.display = 'none';
         updateContent();
+        loadDraftsList();
     }
     checkAuth();
+
+    // ==========================================
+    // --- UKLÁDÁNÍ / NAČÍTÁNÍ ROZPRACOVANÝCH POZVÁNEK ---
+    // ==========================================
+    function collectDraftState() {
+        const state = {};
+        document.querySelectorAll('.panel-left select, .panel-left input').forEach(el => {
+            if (!el.id || el.id === 'draftNameInput' || el.id === 'draftSelect') return;
+            state[el.id] = el.value;
+        });
+        return state;
+    }
+
+    function applyDraftState(state) {
+        Object.keys(state).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = state[id];
+        });
+        toggleTemplate(); // přepne na správnou šablonu a zavolá updateContent()
+    }
+
+    async function loadDraftsList() {
+        const sel = document.getElementById('draftSelect');
+        const { data, error } = await db.from('poster_drafts').select('id, name').order('updated_at', { ascending: false });
+        if (error) { console.error('Nepodařilo se načíst seznam uložených pozvánek:', error); return; }
+        sel.innerHTML = '<option value="">-- Vyberte uloženou pozvánku --</option>' +
+            (data || []).map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+    }
+
+    async function saveDraft() {
+        const nameInput = document.getElementById('draftNameInput');
+        const name = nameInput.value.trim();
+        if (!name) { alert('Zadejte prosím název, pod kterým se má tato pozvánka uložit.'); return; }
+
+        const btn = document.getElementById('btnSaveDraft');
+        btn.disabled = true;
+        try {
+            const state = collectDraftState();
+            const { error } = await db.from('poster_drafts').upsert(
+                { name: name, data: state, updated_at: new Date().toISOString() },
+                { onConflict: 'name' }
+            );
+            if (error) throw error;
+            await loadDraftsList();
+            // Po uložení rovnou vybereme uloženou položku v seznamu.
+            const sel = document.getElementById('draftSelect');
+            const opt = Array.from(sel.options).find(o => o.text === name);
+            if (opt) sel.value = opt.value;
+            alert(`Pozvánka "${name}" byla uložena. Příště jí najdete v seznamu uložených pozvánek nahoře.`);
+        } catch (e) {
+            console.error(e);
+            alert('Chyba při ukládání pozvánky: ' + e.message);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    async function loadSelectedDraft() {
+        const sel = document.getElementById('draftSelect');
+        if (!sel.value) { alert('Nejdřív vyberte uloženou pozvánku ze seznamu.'); return; }
+        const { data, error } = await db.from('poster_drafts').select('*').eq('id', sel.value).single();
+        if (error || !data) { alert('Nepodařilo se načíst pozvánku.'); return; }
+        applyDraftState(data.data);
+        document.getElementById('draftNameInput').value = data.name;
+    }
+
+    async function deleteSelectedDraft() {
+        const sel = document.getElementById('draftSelect');
+        if (!sel.value) { alert('Nejdřív vyberte uloženou pozvánku ze seznamu.'); return; }
+        const name = sel.options[sel.selectedIndex].text;
+        if (!confirm(`Opravdu smazat uloženou pozvánku "${name}"?`)) return;
+        const { error } = await db.from('poster_drafts').delete().eq('id', sel.value);
+        if (error) { alert('Chyba při mazání: ' + error.message); return; }
+        await loadDraftsList();
+        document.getElementById('draftNameInput').value = '';
+    }
 
     let mapTimeout;
     const searchInput = document.getElementById('inRetroPenzion');
@@ -503,7 +597,7 @@
     }
 
     document.querySelectorAll('input, select').forEach(input => {
-        if(input.id !== 'inRetroPenzion' && !input.id.startsWith('db')) input.addEventListener('input', updateContent);
+        if(input.id !== 'inRetroPenzion' && !input.id.startsWith('db') && input.id !== 'draftNameInput' && input.id !== 'draftSelect') input.addEventListener('input', updateContent);
     });
 
     function saveAsJpeg() {
