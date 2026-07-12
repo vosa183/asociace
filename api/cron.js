@@ -141,7 +141,9 @@ export default async function handler(req, res) {
         const transactions = fioData?.accountStatement?.transactionList?.transaction || [];
 
         // 3. Načtení dat ze Supabase
-        const regs = await supabaseRequest('GET', 'registrations?payment_status=eq.false&select=*,tournaments(title,ID_T)');
+        // POZN.: is_substitute se natahuje rovnou, aby šlo náhradníky vyfiltrovat z párování
+        // plateb a z 48h/72h připomínkového cyklu - náhradníci zatím nic platit nemají.
+        const regs = await supabaseRequest('GET', 'registrations?payment_status=eq.false&select=*,tournaments(title,ID_T,capacity)');
         if (!Array.isArray(regs)) throw new Error("Chyba čtení registrací z databáze.");
         
         const profiles = await supabaseRequest('GET', 'profiles?select=player_id_card,email');
@@ -150,26 +152,29 @@ export default async function handler(req, res) {
             profiles.forEach(p => { if (p.email) emailMap[p.player_id_card] = p.email; });
         }
 
+        // Náhradníci (waitlist) se do párování plateb ani do 48h/72h cyklu vůbec nezapojují.
+        const payableRegs = regs.filter(r => !r.is_substitute);
+
         let matchedCount = 0;
         let mailFailCount = 0;
         const matchedRegIds = [];
 
-        // 4. PÁROVÁNÍ: VS musí sedět přesně (je to číslo, tolerance by mohla spárovat cizí platbu
-        // jinému hráči). Zpráva pro příjemce se nyní páruje primárně podle ID-T turnaje - musí se
-        // ve zprávě objevit jako CELÉ samostatné číslo (žádná tolerance na překlep - u krátkých čísel
-        // by fuzzy porovnání snadno spárovalo platbu k jinému turnaji). Pokud turnaj ještě nemá
+        // 4. PÁROVÁNÍ (rychlá část, jen v paměti - žádné síťové volání, aby se to nezdržovalo):
+        // VS musí sedět přesně (je to číslo, tolerance by mohla spárovat cizí platbu jinému
+        // hráči). Zpráva pro příjemce se páruje primárně podle ID-T turnaje - musí se ve zprávě
+        // objevit jako CELÉ samostatné číslo (žádná tolerance na překlep - u krátkých čísel by
+        // fuzzy porovnání snadno spárovalo platbu k jinému turnaji). Pokud turnaj ještě nemá
         // přidělené ID-T (starší turnaje založené před zavedením ID-T), použije se jako záloha
         // původní porovnání podle názvu turnaje s tolerancí na drobný překlep.
+        const matches = []; // { reg, tTitle }
         for (let t of transactions) {
             const castka = t.column1 ? parseFloat(t.column1.value) : 0;
             const vs = t.column5 ? String(t.column5.value).trim().toLowerCase() : '';
-            // Zprávu normalizujeme (diakritika, interpunkce, mezery)
             const zpravaPuvodni = t.column16 ? String(t.column16.value) : '';
             const zpravaNorm = normalizeForMatch(zpravaPuvodni);
 
-            // Obě pole (VS i zpráva) musí být v bance vyplněna
             if (castka > 0 && vs !== '' && zpravaNorm !== '') {
-                for (let reg of regs) {
+                for (let reg of payableRegs) {
                     const hracId = String(reg.player_id_card).trim().toLowerCase();
                     const idT = reg.tournaments?.ID_T ? String(reg.tournaments.ID_T).trim() : '';
                     const nazevTurnajePuvodni = String(reg.tournaments?.title || '');
@@ -177,70 +182,101 @@ export default async function handler(req, res) {
 
                     let zpravaSedi = false;
                     if (idT !== '') {
-                        // Primární metoda: zpráva pro příjemce musí obsahovat přesně toto ID-T jako samostatné číslo
                         const cislaVeZprave = extractDigitTokens(zpravaNorm);
                         zpravaSedi = cislaVeZprave.includes(idT);
                     } else if (nazevTurnajeNorm !== '') {
-                        // Záložní metoda pro turnaje bez ID-T: shoda podle názvu (přesně, nebo s tolerancí na malý překlep)
                         zpravaSedi = zpravaNorm.includes(nazevTurnajeNorm) || fuzzyIncludes(zpravaNorm, nazevTurnajeNorm);
                     }
-                    // Bezpečnostní pojistka: pokud turnaj nemá ani ID-T, ani název, přeskočíme,
-                    // ať se nespáruje omylem cokoliv
 
                     if (vs === hracId && zpravaSedi && !matchedRegIds.includes(reg.id)) {
-                        
-                        // Zápis zaplacení do databáze
-                        await supabaseRequest('PATCH', `registrations?id=eq.${reg.id}`, { payment_status: true });
                         matchedRegIds.push(reg.id);
-                        matchedCount++;
-                        
-                        // Odeslání e-mailu s potvrzením
-                        const email = emailMap[reg.player_id_card];
-                        if (email) {
-                            const tTitle = reg.tournaments?.title || 'Turnaj';
-                            const msg = `Dobrý den,\n\npotvrzujeme, že Vaše platba za turnaj "${tTitle}" byla úspěšně zpracována a spárována.\n\nTěšíme se na Vás u stolu!\nČeská asociace v karetní hře prší z.s.`;
-                            const mailOk = await sendMailAPI(email, `Potvrzení přijetí platby - ${tTitle}`, msg);
-                            if (!mailOk) mailFailCount++;
-                        } else {
-                            console.error(`Platba spárována (reg ${reg.id}, hráč ${reg.player_id_card}), ale v profilu chybí e-mail - potvrzovací mail neodeslán.`);
-                            mailFailCount++;
-                        }
-                        break; 
+                        matches.push(reg);
+                        break;
                     }
                 }
             }
         }
 
+        // Síťová část (zápis do DB + e-maily) se teď spustí PRO VŠECHNY nálezy najednou
+        // paralelně, místo aby čekala na každý jednotlivě - to je to, co dřív nejvíc
+        // natahovalo dobu běhu a padalo to na timeoutu.
+        await Promise.all(matches.map(async (reg) => {
+            await supabaseRequest('PATCH', `registrations?id=eq.${reg.id}`, { payment_status: true });
+            matchedCount++;
+
+            const email = emailMap[reg.player_id_card];
+            if (email) {
+                const tTitle = reg.tournaments?.title || 'Turnaj';
+                const msg = `Dobrý den,\n\npotvrzujeme, že Vaše platba za turnaj "${tTitle}" byla úspěšně zpracována a spárována.\n\nTěšíme se na Vás u stolu!\nČeská asociace v karetní hře prší z.s.`;
+                const mailOk = await sendMailAPI(email, `Potvrzení přijetí platby - ${tTitle}`, msg);
+                if (!mailOk) mailFailCount++;
+            } else {
+                console.error(`Platba spárována (reg ${reg.id}, hráč ${reg.player_id_card}), ale v profilu chybí e-mail - potvrzovací mail neodeslán.`);
+                mailFailCount++;
+            }
+        }));
+
         // 5. HLÍDÁNÍ ČASU (Varování po 48h a smazání po 72h)
-        const unpaidRegs = regs.filter(r => !matchedRegIds.includes(r.id));
+        // 5. HLÍDÁNÍ ČASU (Varování po 48h a smazání po 72h) - týká se jen skutečných
+        // (neplacených) registrací, náhradníci (is_substitute) se sem vůbec nedostanou,
+        // protože pro ně žádná platba zatím není vyžadována.
+        const unpaidRegs = payableRegs.filter(r => !matchedRegIds.includes(r.id));
         const now = Date.now();
         const limit48h = now - (48 * 60 * 60 * 1000);
         const limit72h = now - (72 * 60 * 60 * 1000);
 
-        for (let reg of unpaidRegs) {
-            const regTime = new Date(reg.created_at).getTime();
-            const vs = reg.player_id_card;
-            const email = emailMap[vs];
-            const tTitle = reg.tournaments?.title || 'Turnaj';
+        const toDelete = unpaidRegs.filter(r => new Date(r.created_at).getTime() < limit72h);
+        const toWarn = unpaidRegs.filter(r => {
+            const t = new Date(r.created_at).getTime();
+            return t >= limit72h && t < limit48h && !r.warning_sent;
+        });
 
-            if (regTime < limit72h) {
-                // SMAZÁNÍ + E-MAIL O STORNU
-                await supabaseRequest('DELETE', `registrations?id=eq.${reg.id}`);
-                if (email) {
-                    const cancelMsg = `Dobrý den,\n\nVaše registrace na turnaj "${tTitle}" byla automaticky zrušena.\n\nDo 72 hodin jsme neobdrželi platbu startovného a Vaše místo tak muselo být uvolněno dalším zájemcům.\n\nPokud se chcete turnaje přesto zúčastnit, proveďte prosím novou registraci na webu a platbu obratem uhradte.\n\nDěkujeme za pochopení,\nČeská asociace v karetní hře prší z.s.`;
-                    await sendMailAPI(email, `Storno registrace pro nezaplacení - ${tTitle}`, cancelMsg);
-                }
-            } else if (regTime < limit48h && !reg.warning_sent) {
-                // ZÁPIS VAROVÁNÍ + E-MAIL (UPOZORNĚNÍ)
-                await supabaseRequest('PATCH', `registrations?id=eq.${reg.id}`, { warning_sent: true });
-                if (email) {
-                    const warnMsg = `Dobrý den,\n\nblíží se termín splatnosti Vašeho startovného na turnaj "${tTitle}".\n\nPokud nedojde k úhradě a spárování platby do 24 hodin, bude Vaše registrace systémem automaticky zrušena a místo přenecháno dalším zájemcům.\n\nPlatební údaje a rychlý QR kód k platbě naleznete po přihlášení na webu asociace v sekci Turnaje.\n\nDěkujeme za pochopení,\nČeská asociace v karetní hře prší z.s.`;
-                    await sendMailAPI(email, "Upozornění: Blíží se storno registrace turnaje", warnMsg);
-                }
+        // Zápisy do DB + e-maily se opět odpalují paralelně, ne jeden po druhém.
+        await Promise.all(toDelete.map(async (reg) => {
+            const email = emailMap[reg.player_id_card];
+            const tTitle = reg.tournaments?.title || 'Turnaj';
+            await supabaseRequest('DELETE', `registrations?id=eq.${reg.id}`);
+            if (email) {
+                const cancelMsg = `Dobrý den,\n\nVaše registrace na turnaj "${tTitle}" byla automaticky zrušena.\n\nDo 72 hodin jsme neobdrželi platbu startovného a Vaše místo tak muselo být uvolněno dalším zájemcům.\n\nPokud se chcete turnaje přesto zúčastnit, proveďte prosím novou registraci na webu a platbu obratem uhradte.\n\nDěkujeme za pochopení,\nČeská asociace v karetní hře prší z.s.`;
+                await sendMailAPI(email, `Storno registrace pro nezaplacení - ${tTitle}`, cancelMsg);
             }
+        }));
+
+        await Promise.all(toWarn.map(async (reg) => {
+            const email = emailMap[reg.player_id_card];
+            const tTitle = reg.tournaments?.title || 'Turnaj';
+            await supabaseRequest('PATCH', `registrations?id=eq.${reg.id}`, { warning_sent: true });
+            if (email) {
+                const warnMsg = `Dobrý den,\n\nblíží se termín splatnosti Vašeho startovného na turnaj "${tTitle}".\n\nPokud nedojde k úhradě a spárování platby do 24 hodin, bude Vaše registrace systémem automaticky zrušena a místo přenecháno dalším zájemcům.\n\nPlatební údaje a rychlý QR kód k platbě naleznete po přihlášení na webu asociace v sekci Turnaje.\n\nDěkujeme za pochopení,\nČeská asociace v karetní hře prší z.s.`;
+                await sendMailAPI(email, "Upozornění: Blíží se storno registrace turnaje", warnMsg);
+            }
+        }));
+
+        // 6. Náhradníci (waitlist): pro každý turnaj, kde smazáním neplatiče vzniklo volné
+        // místo, rozešleme e-mail všem, kdo jsou na něj zapsaní jako náhradník.
+        let waitlistNotified = 0;
+        const affectedTournamentIds = [...new Set(toDelete.map(r => r.tournament_id))];
+        for (const tId of affectedTournamentIds) {
+            const freedTitle = toDelete.find(r => r.tournament_id === tId)?.tournaments?.title || 'Turnaj';
+            const capacity = toDelete.find(r => r.tournament_id === tId)?.tournaments?.capacity || 0;
+
+            const currentActive = await supabaseRequest('GET', `registrations?tournament_id=eq.${tId}&is_substitute=eq.false&select=id`);
+            const activeCount = Array.isArray(currentActive) ? currentActive.length : 0;
+            if (capacity > 0 && activeCount >= capacity) continue; // mezitím se místo zase zaplnilo
+
+            const substitutes = await supabaseRequest('GET', `registrations?tournament_id=eq.${tId}&is_substitute=eq.true&select=player_id_card`);
+            if (!Array.isArray(substitutes) || substitutes.length === 0) continue;
+
+            const subject = `📢 Uvolnilo se místo na turnaji "${freedTitle}"!`;
+            const body = `Dobrý den,\n\nna turnaji "${freedTitle}", na který jste zapsán/a jako náhradník, se uvolnilo místo.\n\nOzvěte se prosím co nejdříve asociaci (odpovědí na tento e-mail nebo přes web), ať Vás můžeme přepsat mezi řádné účastníky - místo je volné jen do doby, než ho obsadí jiný zájemce.\n\nČeská asociace v karetní hře prší z.s.`;
+
+            await Promise.all(substitutes.map(async (s) => {
+                const email = emailMap[s.player_id_card];
+                if (email) { await sendMailAPI(email, subject, body); waitlistNotified++; }
+            }));
         }
 
-        return res.status(200).send(`ÚDRŽBA DOKONČENA. Spárováno nových plateb: ${matchedCount}. Neodeslané potvrzovací e-maily: ${mailFailCount}.`);
+        return res.status(200).send(`ÚDRŽBA DOKONČENA. Spárováno nových plateb: ${matchedCount}. Neodeslané potvrzovací e-maily: ${mailFailCount}. Upozorněno náhradníků: ${waitlistNotified}.`);
     } catch (e) {
         console.error("Chyba automatu:", e);
         return res.status(500).send(`CHYBA AUTOMATU: ${e.message}`);
