@@ -100,6 +100,46 @@
         return `${pad(d.getDate())}. ${pad(d.getMonth()+1)}. ${d.getFullYear()} v ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
+    // Každý příjemce dostává vlastní samostatný e-mail (žádné hromadné To/BCC se seznamem).
+    async function sendEmailNotification(predmet, zprava, prijemci) {
+        if (!prijemci || prijemci.length === 0) return [];
+        const list = Array.isArray(prijemci) ? prijemci : [prijemci];
+        const results = [];
+        for (let to of list) {
+            try {
+                const resp = await fetch('/api/mail', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subject: predmet, message: zprava, to: to })
+                });
+                results.push({ email: to, success: resp.ok });
+            } catch (e) {
+                console.error('Mail fail', e);
+                results.push({ email: to, success: false });
+            }
+        }
+        return results;
+    }
+
+    // Pokud odhlášením ŘÁDNÉHO (ne náhradnického) hráče vzniklo volné místo, upozorní e-mailem
+    // všechny, kdo na tento turnaj čekají jako náhradníci.
+    async function notifySubstitutesIfSpotOpened() {
+        const { data: regs } = await db.from('registrations').select('player_id_card, is_substitute').eq('tournament_id', tournamentId);
+        const activeCount = (regs || []).filter(r => !r.is_substitute).length;
+        if (activeCount >= (tournamentData.capacity || 0)) return; // pořád plno
+
+        const substitutes = (regs || []).filter(r => r.is_substitute);
+        if (substitutes.length === 0) return;
+
+        const subject = `📢 Uvolnilo se místo na turnaji "${tournamentData.title}"!`;
+        const body = `Dobrý den,\n\nna turnaji "${tournamentData.title}", na který jste zapsán/a jako náhradník, se uvolnilo místo.\n\nOzvěte se prosím co nejdříve asociaci, ať Vás můžeme přepsat mezi řádné účastníky - místo je volné jen do doby, než ho obsadí jiný zájemce.\n\nČeská asociace v karetní hře prší z.s.`;
+
+        for (const s of substitutes) {
+            const { data: prof } = await db.from('profiles').select('email').eq('player_id_card', s.player_id_card).maybeSingle();
+            if (prof?.email) await sendEmailNotification(subject, body, [prof.email]);
+        }
+    }
+
     // Bezpečnostní kontrola - pustí jen adminy
     async function checkAuthAndLoad() {
         if (!tournamentId) {
@@ -167,8 +207,10 @@
 
     function renderApp() {
         const capacity = tournamentData.capacity || 0;
-        const totalRegs = registrationsData.length;
-        const paidRegs = registrationsData.filter(r => r.payment_status).length;
+        const activeRegsData = registrationsData.filter(r => !r.is_substitute);
+        const substituteRegsData = registrationsData.filter(r => r.is_substitute);
+        const totalRegs = activeRegsData.length;
+        const paidRegs = activeRegsData.filter(r => r.payment_status).length;
         const unpaidRegs = totalRegs - paidRegs;
         
         let html = `
@@ -189,6 +231,10 @@
                         <div class="stat-label">Čeká na platbu</div>
                         <div class="stat-value" style="color: var(--secondary);">${unpaidRegs}</div>
                     </div>
+                    <div class="stat-box" style="border-color:#fbd38d; background:#fffaf0;">
+                        <div class="stat-label">🕐 Náhradníci</div>
+                        <div class="stat-value" style="color: var(--orange);">${substituteRegsData.length}</div>
+                    </div>
                 </div>
 
                 <button class="btn-export" onclick="exportToExcel()">📥 Stáhnout seznam do Excelu (Pro prezenci u vstupu)</button>
@@ -205,11 +251,11 @@
                         </tr>
         `;
 
-        if (totalRegs === 0) {
+        if (totalRegs === 0 && substituteRegsData.length === 0) {
             html += `<tr><td colspan="6" style="text-align:center; padding: 2rem; color: #718096; font-style: italic;">Na tento turnaj zatím není nikdo přihlášený.</td></tr>`;
         } else {
-            // Seřazení podle toho, kdy se přihlásili (nejstarší nahoře = první v pořadí)
-            registrationsData.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).forEach((r, index) => {
+            // Řádní účastníci - seřazení podle toho, kdy se přihlásili (nejstarší nahoře = první v pořadí)
+            activeRegsData.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).forEach((r, index) => {
                 let badge = r.payment_status 
                     ? `<span class="badge badge-paid">✅ Zaplaceno</span>` 
                     : `<span class="badge badge-unpaid">⏳ Nezaplaceno</span>`;
@@ -228,12 +274,34 @@
                         <td>
                             <div style="display:flex; gap: 5px;">
                                 ${toggleBtn}
-                                <button class="btn-blue" style="background:#718096;" onclick="removePlayer('${r.id}', '${r.full_name}')">Odhlásit</button>
+                                <button class="btn-blue" style="background:#718096;" onclick="removePlayer('${r.id}', '${r.full_name}', false)">Odhlásit</button>
                             </div>
                         </td>
                     </tr>
                 `;
             });
+
+            // Náhradníci - samostatně, seřazení podle pořadí přihlášení na čekací listinu
+            if (substituteRegsData.length > 0) {
+                html += `<tr><td colspan="6" style="background:#fffaf0; font-weight:bold; color:var(--orange); padding:0.7rem 1rem;">🕐 Náhradníci (čekací listina)</td></tr>`;
+                substituteRegsData.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)).forEach((r, index) => {
+                    html += `
+                        <tr style="background:#fffdf7;">
+                            <td style="font-weight: bold; color: #a0aec0;">N${index + 1}.</td>
+                            <td style="font-weight: bold; color: var(--primary);">${r.full_name}</td>
+                            <td style="font-family: monospace; color: #4a5568;">${formatSPZ(r.player_id_card)}</td>
+                            <td>${r.city}</td>
+                            <td><span class="badge" style="background:#dd6b20; color:white;">🕐 Náhradník</span></td>
+                            <td>
+                                <div style="display:flex; gap: 5px;">
+                                    <button class="btn-green" onclick="promoteSubstitute('${r.id}', '${r.full_name}')">⬆️ Povýšit na řádného</button>
+                                    <button class="btn-blue" style="background:#718096;" onclick="removePlayer('${r.id}', '${r.full_name}', true)">Odhlásit</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
         }
 
         html += `</table></div></div>`;
@@ -275,16 +343,37 @@
     }
 
     // Odhlášení hráče administrátorem
-    window.removePlayer = async function(regId, name) {
+    window.removePlayer = async function(regId, name, wasSubstitute) {
         if (confirm(`Opravdu chcete TRVALE odhlásit hráče ${name} z tohoto turnaje?`)) {
             document.getElementById('appContent').style.opacity = '0.5';
             const { error } = await db.from('registrations').delete().eq('id', regId);
             if (error) {
                 alert('Chyba při mazání: ' + error.message);
+            } else if (!wasSubstitute) {
+                // Uvolnilo se řádné místo - dáme vědět všem na čekací listině.
+                await notifySubstitutesIfSpotOpened();
             }
             document.getElementById('appContent').style.opacity = '1';
             loadTournamentData();
         }
+    }
+
+    // Povýšení náhradníka na řádného účastníka (např. po telefonické/e-mailové domluvě)
+    window.promoteSubstitute = async function(regId, name) {
+        const activeCount = registrationsData.filter(r => !r.is_substitute).length;
+        const capacity = tournamentData.capacity || 0;
+        if (activeCount >= capacity) {
+            if (!confirm(`Pozor: turnaj má aktuálně naplněnou kapacitu (${activeCount}/${capacity}). Opravdu chcete hráče ${name} přesto povýšit na řádného účastníka nad rámec kapacity?`)) return;
+        } else {
+            if (!confirm(`Povýšit hráče ${name} z čekací listiny na řádného účastníka?`)) return;
+        }
+        document.getElementById('appContent').style.opacity = '0.5';
+        const { error } = await db.from('registrations').update({ is_substitute: false }).eq('id', regId);
+        if (error) {
+            alert('Chyba při povyšování: ' + error.message);
+        }
+        document.getElementById('appContent').style.opacity = '1';
+        loadTournamentData();
     }
 
     // Export do Excelu pro tisk u prezence
