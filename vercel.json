@@ -6,6 +6,7 @@
     }
   ],
   "functions": {
-    "api/cron.js": { "maxDuration": 60 }
+    "api/cron.js": { "maxDuration": 60 },
+    "api/process-mail-queue.js": { "maxDuration": 60 }
   }
 }
