@@ -588,6 +588,13 @@
 
             <h3 style="border-top: 1px solid #ccc; padding-top: 2rem;">Historický archiv turnajů</h3>
             <p style="font-size: 0.9rem; margin-bottom: 1rem;">Z důvodu ochrany soukromí jsou jména cizích hráčů skryta pod jejich značkou. Jmenovitě vidíte pouze sebe a členy své rodiny. Ostatní hráči se zobrazují s hvězdičkami.</p>
+
+            <div style="background: #f7fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #e2e8f0;">
+                <label>🔍 Vyhledat hráče podle jména v celé historii:</label>
+                <input type="text" id="historySearchInput" placeholder="Zadejte jméno hráče..." onkeyup="searchHistoryByName()" style="max-width: 500px;">
+                <div id="historySearchResults" style="display:none; margin-top:1rem;"></div>
+            </div>
+
             <label>Vyberte proběhlý turnaj:</label>
             <select id="statsTournamentSelect" onchange="renderTournamentResults()" style="max-width: 500px;"></select>
             
@@ -1100,17 +1107,25 @@
     }
 
     async function sendEmailNotification(predmet, zprava, prijemci) {
-        if (!prijemci || prijemci.length === 0) return;
+        // Každý příjemce dostává svůj vlastní samostatný e-mail (fakticky jako skrytá kopie) -
+        // nikdo tak nikdy neuvidí seznam ostatních adresátů.
+        if (!prijemci || prijemci.length === 0) return [];
         const list = Array.isArray(prijemci) ? prijemci : [prijemci];
+        const results = [];
         for (let to of list) {
             try {
-                await fetch('/api/mail', { 
+                const resp = await fetch('/api/mail', { 
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ subject: predmet, message: zprava, to: to })
                 });
-            } catch (e) { console.error('Mail fail', e); }
+                results.push({ email: to, success: resp.ok });
+            } catch (e) { 
+                console.error('Mail fail', e); 
+                results.push({ email: to, success: false });
+            }
         }
+        return results;
     }
 
     function switchTab(tabId) {
@@ -1387,7 +1402,13 @@
         let cardsHtml = players.map(p => `<div class="card"><div class="header">Průkaz Hráče</div><div class="content"><img class="qr" src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(p.id)}" /><div class="info"><label>Jméno a příjmení</label><div>${p.name}</div><label>Bydliště</label><div>${p.city || '-'}</div><label>Identifikátor (ID)</label><div class="id-box">${p.spz || p.id}</div></div></div></div>`).join('');
         return `<html><head><title>Tisk</title><style>body { font-family: 'Arial', sans-serif; margin: 0; padding: 20px; background: #fff; } .print-grid { display: grid; grid-template-columns: repeat(auto-fill, 85.6mm); gap: 10mm; justify-content: center; } .card { width: 85.6mm; height: 53.98mm; border: 2px dashed #a0aec0; border-radius: 12px; overflow: hidden; position: relative; box-sizing: border-box; page-break-inside: avoid; } .header { background: #1a365d; color: white; text-align: center; padding: 6px 0; font-size: 16px; font-weight: bold; text-transform: uppercase; } .content { display: flex; padding: 12px; align-items: center; } .qr { width: 80px; height: 80px; margin-right: 15px; } .info label { display: block; font-size: 10px; color: #718096; margin-top: 6px; text-transform: uppercase; } .info div { font-size: 15px; font-weight: bold; } .info .id-box { color: #c53030; font-family: monospace; font-size: 16px; } @media print { .card { border: 1px solid #e2e8f0; } }</style></head><body><div class="print-grid">${cardsHtml}</div><script>window.onload=function(){window.print(); setTimeout(function(){window.close();}, 500);}<\/script></body></html>`;
     }
-    window.printMyCard = function() { if(!myProfileData) return; const w = window.open('', '_blank'); w.document.write(generateMultipleCardsHTML([{id: myProfileData.player_id_card, spz: formatSPZ(myProfileData.player_id_card), name: myProfileData.full_name, city: myProfileData.city}])); w.document.close(); };
+    window.printMyCard = function() { 
+        if(!myProfileData) return; 
+        // Kromě vlastního průkazu rovnou připravíme i průkazky pro všechny členy hráčovy rodiny.
+        let toPrint = [{ id: myProfileData.player_id_card, spz: formatSPZ(myProfileData.player_id_card), name: myProfileData.full_name, city: myProfileData.city }];
+        myFamily.forEach(f => toPrint.push({ id: f.player_id_card, spz: formatSPZ(f.player_id_card), name: f.full_name, city: f.city }));
+        const w = window.open('', '_blank'); w.document.write(generateMultipleCardsHTML(toPrint)); w.document.close(); 
+    };
     window.filterPrintList = function() { const term = document.getElementById('printSearchInput').value.toLowerCase(); document.querySelectorAll('#adminPrintList label').forEach(lbl => { lbl.style.display = lbl.innerText.toLowerCase().includes(term) ? 'flex' : 'none'; }); };
     
     window.adminPrintSelectedCards = function() {
@@ -1689,30 +1710,82 @@
         renderTournamentResults();
     }
 
+    // Sdílený výpočet statistik hráče (odehrané turnaje, rekord bodů, opravdu NEJLEPŠÍ - tedy
+    // číselně nejnižší - umístění). Používá se jak pro osobní vysvědčení, tak pro vyhledávač jmen,
+    // aby obě místa vždy ukazovala shodné, správné číslo.
+    function computePlayerStats(rows) {
+        let ucast = rows.length;
+        let maxBody = 0;
+        let bestRank = 9999;
+        rows.forEach(d => {
+            let pts = parseInt(d.points);
+            let rnk = parseInt(d.rank);
+            if (!isNaN(pts) && pts > maxBody) maxBody = pts;
+            // Umístění 1. je LEPŠÍ než umístění 10., proto hledáme MINIMUM, ne maximum.
+            // rnk > 0 zároveň vyřadí neplatné/nulové/DQ záznamy, aby nezkreslovaly výsledek.
+            if (!isNaN(rnk) && rnk > 0 && rnk < bestRank) bestRank = rnk;
+        });
+        return { ucast, maxBody, bestRank: bestRank === 9999 ? null : bestRank };
+    }
+
     window.renderPersonalStats = function() {
         const pid = document.getElementById('statsPlayerSelect').value;
         const box = document.getElementById('personalStatsBox');
         if (!pid) return;
         
         let pData = historicalData.filter(d => d.player_id_card === pid);
-        let ucast = pData.length;
-        let maxBody = 0;
-        let bestRank = 9999;
-        
-        pData.forEach(d => { 
-            let pts = parseInt(d.points);
-            let rnk = parseInt(d.rank); 
-            if (!isNaN(pts) && pts > maxBody) maxBody = pts; 
-            if (!isNaN(rnk) && rnk > 0 && rnk < bestRank) bestRank = rnk; 
-        });
-        
-        if (ucast === 0) { 
+        if (pData.length === 0) { 
             box.innerHTML = '<p>Zatím nemáte žádné odehrané body.</p>'; 
             return; 
         }
         
-        box.innerHTML = `<p>🛡️ Odehráno <strong>${ucast}</strong> turnajů. | 🔥 Rekord <strong>${maxBody}</strong> bodů. | 🏆 Historické maximum: <strong>${bestRank === 9999 ? '-' : bestRank + '.'} místo</strong>.</p>`;
+        const { ucast, maxBody, bestRank } = computePlayerStats(pData);
+        box.innerHTML = `<p>🛡️ Odehráno <strong>${ucast}</strong> turnajů. | 🔥 Rekord <strong>${maxBody}</strong> bodů. | 🏆 Historické maximum: <strong>${bestRank === null ? '-' : bestRank + '.'} místo</strong>.</p>`;
     }
+
+    // Vyhledávač jmen napříč celou historií turnajů (ne jen v rámci jednoho vybraného turnaje).
+    // Ze soukromí je dostupné pouze přihlášeným uživatelům - viz stejné pravidlo u tabulky výsledků výše.
+    window.searchHistoryByName = function() {
+        const term = document.getElementById('historySearchInput').value.trim().toLowerCase();
+        const box = document.getElementById('historySearchResults');
+
+        if (!term) { box.style.display = 'none'; box.innerHTML = ''; return; }
+
+        if (!currentUser) {
+            box.style.display = 'block';
+            box.innerHTML = '<p class="error">Pro vyhledávání hráčů podle jména se prosím přihlaste (jinak jsou jména z důvodu ochrany soukromí skrytá).</p>';
+            return;
+        }
+
+        let byPlayer = {};
+        historicalData.forEach(d => {
+            let fullName = `${d.first_name || ''} ${d.last_name || ''}`.trim();
+            if (!fullName.toLowerCase().includes(term)) return;
+            if (!byPlayer[d.player_id_card]) byPlayer[d.player_id_card] = { name: fullName, id: d.player_id_card, rows: [] };
+            byPlayer[d.player_id_card].rows.push(d);
+        });
+
+        let players = Object.values(byPlayer);
+        box.style.display = 'block';
+
+        if (players.length === 0) { 
+            box.innerHTML = '<p>Žádný hráč tomuto jménu neodpovídá.</p>'; 
+            return; 
+        }
+
+        box.innerHTML = players.map(pl => {
+            const { ucast, maxBody, bestRank } = computePlayerStats(pl.rows);
+            let rowsHtml = pl.rows.slice()
+                .sort((a, b) => new Date(b.tournament_date || b.created_at) - new Date(a.tournament_date || a.created_at))
+                .map(r => `<tr><td>${r.tournament_name}</td><td>${r.rank || '-'}.</td><td>${r.points}</td></tr>`).join('');
+
+            return `<div class="card" style="margin-top:1rem; border-top: 3px solid var(--secondary);">
+                <h4 style="margin-bottom:0.5rem;">${pl.name} <span style="color:#718096; font-size:0.85rem; font-weight:normal;">(${formatSPZ(pl.id)})</span></h4>
+                <p style="font-size:0.9rem; margin-bottom:0.8rem;">🛡️ Odehráno <strong>${ucast}</strong> turnajů. | 🔥 Rekord <strong>${maxBody}</strong> bodů. | 🏆 Nejlepší umístění: <strong>${bestRank === null ? '-' : bestRank + '.'} místo</strong>.</p>
+                <table class="stats-table"><tr><th>Turnaj</th><th>Umístění</th><th>Body</th></tr>${rowsHtml}</table>
+            </div>`;
+        }).join('');
+    };
 
     window.renderTournamentResults = async function() {
         const tName = document.getElementById('statsTournamentSelect').value;
@@ -2643,21 +2716,45 @@ window.loadApiKeys = async function() {
                 }
 
                 let sentCount = 0;
+                let failedEmails = [];
                 for (let i = 0; i < allEmails.length; i += 50) {
                     const batch = allEmails.slice(i, i + 50); 
                     msgBox.innerText = `Odesílám... zpracováno ${sentCount} z ${allEmails.length} (Zabráněno duplicitám)`;
                     const promises = batch.map(email => sendEmailNotification(subj, msgText + `\n\n---\nOdhlášení z odběru: ${window.location.origin}?unsubscribe=${encodeURIComponent(email)}`, [email]));
-                    await Promise.all(promises); 
+                    const batchResults = await Promise.all(promises); 
+                    batchResults.forEach(r => r.forEach(item => { if (!item.success) failedEmails.push(item.email); }));
                     sentCount += batch.length; 
                     await new Promise(r => setTimeout(r, 1000));
                 }
-                
-                msgBox.className = 'msg success'; 
-                msgBox.innerText = `Odesláno úspěšně na ${allEmails.length} unikátních kontaktů!`; 
+
+                const zcEmails = await getAllZcEmails();
+
+                if (failedEmails.length > 0) {
+                    msgBox.className = 'msg error'; 
+                    msgBox.innerText = `Odesláno ${allEmails.length - failedEmails.length} z ${allEmails.length}. U ${failedEmails.length} adres nastala chyba.`;
+                    sendEmailNotification(
+                        '⚠️ Hromadné rozeslání dokončeno s chybami',
+                        `Hromadné rozeslání "${subj}" bylo dokončeno.\n\nÚspěšně odesláno: ${allEmails.length - failedEmails.length} z ${allEmails.length}\nNepodařilo se odeslat na (${failedEmails.length}): ${failedEmails.join(', ')}`,
+                        zcEmails
+                    );
+                } else {
+                    msgBox.className = 'msg success'; 
+                    msgBox.innerText = `Odesláno úspěšně na ${allEmails.length} unikátních kontaktů!`; 
+                    sendEmailNotification(
+                        '✅ Hromadné rozeslání proběhlo v pořádku',
+                        `Hromadné rozeslání "${subj}" bylo úspěšně dokončeno bez chyb.\n\nOdesláno na ${allEmails.length} unikátních kontaktů.`,
+                        zcEmails
+                    );
+                }
+
                 document.getElementById('sendNewsletterForm').reset(); 
-                logAction('Newsletter', `Rozeslán hromadný e-mail na ${allEmails.length} kontaktů.`);
+                logAction('Newsletter', `Rozeslán hromadný e-mail na ${allEmails.length} kontaktů.` + (failedEmails.length ? ` (chyby u ${failedEmails.length})` : ' (bez chyb)'));
             } catch (err) { 
                 msgBox.className = 'msg error'; msgBox.innerText = 'Chyba: ' + err.message; 
+                try {
+                    const zcEmails = await getAllZcEmails();
+                    await sendEmailNotification('🚨 Havárie hromadného rozeslání', `Hromadné rozeslání "${subj}" havarovalo s chybou:\n${err.message}`, zcEmails);
+                } catch (e2) { console.error('Nepodařilo se odeslat havarijní upozornění ZC:', e2); }
             } finally { 
                 btn.disabled = false; 
             }
