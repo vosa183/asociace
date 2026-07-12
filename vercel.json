@@ -4,5 +4,8 @@
       "path": "/api/cron?key=asociace2026",
       "schedule": "0 * * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/cron.js": { "maxDuration": 60 }
+  }
 }
