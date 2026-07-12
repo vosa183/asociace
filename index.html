@@ -1443,19 +1443,29 @@
             if (tDate < now) return; 
             
             const tRegs = allRegs ? allRegs.filter(r => r.tournament_id === t.id) : [];
-            const regCount = tRegs.length;
-            const paidCount = tRegs.filter(r => r.payment_status).length;
+            const activeRegs = tRegs.filter(r => !r.is_substitute);
+            const substituteCount = tRegs.filter(r => r.is_substitute).length;
+            const regCount = activeRegs.length;
+            const paidCount = activeRegs.filter(r => r.payment_status).length;
             const cap = t.capacity || 0;
             
             const fillPct = cap > 0 ? Math.min(100, (regCount / cap) * 100) : 0;
             const paidPct = cap > 0 ? Math.min(100, (paidCount / cap) * 100) : 0;
+            const isFull = regCount >= cap;
 
             let actionBtn = '';
             if (!currentUser) {
                 actionBtn = `<button class="btn-orange" onclick="alert('Pro přihlášení na turnaj se prosím nejprve přihlaste nebo si vytvořte účet.'); switchTab('auth');">Přihlásit se na turnaj</button>`;
             } else {
-                if (regCount >= cap) {
-                    actionBtn = `<button class="btn-danger" disabled>Kapacita naplněna</button>`;
+                if (isFull) {
+                    actionBtn = `<button class="btn-orange" onclick="joinTournament('${t.id}')">🕐 Zapsat se jako náhradník</button>`;
+                    if (myFamily && myFamily.length > 0) {
+                        let famOpts = myFamily.map(f => `<option value="${f.player_id_card}">${f.full_name}</option>`).join('');
+                        actionBtn += `<div style="display:flex; gap:10px; margin-top:10px;">
+                            <select id="famSel_${t.id}" style="margin:0; flex:1;">${famOpts}</select>
+                            <button class="btn-blue" onclick="joinFamilyTournament('${t.id}')" style="flex:1;">🕐 Přihlásit rodinu jako náhradníka</button>
+                        </div>`;
+                    }
                 } else {
                     actionBtn = `<button class="btn-green" onclick="joinTournament('${t.id}')">Zapsat se na turnaj</button>`;
                     if (myFamily && myFamily.length > 0) {
@@ -1490,6 +1500,7 @@
                         <div class="progress-bar-paid" style="width:${paidPct}%;"></div>
                         <div class="progress-bar-fill" style="width:${fillPct}%;"></div>
                     </div>
+                    ${substituteCount > 0 ? `<div style="font-size:0.8rem; color:#dd6b20; margin-top:0.3rem; font-weight:bold;">🕐 Náhradníků čeká: ${substituteCount}</div>` : ''}
                 </div>
                 <div style="width:100%;">
                     ${actionBtn}
@@ -1503,7 +1514,7 @@
 
     async function loadMyRegistrations() {
         const { data: myRegs, error } = await db.from('registrations')
-            .select(`id, player_id_card, registered_by, payment_status, tournaments ( id, title, event_date, fee, ID_T )`)
+            .select(`id, player_id_card, registered_by, payment_status, is_substitute, tournaments ( id, title, event_date, fee, ID_T )`)
             .or(`registered_by.eq.${currentUser.id},player_id_card.eq.${myProfileData.player_id_card}`);
             
         const list = document.getElementById('myRegistrationsList'); list.innerHTML = '';
@@ -1514,7 +1525,14 @@
             const t = reg.tournaments; 
             let pName = reg.player_id_card === myProfileData.player_id_card ? 'VY' : (myFamily.find(f => f.player_id_card === reg.player_id_card)?.full_name + ' (Rodina)' || 'Cizí přihláška');
             
-            let payUI = reg.payment_status ? `<span class="badge" style="background:#38a169;">Uhrazeno</span>` : `<button class="btn-small" style="background:#2b6cb0;" onclick="toggleQR('qr_${reg.id}', '${t.fee}', '${reg.player_id_card}', '${t.ID_T || ''}')">Kód k platbě</button>`;
+            let payUI;
+            if (reg.is_substitute) {
+                payUI = `<span class="badge" style="background:#dd6b20;">🕐 Náhradník (čekací listina)</span>`;
+            } else if (reg.payment_status) {
+                payUI = `<span class="badge" style="background:#38a169;">Uhrazeno</span>`;
+            } else {
+                payUI = `<button class="btn-small" style="background:#2b6cb0;" onclick="toggleQR('qr_${reg.id}', '${t.fee}', '${reg.player_id_card}', '${t.ID_T || ''}')">Kód k platbě</button>`;
+            }
             
             list.innerHTML += `<div class="list-item" style="flex-direction:column; align-items:start; background:#fff; border:1px solid #e2e8f0;">
                 <h4 style="color:#2f855a;">${t.title}</h4>
@@ -1536,14 +1554,26 @@
     
     window.joinTournament = async function(tId) { 
         if (!myProfileData) return; 
-        const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: myProfileData.player_id_card, registered_by: currentUser.id }); 
+
+        const { data: tData } = await db.from('tournaments').select('title, event_date, fee, ID_T, capacity').eq('id', tId).single();
+        const { data: existingRegs } = await db.from('registrations').select('id, is_substitute').eq('tournament_id', tId);
+        const activeCount = (existingRegs || []).filter(r => !r.is_substitute).length;
+        const isFull = tData ? activeCount >= (tData.capacity || 0) : false;
+
+        const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: myProfileData.player_id_card, registered_by: currentUser.id, is_substitute: isFull }); 
         if (!error) { 
-            alert('Přihlášeno!'); 
+            alert(isFull ? 'Turnaj je plný - byl(a) jste zapsán(a) jako náhradník. Pokud se uvolní místo, přijde e-mail.' : 'Přihlášeno!'); 
             
-            const { data: tData } = await db.from('tournaments').select('title, event_date, fee, ID_T').eq('id', tId).single();
             if(tData && myProfileData.email) {
-                const msg = `Dobrý den,\n\núspěšně jsme Vás zaregistrovali na turnaj:\n🏆 ${tData.title}\n📅 ${formatDateTime(tData.event_date)}\n\nNezapomeňte prosím uhradit startovné ve výši ${tData.fee} Kč nejpozději do 72 hodin od této registrace. V opačném případě bude vaše místo automaticky uvolněno dalším hráčům.\n\n🏦 Údaje k platbě:\nVariabilní symbol (VS): ${myProfileData.player_id_card}\nZpráva pro příjemce: ${tData.ID_T || ''}\n\n⚠️ Pokud nebude řádně vyplněná zpráva pro příjemce a ID hráče jako VS, bude platba považována za dar.\n\nQR kód pro rychlou platbu najdete po přihlášení do svého profilu na webu www.asociaceprsi.cz v sekci Turnaje.\n\nTěšíme se na Vás!`;
-                await sendEmailNotification(`Potvrzení registrace: ${tData.title}`, msg, [myProfileData.email]);
+                let subject, msg;
+                if (isFull) {
+                    subject = `Zápis na čekací listinu (náhradník) - ${tData.title}`;
+                    msg = `Dobrý den,\n\nturnaj "${tData.title}" (${formatDateTime(tData.event_date)}) je již kapacitně naplněný, takže jsme Vás zapsali jako náhradníka na čekací listinu.\n\nPokud se uvolní místo, budete o tom automaticky e-mailem informováni.\n\nČeská asociace v karetní hře prší z.s.`;
+                } else {
+                    subject = `Potvrzení registrace: ${tData.title}`;
+                    msg = `Dobrý den,\n\núspěšně jsme Vás zaregistrovali na turnaj:\n🏆 ${tData.title}\n📅 ${formatDateTime(tData.event_date)}\n\nNezapomeňte prosím uhradit startovné ve výši ${tData.fee} Kč nejpozději do 72 hodin od této registrace. V opačném případě bude vaše místo automaticky uvolněno dalším hráčům.\n\n🏦 Údaje k platbě:\nVariabilní symbol (VS): ${myProfileData.player_id_card}\nZpráva pro příjemce: ${tData.ID_T || ''}\n\n⚠️ Pokud nebude řádně vyplněná zpráva pro příjemce a ID hráče jako VS, bude platba považována za dar.\n\nQR kód pro rychlou platbu najdete po přihlášení do svého profilu na webu www.asociaceprsi.cz v sekci Turnaje.\n\nTěšíme se na Vás!`;
+                }
+                await sendEmailNotification(subject, msg, [myProfileData.email]);
             }
             
             loadPublicTournaments();
@@ -1555,20 +1585,32 @@
 
     window.joinFamilyTournament = async function(tId) { 
         const fId = document.getElementById('famSel_' + tId).value; 
-        const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: fId, registered_by: currentUser.id }); 
+
+        const { data: tData } = await db.from('tournaments').select('title, event_date, fee, ID_T, capacity').eq('id', tId).single();
+        const { data: existingRegs } = await db.from('registrations').select('id, is_substitute').eq('tournament_id', tId);
+        const activeCount = (existingRegs || []).filter(r => !r.is_substitute).length;
+        const isFull = tData ? activeCount >= (tData.capacity || 0) : false;
+
+        const { error } = await db.from('registrations').insert({ tournament_id: tId, player_id_card: fId, registered_by: currentUser.id, is_substitute: isFull }); 
         if (!error) { 
-            alert('Člen rodiny byl úspěšně přihlášen.'); 
+            alert(isFull ? 'Turnaj je plný - člen rodiny byl zapsán jako náhradník. Pokud se uvolní místo, přijde e-mail.' : 'Člen rodiny byl úspěšně přihlášen.'); 
             
             const { data: famProf } = await db.from('profiles').select('email').eq('player_id_card', fId).maybeSingle();
-            const { data: tData } = await db.from('tournaments').select('title, event_date, fee, ID_T').eq('id', tId).single();
             const famName = document.getElementById('famSel_' + tId).options[document.getElementById('famSel_' + tId).selectedIndex].text;
             
             if(tData) {
-                const msg = `Dobrý den,\n\nhráč ${famName} byl úspěšně zaregistrován na turnaj:\n🏆 ${tData.title}\n📅 ${formatDateTime(tData.event_date)}\n\nZápisné činí ${tData.fee} Kč a je nutné jej uhradit do 72 hodin od přihlášení, jinak bude místo uvolněno.\n\n🏦 Údaje k platbě:\nVariabilní symbol (VS): ${fId}\nZpráva pro příjemce: ${tData.ID_T || ''}\n\n⚠️ Pokud nebude řádně vyplněná zpráva pro příjemce a ID hráče jako VS, bude platba považována za dar.\n\nQR kód k platbě naleznete ve svém profilu na webu www.asociaceprsi.cz v sekci Turnaje.\n\nS pozdravem,\nČeská asociace v karetní hře prší z.s.`;
+                let subject, msg;
+                if (isFull) {
+                    subject = `Zápis na čekací listinu (náhradník) - ${tData.title}`;
+                    msg = `Dobrý den,\n\nturnaj "${tData.title}" (${formatDateTime(tData.event_date)}) je již kapacitně naplněný, takže jsme hráče ${famName} zapsali jako náhradníka na čekací listinu.\n\nPokud se uvolní místo, budete o tom automaticky e-mailem informováni.\n\nČeská asociace v karetní hře prší z.s.`;
+                } else {
+                    subject = `Potvrzení registrace: ${tData.title}`;
+                    msg = `Dobrý den,\n\nhráč ${famName} byl úspěšně zaregistrován na turnaj:\n🏆 ${tData.title}\n📅 ${formatDateTime(tData.event_date)}\n\nZápisné činí ${tData.fee} Kč a je nutné jej uhradit do 72 hodin od přihlášení, jinak bude místo uvolněno.\n\n🏦 Údaje k platbě:\nVariabilní symbol (VS): ${fId}\nZpráva pro příjemce: ${tData.ID_T || ''}\n\n⚠️ Pokud nebude řádně vyplněná zpráva pro příjemce a ID hráče jako VS, bude platba považována za dar.\n\nQR kód k platbě naleznete ve svém profilu na webu www.asociaceprsi.cz v sekci Turnaje.\n\nS pozdravem,\nČeská asociace v karetní hře prší z.s.`;
+                }
                 
-                if(myProfileData.email) sendEmailNotification(`Registrace člena rodiny: ${tData.title}`, msg, [myProfileData.email]);
+                if(myProfileData.email) sendEmailNotification(subject, msg, [myProfileData.email]);
                 if(famProf && famProf.email && famProf.email !== myProfileData.email) {
-                    sendEmailNotification(`Potvrzení registrace: ${tData.title}`, msg, [famProf.email]);
+                    sendEmailNotification(subject, msg, [famProf.email]);
                 }
             }
 
@@ -1579,12 +1621,37 @@
         }
     };
     
+    // Pokud zrušením ŘÁDNÉ (ne náhradnické) registrace vzniklo volné místo, upozorní e-mailem
+    // všechny, kdo na daný turnaj čekají jako náhradníci.
+    async function notifySubstitutesIfSpotOpened(tournamentId) {
+        const { data: tData } = await db.from('tournaments').select('title, capacity').eq('id', tournamentId).single();
+        if (!tData) return;
+        const { data: regs } = await db.from('registrations').select('player_id_card, is_substitute').eq('tournament_id', tournamentId);
+        const activeCount = (regs || []).filter(r => !r.is_substitute).length;
+        if (activeCount >= (tData.capacity || 0)) return; // pořád plno
+
+        const substitutes = (regs || []).filter(r => r.is_substitute);
+        if (substitutes.length === 0) return;
+
+        const subject = `📢 Uvolnilo se místo na turnaji "${tData.title}"!`;
+        const body = `Dobrý den,\n\nna turnaji "${tData.title}", na který jste zapsán/a jako náhradník, se uvolnilo místo.\n\nOzvěte se prosím co nejdříve asociaci, ať Vás můžeme přepsat mezi řádné účastníky - místo je volné jen do doby, než ho obsadí jiný zájemce.\n\nČeská asociace v karetní hře prší z.s.`;
+
+        for (const s of substitutes) {
+            const { data: prof } = await db.from('profiles').select('email').eq('player_id_card', s.player_id_card).maybeSingle();
+            if (prof?.email) await sendEmailNotification(subject, body, [prof.email]);
+        }
+    }
+
     window.cancelRegistration = async function(regId) { 
         if(confirm("Opravdu chcete tuto přihlášku zrušit?")) { 
+            const { data: regData } = await db.from('registrations').select('tournament_id, is_substitute').eq('id', regId).maybeSingle();
             const { error } = await db.from('registrations').delete().eq('id', regId); 
             if (error) {
                 alert("Chyba při mazání registrace: " + error.message);
             } else {
+                if (regData && !regData.is_substitute) {
+                    notifySubstitutesIfSpotOpened(regData.tournament_id);
+                }
                 loadPublicTournaments();
                 loadMyRegistrations(); 
             }
