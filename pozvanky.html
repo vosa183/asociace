@@ -524,13 +524,46 @@
     // ==========================================
     const CUSTOM_TEMPLATES_BUCKET = 'templates';
 
+    // Nabídka šablon je vždy složená ze dvou zdrojů:
+    // 1) sablony.json v kořeni webu - statické obrázky nahrané přímo do repozitáře (GitHub).
+    //    Nový podklad = jen přidat řádek do sablony.json, žádný zásah do téhle stránky.
+    // 2) Supabase Storage bucket "templates" - rychlé ad-hoc nahrání přímo odsud z prohlížeče.
     async function loadCustomTemplatesList() {
         const sel = document.getElementById('customTplSelect');
         if (!sel) return;
-        const { data, error } = await db.storage.from(CUSTOM_TEMPLATES_BUCKET).list('', { sortBy: { column: 'created_at', order: 'desc' } });
-        if (error) { console.error('Nepodařilo se načíst seznam nahraných šablon:', error); return; }
-        sel.innerHTML = '<option value="">-- Vyberte nahranou šablonu --</option>' +
-            (data || []).filter(f => f.name && !f.name.endsWith('/')).map(f => `<option value="${f.name}">${f.name}</option>`).join('');
+
+        let rootTemplates = [];
+        try {
+            const resp = await fetch('sablony.json', { cache: 'no-store' });
+            if (resp.ok) rootTemplates = await resp.json();
+        } catch (e) {
+            console.error('Nepodařilo se načíst sablony.json z kořene webu:', e);
+        }
+
+        let storageTemplates = [];
+        try {
+            const { data, error } = await db.storage.from(CUSTOM_TEMPLATES_BUCKET).list('', { sortBy: { column: 'created_at', order: 'desc' } });
+            if (error) throw error;
+            storageTemplates = (data || []).filter(f => f.name && !f.name.endsWith('/'));
+        } catch (e) {
+            console.error('Nepodařilo se načíst seznam nahraných šablon:', e);
+        }
+
+        let html = '<option value="">-- Vyberte šablonu --</option>';
+
+        if (rootTemplates.length > 0) {
+            html += '<optgroup label="Z kořene webu (GitHub)">' +
+                rootTemplates.map(t => `<option value="root:${t.file}">${t.name || t.file}</option>`).join('') +
+                '</optgroup>';
+        }
+
+        if (storageTemplates.length > 0) {
+            html += '<optgroup label="Nahrané šablony (knihovna)">' +
+                storageTemplates.map(f => `<option value="storage:${f.name}">${f.name}</option>`).join('') +
+                '</optgroup>';
+        }
+
+        sel.innerHTML = html;
     }
 
     // Načte obrázek, zjistí jeho SKUTEČNÉ rozměry a podle nich nastaví plakát - žádné
@@ -553,9 +586,19 @@
 
     async function useSelectedCustomTemplate() {
         const sel = document.getElementById('customTplSelect');
-        if (!sel.value) { alert('Nejdřív vyberte nahranou šablonu ze seznamu.'); return; }
-        const { data } = db.storage.from(CUSTOM_TEMPLATES_BUCKET).getPublicUrl(sel.value);
-        applyCustomTemplateUrl(data.publicUrl);
+        if (!sel.value) { alert('Nejdřív vyberte šablonu ze seznamu.'); return; }
+
+        const sepIdx = sel.value.indexOf(':');
+        const type = sel.value.slice(0, sepIdx);
+        const fileName = sel.value.slice(sepIdx + 1);
+
+        if (type === 'root') {
+            // Soubor leží přímo v kořeni webu vedle pozvanky.html.
+            applyCustomTemplateUrl(location.origin + '/' + fileName);
+        } else {
+            const { data } = db.storage.from(CUSTOM_TEMPLATES_BUCKET).getPublicUrl(fileName);
+            applyCustomTemplateUrl(data.publicUrl);
+        }
     }
 
     document.getElementById('customTplUpload').addEventListener('change', async function(e) {
@@ -570,7 +613,7 @@
             if (error) throw new Error("Nelze nahrát šablonu do knihovny. Zkontrolujte, zda máte v Supabase vytvořený public bucket '" + CUSTOM_TEMPLATES_BUCKET + "'. Detail: " + error.message);
             const { data } = db.storage.from(CUSTOM_TEMPLATES_BUCKET).getPublicUrl(fileName);
             await loadCustomTemplatesList();
-            document.getElementById('customTplSelect').value = fileName;
+            document.getElementById('customTplSelect').value = 'storage:' + fileName;
             applyCustomTemplateUrl(data.publicUrl);
         } catch (err) {
             console.error(err);
