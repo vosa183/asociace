@@ -467,15 +467,18 @@
         const body = `Dobrý den,\n\nvypsali jsme nový turnaj!\n\n🏆 ${title}\n📅 ${dateFmt}\n📍 Okres: ${kraj || 'Centrální'}\n🪙 Zápisné: ${fee} Kč\n\nRegistrace a všechny podrobnosti najdete na webu:\nhttps://www.asociaceprsi.cz/turnaje.html\n\nČeská asociace v karetní hře prší z.s.`;
 
         let failed = 0;
-        for (let i = 0; i < arr.length; i += 50) {
-            const batch = arr.slice(i, i + 50);
+        // Menší dávky (5 souběžně) a delší pauza mezi nimi - záměrně šetrnější tempo, aby to
+        // na SMTP serveru nevypadalo jako spamový nápor (to je pravděpodobně to, co dřív vedlo
+        // k zablokování schránky/domény).
+        for (let i = 0; i < arr.length; i += 5) {
+            const batch = arr.slice(i, i + 5);
             const results = await Promise.all(batch.map(em => sendEmailNotification(
                 `📢 Nový turnaj: ${title}`,
                 body,
                 [em]
             )));
             results.forEach(r => r.forEach(item => { if (!item.success) failed++; }));
-            await new Promise(r => setTimeout(r, 1000));
+            await new Promise(r => setTimeout(r, 2000));
         }
         return { sent: arr.length - failed, failed, total: arr.length };
     }
