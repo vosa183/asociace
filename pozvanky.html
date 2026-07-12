@@ -451,36 +451,38 @@
         return results;
     }
 
-    // Sestaví text oznámení o novém turnaji a rozešle ho JEN aktivním hráčům asociace - tedy
-    // profilům, které mají dokončenou registraci (přidělené ID hráče). Odběratelé novinek
-    // (newsletter_subscribers) tady záměrně NEJSOU - to jsou obecné kontakty (sponzoři, zájemci
-    // apod.), ne nutně hráči, a oznámení o turnaji se má týkat jen skutečných členů.
+    // Zařadí hromadný mail do fronty (mail_queue) místo přímého odeslání - postupně, bezpečnou
+    // rychlostí, ho pak na pozadí odešle api/process-mail-queue.js (viz turnaje.html poznámky).
+    async function enqueueMassMail(recipients, subject, body, batchLabel) {
+        const uniqueEmails = Array.from(new Set(recipients.filter(e => e && e.includes('@'))));
+        if (uniqueEmails.length === 0) return 0;
+        const rows = uniqueEmails.map(email => ({ to_email: email, subject: subject, body: body, batch_label: batchLabel }));
+        for (let i = 0; i < rows.length; i += 500) {
+            const { error } = await db.from('mail_queue').insert(rows.slice(i, i + 500));
+            if (error) throw new Error('Nepodařilo se zařadit maily do fronty: ' + error.message);
+        }
+        return uniqueEmails.length;
+    }
+
+    // Sestaví text oznámení o novém turnaji a zařadí ho do fronty JEN pro aktivní hráče
+    // asociace - tedy profily, které mají dokončenou registraci (přidělené ID hráče).
+    // Odběratelé novinek (newsletter_subscribers) tady záměrně NEJSOU - to jsou obecné kontakty
+    // (sponzoři, zájemci apod.), ne nutně hráči, a oznámení o turnaji se má týkat jen skutečných
+    // členů. Odesílání samotné běží na pozadí (viz mail_queue), takže tahle funkce vrátí
+    // výsledek okamžitě - nečeká se na doručení.
     async function sendTournamentAnnouncement(title, date, fee, kraj) {
         let emails = new Set();
         const { data: p } = await db.from('profiles').select('email, player_id_card').not('player_id_card', 'is', null);
         p?.forEach(x => { if (x.email) emails.add(x.email); });
 
         const arr = Array.from(emails);
-        if (arr.length === 0) return { sent: 0, failed: 0, total: 0 };
+        if (arr.length === 0) return { queued: 0, total: 0 };
 
         const dateFmt = date ? new Date(date).toLocaleString('cs-CZ', { dateStyle: 'long', timeStyle: 'short' }) : '';
         const body = `Dobrý den,\n\nvypsali jsme nový turnaj!\n\n🏆 ${title}\n📅 ${dateFmt}\n📍 Okres: ${kraj || 'Centrální'}\n🪙 Zápisné: ${fee} Kč\n\nRegistrace a všechny podrobnosti najdete na webu:\nhttps://www.asociaceprsi.cz/turnaje.html\n\nČeská asociace v karetní hře prší z.s.`;
 
-        let failed = 0;
-        // Menší dávky (5 souběžně) a delší pauza mezi nimi - záměrně šetrnější tempo, aby to
-        // na SMTP serveru nevypadalo jako spamový nápor (to je pravděpodobně to, co dřív vedlo
-        // k zablokování schránky/domény).
-        for (let i = 0; i < arr.length; i += 5) {
-            const batch = arr.slice(i, i + 5);
-            const results = await Promise.all(batch.map(em => sendEmailNotification(
-                `📢 Nový turnaj: ${title}`,
-                body,
-                [em]
-            )));
-            results.forEach(r => r.forEach(item => { if (!item.success) failed++; }));
-            await new Promise(r => setTimeout(r, 2000));
-        }
-        return { sent: arr.length - failed, failed, total: arr.length };
+        const queued = await enqueueMassMail(arr, `📢 Nový turnaj: ${title}`, body, `Turnaj: ${title}`);
+        return { queued, total: arr.length };
     }
 
     async function checkAuth() {
@@ -963,11 +965,11 @@
 
             if (dbError) throw new Error("Nepodařilo se vytvořit turnaj v databázi: " + dbError.message);
 
-            overlay.innerHTML = "📧 Rozesílám e-maily o novém turnaji...<br><span style='font-size:0.8rem;font-weight:normal;margin-top:10px;'>U velkého počtu kontaktů to může chvíli trvat.</span>";
+            overlay.innerHTML = "📧 Zařazuji e-maily o novém turnaji do fronty...";
             
             const mailResult = await sendTournamentAnnouncement(title, date, fee, kraj);
             
-            alert(`🎉 ÚSPĚCH!\n\nTurnaj "${title}" (ID-T: ${nextIdT}) byl úspěšně vypsán.\nPlakát je nahrán v cloudu a turnaj se ihned objeví na stránce /turnaje.\n\n📧 E-maily: odesláno ${mailResult.sent} z ${mailResult.total} kontaktů` + (mailResult.failed > 0 ? ` (u ${mailResult.failed} nastala chyba).` : '.'));
+            alert(`🎉 ÚSPĚCH!\n\nTurnaj "${title}" (ID-T: ${nextIdT}) byl úspěšně vypsán.\nPlakát je nahrán v cloudu a turnaj se ihned objeví na stránce /turnaje.\n\n📧 ${mailResult.queued} e-mailů bylo zařazeno do fronty a postupně se bezpečně odešlou na pozadí.`);
             
             document.getElementById('dbTitle').value = "";
             document.getElementById('dbDate').value = "";
@@ -995,17 +997,17 @@
             alert("Vyplňte prosím alespoň Název, Datum a Zápisné v sekci Zveřejnění!");
             return;
         }
-        if (!confirm(`Odeslat e-mailem oznámení o turnaji:\n"${title}"\n\nvšem členům a odběratelům novinek? (Nový turnaj se přitom NEVYTVOŘÍ, pouze se pošlou e-maily.)`)) return;
+        if (!confirm(`Odeslat e-mailem oznámení o turnaji:\n"${title}"\n\nvšem aktivním hráčům asociace? (Nový turnaj se přitom NEVYTVOŘÍ, pouze se pošlou e-maily.)`)) return;
 
         const btn = document.getElementById('btnSendOnly');
         const overlay = document.getElementById('loadingOverlay');
         btn.disabled = true;
-        overlay.innerHTML = "📧 Rozesílám e-maily o turnaji...<br><span style='font-size:0.8rem;font-weight:normal;margin-top:10px;'>U velkého počtu kontaktů to může chvíli trvat.</span>";
+        overlay.innerHTML = "📧 Zařazuji e-maily do fronty...";
         overlay.style.display = 'flex';
 
         try {
             const mailResult = await sendTournamentAnnouncement(title, date, fee, kraj);
-            alert(`📧 Hotovo!\n\nOdesláno ${mailResult.sent} z ${mailResult.total} kontaktů` + (mailResult.failed > 0 ? ` (u ${mailResult.failed} nastala chyba).` : '.'));
+            alert(`📧 Hotovo!\n\n${mailResult.queued} e-mailů bylo zařazeno do fronty a postupně se bezpečně odešlou na pozadí.`);
         } catch (err) {
             console.error(err);
             alert("❌ CHYBA: " + err.message);
