@@ -353,6 +353,9 @@
             <button type="button" class="btn-publish" id="btnPublish" onclick="publishTournament()" style="margin-top: 10px;">
                 🚀 Zveřejnit a Rozeslat
             </button>
+            <button type="button" class="btn-jpeg" id="btnSendOnly" onclick="sendAnnouncementOnly()" style="margin-top: 10px;">
+                📧 Jen odeslat (bez zakládání turnaje)
+            </button>
         </div>
 
     </div>
@@ -426,6 +429,55 @@
     const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+    // Každý příjemce dostává vlastní samostatný e-mail (žádné hromadné To/BCC se seznamem).
+    async function sendEmailNotification(predmet, zprava, prijemci) {
+        if (!prijemci || prijemci.length === 0) return [];
+        const list = Array.isArray(prijemci) ? prijemci : [prijemci];
+        const results = [];
+        for (let to of list) {
+            try {
+                const resp = await fetch('/api/mail', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subject: predmet, message: zprava, to: to })
+                });
+                results.push({ email: to, success: resp.ok });
+            } catch (e) {
+                console.error('Mail fail', e);
+                results.push({ email: to, success: false });
+            }
+        }
+        return results;
+    }
+
+    // Sestaví text oznámení o novém turnaji a rozešle ho všem členům (profiles.email) i
+    // přihlášeným odběratelům novinek (newsletter_subscribers) - stejný zdroj příjemců, jaký
+    // se používá i pro ostatní hromadná oznámení na webu (newsletter, reporty).
+    async function sendTournamentAnnouncement(title, date, fee, kraj) {
+        let emails = new Set();
+        const { data: p } = await db.from('profiles').select('email'); p?.forEach(x => { if (x.email) emails.add(x.email); });
+        const { data: s } = await db.from('newsletter_subscribers').select('email'); s?.forEach(x => { if (x.email) emails.add(x.email); });
+
+        const arr = Array.from(emails);
+        if (arr.length === 0) return { sent: 0, failed: 0, total: 0 };
+
+        const dateFmt = date ? new Date(date).toLocaleString('cs-CZ', { dateStyle: 'long', timeStyle: 'short' }) : '';
+        const body = `Dobrý den,\n\nvypsali jsme nový turnaj!\n\n🏆 ${title}\n📅 ${dateFmt}\n📍 Okres: ${kraj || 'Centrální'}\n🪙 Zápisné: ${fee} Kč\n\nRegistrace a všechny podrobnosti najdete na webu:\nhttps://www.asociaceprsi.cz/turnaje.html\n\nČeská asociace v karetní hře prší z.s.`;
+
+        let failed = 0;
+        for (let i = 0; i < arr.length; i += 50) {
+            const batch = arr.slice(i, i + 50);
+            const results = await Promise.all(batch.map(em => sendEmailNotification(
+                `📢 Nový turnaj: ${title}`,
+                body + `\n\nOdhlášení z odběru: https://www.asociaceprsi.cz?unsubscribe=${encodeURIComponent(em)}`,
+                [em]
+            )));
+            results.forEach(r => r.forEach(item => { if (!item.success) failed++; }));
+            await new Promise(r => setTimeout(r, 1000));
+        }
+        return { sent: arr.length - failed, failed, total: arr.length };
+    }
 
     async function checkAuth() {
         const { data: { session } } = await db.auth.getSession();
@@ -907,13 +959,49 @@
 
             if (dbError) throw new Error("Nepodařilo se vytvořit turnaj v databázi: " + dbError.message);
 
-            overlay.innerHTML = "📧 Připravuji rozeslání e-mailů...";
+            overlay.innerHTML = "📧 Rozesílám e-maily o novém turnaji...<br><span style='font-size:0.8rem;font-weight:normal;margin-top:10px;'>U velkého počtu kontaktů to může chvíli trvat.</span>";
             
-            alert(`🎉 ÚSPĚCH!\n\nTurnaj "${title}" (ID-T: ${nextIdT}) byl úspěšně vypsán.\nPlakát je nahrán v cloudu a turnaj se ihned objeví na stránce /turnaje.\n\nE-maily budou v další fázi automaticky rozeslány hráčům.`);
+            const mailResult = await sendTournamentAnnouncement(title, date, fee, kraj);
+            
+            alert(`🎉 ÚSPĚCH!\n\nTurnaj "${title}" (ID-T: ${nextIdT}) byl úspěšně vypsán.\nPlakát je nahrán v cloudu a turnaj se ihned objeví na stránce /turnaje.\n\n📧 E-maily: odesláno ${mailResult.sent} z ${mailResult.total} kontaktů` + (mailResult.failed > 0 ? ` (u ${mailResult.failed} nastala chyba).` : '.'));
             
             document.getElementById('dbTitle').value = "";
             document.getElementById('dbDate').value = "";
             
+        } catch (err) {
+            console.error(err);
+            alert("❌ CHYBA: " + err.message);
+        } finally {
+            overlay.style.display = 'none';
+            btn.disabled = false;
+            overlay.innerHTML = "Ověřuji oprávnění...";
+        }
+    }
+
+    // Samostatné tlačítko "Jen odeslat" - pošle stejné oznámení jako po zveřejnění, ale BEZ
+    // generování plakátu a BEZ zakládání nového turnaje v databázi. Použití: dřívější rozeslání
+    // selhalo/vynechalo se, nebo chceš připomínku poslat znovu, aniž bys turnaj zakládal znovu.
+    async function sendAnnouncementOnly() {
+        const title = document.getElementById('dbTitle').value.trim();
+        const date = document.getElementById('dbDate').value;
+        const fee = document.getElementById('dbFee').value;
+        const kraj = document.getElementById('dbKraj').value;
+
+        if (!title || !date || !fee) {
+            alert("Vyplňte prosím alespoň Název, Datum a Zápisné v sekci Zveřejnění!");
+            return;
+        }
+        if (!confirm(`Odeslat e-mailem oznámení o turnaji:\n"${title}"\n\nvšem členům a odběratelům novinek? (Nový turnaj se přitom NEVYTVOŘÍ, pouze se pošlou e-maily.)`)) return;
+
+        const btn = document.getElementById('btnSendOnly');
+        const overlay = document.getElementById('loadingOverlay');
+        btn.disabled = true;
+        overlay.innerHTML = "📧 Rozesílám e-maily o turnaji...<br><span style='font-size:0.8rem;font-weight:normal;margin-top:10px;'>U velkého počtu kontaktů to může chvíli trvat.</span>";
+        overlay.style.display = 'flex';
+
+        try {
+            const mailResult = await sendTournamentAnnouncement(title, date, fee, kraj);
+            alert(`📧 Hotovo!\n\nOdesláno ${mailResult.sent} z ${mailResult.total} kontaktů` + (mailResult.failed > 0 ? ` (u ${mailResult.failed} nastala chyba).` : '.'));
         } catch (err) {
             console.error(err);
             alert("❌ CHYBA: " + err.message);
