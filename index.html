@@ -767,9 +767,16 @@
                                 <input type="text" id="nlSubject" required>
                                 <label>Text (Odkaz na odhlášení bude přidán automaticky)</label>
                                 <textarea id="nlMessage" rows="5" required></textarea>
-                                <button type="submit" class="btn-orange btn-small" id="sendNlBtn">🚀 Rozeslat všem vybraným</button>
+                                <button type="submit" class="btn-orange btn-small" id="sendNlBtn">🚀 Zařadit do fronty a rozeslat</button>
                                 <div id="nlSendMsg" class="msg"></div>
                             </form>
+
+                            <div style="margin-top:1.5rem; background:#f7fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem;">
+                                <h4 style="color:var(--primary); margin-bottom:0.5rem;">📬 Fronta odesílání</h4>
+                                <p style="font-size:0.8rem; color:#4a5568; margin-bottom:0.8rem;">Hromadné maily (newsletter, reporty, oznámení o turnajích) se posílají postupně na pozadí, ať se schránka nezablokuje. Zpracovává je <code>api/process-mail-queue</code> po malých dávkách (viz nastavení externího scheduleru).</p>
+                                <div id="mailQueueStatus" style="font-size:0.9rem;">Načítám...</div>
+                                <button type="button" class="btn-blue btn-small" style="margin-top:0.8rem;" onclick="loadMailQueueStatus()">🔄 Obnovit</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1109,6 +1116,10 @@
     async function sendEmailNotification(predmet, zprava, prijemci) {
         // Každý příjemce dostává svůj vlastní samostatný e-mail (fakticky jako skrytá kopie) -
         // nikdo tak nikdy neuvidí seznam ostatních adresátů.
+        // POZOR: tohle je pro JEDNOTLIVÉ/transakční maily (potvrzení registrace, upozornění
+        // ZC apod.) - malý počet, má smysl je odeslat hned. Pro HROMADNÉ rozeslání (newsletter,
+        // reporty, oznámení o turnaji) použij enqueueMassMail() níže, ať se to posílá na pozadí
+        // a neriskuje se ban schránky.
         if (!prijemci || prijemci.length === 0) return [];
         const list = Array.isArray(prijemci) ? prijemci : [prijemci];
         const results = [];
@@ -1126,6 +1137,30 @@
             }
         }
         return results;
+    }
+
+    // Zařadí hromadný mail (newsletter, report, oznámení o turnaji) do fronty (mail_queue) -
+    // odesílání OKAMŽITĚ vrátí (žádné čekání na desítky/tisíce mailů v prohlížeči) a maily se
+    // pak postupně, bezpečnou rychlostí, odesílají na pozadí přes api/process-mail-queue.js
+    // (volaný externím schedulerem po pár minutách).
+    async function enqueueMassMail(recipients, subject, body, batchLabel) {
+        const uniqueEmails = Array.from(new Set(recipients.filter(e => e && e.includes('@'))));
+        if (uniqueEmails.length === 0) return 0;
+
+        const rows = uniqueEmails.map(email => ({
+            to_email: email,
+            subject: subject,
+            body: body.replace('{EMAIL}', encodeURIComponent(email)),
+            batch_label: batchLabel
+        }));
+
+        // Vkládáme po 500 (jen kvůli velikosti jednoho HTTP requestu na Supabase, ne kvůli
+        // rychlosti odesílání mailů - to řídí až fronta samotná).
+        for (let i = 0; i < rows.length; i += 500) {
+            const { error } = await db.from('mail_queue').insert(rows.slice(i, i + 500));
+            if (error) throw new Error('Nepodařilo se zařadit maily do fronty: ' + error.message);
+        }
+        return uniqueEmails.length;
     }
 
     function switchTab(tabId) {
@@ -2547,25 +2582,16 @@ window.loadApiKeys = async function() {
         });
 
         if(!error) {
-            alert(`Turnaj byl úspěšně vypsán na web (ID-T: ${nextIdT})! Nyní rozesílám e-mailové pozvánky všem hráčům s účtem...`);
-            
             const { data: profs } = await db.from('profiles').select('email');
             const emails = profs ? profs.map(p => p.email).filter(e => e && e.includes('@')) : [];
             
             const subj = `Nový otevřený turnaj: ${title.trim()}`;
             const msg = `Dobrý den,\n\nv systému byl úspěšně otevřen nový turnaj!\n\n🏆 Název: ${title.trim()}\n📅 Den a čas: ${eventDate}\n📍 Místo konání: ${location}\n💰 Startovné: ${fee} Kč\n\nKompletní podrobnosti a možnost bleskového přihlášení jedním kliknutím naleznete na oficiálních stránkách asociace:\nhttps://www.asociaceprsi.cz\n\nTěšíme se na Vás u stolů!\nČeská asociace v karetní hře prší z.s.`;
             
-            let sentCount = 0;
-            for (let i = 0; i < emails.length; i += 50) {
-                const batch = emails.slice(i, i + 50);
-                const promises = batch.map(email => sendEmailNotification(subj, msg, [email]));
-                await Promise.all(promises);
-                sentCount += batch.length;
-                await new Promise(r => setTimeout(r, 1000)); 
-            }
+            const queuedCount = await enqueueMassMail(emails, subj, msg, `Nový turnaj: ${title.trim()}`);
             
-            alert(`Notifikace úspěšně rozeslány na ${sentCount} hráčských účtů!`);
-            logAction('Vypsání turnaje', `Byl vypsán nový turnaj "${title}" a rozesláno ${sentCount} notifikací.`);
+            alert(`Turnaj byl úspěšně vypsán na web (ID-T: ${nextIdT})!\n\n📧 ${queuedCount} e-mailových pozvánek bylo zařazeno do fronty a postupně se bezpečně odešlou na pozadí.`);
+            logAction('Vypsání turnaje', `Byl vypsán nový turnaj "${title}" a do fronty zařazeno ${queuedCount} notifikací.`);
             loadAdminTournaments();
             if (document.getElementById('tournaments').classList.contains('active')) loadPublicTournaments();
         } else {
@@ -2654,7 +2680,28 @@ window.loadApiKeys = async function() {
             loadAdminTournaments(); 
         }
         loadNewsletterStats();
+        loadMailQueueStatus();
     }
+
+    window.loadMailQueueStatus = async function() {
+        const box = document.getElementById('mailQueueStatus');
+        if (!box) return;
+        if (!['zc', 'zcp', 'superadmin'].includes(simulatedRole)) return;
+
+        box.innerText = 'Načítám...';
+        try {
+            const [{ count: pending }, { count: sending }, { count: sent }, { count: failed }] = await Promise.all([
+                db.from('mail_queue').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+                db.from('mail_queue').select('*', { count: 'exact', head: true }).eq('status', 'sending'),
+                db.from('mail_queue').select('*', { count: 'exact', head: true }).eq('status', 'sent'),
+                db.from('mail_queue').select('*', { count: 'exact', head: true }).eq('status', 'failed'),
+            ]);
+            box.innerHTML = `⏳ Čeká: <strong>${pending || 0}</strong> &nbsp;|&nbsp; 📤 Právě se odesílá: <strong>${sending || 0}</strong> &nbsp;|&nbsp; ✅ Odesláno: <strong>${sent || 0}</strong> &nbsp;|&nbsp; ❌ Chyba: <strong style="color:${failed ? 'var(--secondary)' : 'inherit'};">${failed || 0}</strong>`;
+        } catch (e) {
+            box.innerText = 'Nepodařilo se načíst stav fronty (zkontroluj, že je vytvořená tabulka mail_queue).';
+        }
+    };
+
 
     async function loadNewsletterStats() {
         if (!['zc', 'zcp', 'superadmin'].includes(simulatedRole)) return;
@@ -2782,40 +2829,24 @@ window.loadApiKeys = async function() {
                     return; 
                 }
 
-                let sentCount = 0;
-                let failedEmails = [];
-                for (let i = 0; i < allEmails.length; i += 50) {
-                    const batch = allEmails.slice(i, i + 50); 
-                    msgBox.innerText = `Odesílám... zpracováno ${sentCount} z ${allEmails.length} (Zabráněno duplicitám)`;
-                    const promises = batch.map(email => sendEmailNotification(subj, msgText + `\n\n---\nOdhlášení z odběru: ${window.location.origin}?unsubscribe=${encodeURIComponent(email)}`, [email]));
-                    const batchResults = await Promise.all(promises); 
-                    batchResults.forEach(r => r.forEach(item => { if (!item.success) failedEmails.push(item.email); }));
-                    sentCount += batch.length; 
-                    await new Promise(r => setTimeout(r, 1000));
-                }
+                msgBox.innerText = `Zařazuji ${allEmails.length} kontaktů do fronty...`;
+
+                const bodyTemplate = msgText + `\n\n---\nOdhlášení z odběru: ${window.location.origin}?unsubscribe={EMAIL}`;
+                const queuedCount = await enqueueMassMail(allEmails, subj, bodyTemplate, `Newsletter: ${subj}`);
+
+                msgBox.className = 'msg success'; 
+                msgBox.innerText = `✅ ${queuedCount} e-mailů zařazeno do fronty. Postupně se bezpečně odešlou na pozadí (viz sekce "Fronta odesílání" níže).`;
 
                 const zcEmails = await getAllZcEmails();
-
-                if (failedEmails.length > 0) {
-                    msgBox.className = 'msg error'; 
-                    msgBox.innerText = `Odesláno ${allEmails.length - failedEmails.length} z ${allEmails.length}. U ${failedEmails.length} adres nastala chyba.`;
-                    sendEmailNotification(
-                        '⚠️ Hromadné rozeslání dokončeno s chybami',
-                        `Hromadné rozeslání "${subj}" bylo dokončeno.\n\nÚspěšně odesláno: ${allEmails.length - failedEmails.length} z ${allEmails.length}\nNepodařilo se odeslat na (${failedEmails.length}): ${failedEmails.join(', ')}`,
-                        zcEmails
-                    );
-                } else {
-                    msgBox.className = 'msg success'; 
-                    msgBox.innerText = `Odesláno úspěšně na ${allEmails.length} unikátních kontaktů!`; 
-                    sendEmailNotification(
-                        '✅ Hromadné rozeslání proběhlo v pořádku',
-                        `Hromadné rozeslání "${subj}" bylo úspěšně dokončeno bez chyb.\n\nOdesláno na ${allEmails.length} unikátních kontaktů.`,
-                        zcEmails
-                    );
-                }
+                sendEmailNotification(
+                    '📬 Newsletter zařazen do fronty',
+                    `Hromadné rozeslání "${subj}" bylo zařazeno do fronty (${queuedCount} adres) a postupně se bude bezpečně odesílat na pozadí.`,
+                    zcEmails
+                );
 
                 document.getElementById('sendNewsletterForm').reset(); 
-                logAction('Newsletter', `Rozeslán hromadný e-mail na ${allEmails.length} kontaktů.` + (failedEmails.length ? ` (chyby u ${failedEmails.length})` : ' (bez chyb)'));
+                logAction('Newsletter', `Zařazeno do fronty ${queuedCount} kontaktů pro "${subj}".`);
+                if (typeof loadMailQueueStatus === 'function') loadMailQueueStatus();
             } catch (err) { 
                 msgBox.className = 'msg error'; msgBox.innerText = 'Chyba: ' + err.message; 
                 try {
@@ -3233,19 +3264,18 @@ window.loadApiKeys = async function() {
             }
 
             if (sendMail && status === 'publikovano') {
-                msgBox.innerText = 'Rozesílám maily...';
+                msgBox.innerText = 'Zařazuji do fronty...';
                 let emails = new Set();
                 const { data: p } = await db.from('profiles').select('email'); p?.forEach(x => { if(x.email) emails.add(x.email); });
                 const { data: s } = await db.from('newsletter_subscribers').select('email'); s?.forEach(x => { if(x.email) emails.add(x.email); });
                 
                 let arr = Array.from(emails);
                 let cleanText = content.replace(/\[foto.*?\]/g, '').substring(0, 350) + '...';
-                let body = `Dobrý den,\n\nprávě jsme vydali nový report!\n\n📑 Téma: ${title}\n📅 Z turnaje odehraného: ${evDate}\n\nKrátká ukázka:\n"${cleanText}"\n\nCelý článek naleznete na webu:\nhttps://www.asociaceprsi.cz\n\nČeská asociace v karetní hře prší z.s.`;
-                
-                for(let i=0; i<arr.length; i+=50) {
-                    await Promise.all(arr.slice(i, i+50).map(em => sendEmailNotification(`Nový článek: ${title}`, body + `\n\nOdhlášení: https://www.asociaceprsi.cz?unsubscribe=${encodeURIComponent(em)}`, [em])));
-                    await new Promise(r => setTimeout(r, 1000));
-                }
+                let bodyTemplate = `Dobrý den,\n\nprávě jsme vydali nový report!\n\n📑 Téma: ${title}\n📅 Z turnaje odehraného: ${evDate}\n\nKrátká ukázka:\n"${cleanText}"\n\nCelý článek naleznete na webu:\nhttps://www.asociaceprsi.cz\n\nOdhlášení: https://www.asociaceprsi.cz?unsubscribe={EMAIL}\n\nČeská asociace v karetní hře prší z.s.`;
+
+                const queuedCount = await enqueueMassMail(arr, `Nový článek: ${title}`, bodyTemplate, `Report: ${title}`);
+                msgBox.innerText = `Zařazeno do fronty: ${queuedCount} adres. Budou postupně bezpečně odeslány na pozadí.`;
+                if (typeof loadMailQueueStatus === 'function') loadMailQueueStatus();
             }
 
             msgBox.className = 'msg success'; msgBox.innerText = 'Hotovo!';
