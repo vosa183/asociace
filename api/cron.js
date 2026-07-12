@@ -101,46 +101,62 @@ export default async function handler(req, res) {
         }
     }
 
+    let fioSkipped = false;
+    let transactions = [];
+
     try {
         // 1. ZÍSKÁNÍ TOKENU ZE SPRÁVNÉ TABULKY
-        const settings = await supabaseRequest('GET', 'system_settings?id=eq.1&select=fio_token');
+        const settings = await supabaseRequest('GET', 'system_settings?id=eq.1&select=fio_token,fio_last_call_at');
         const fioToken = settings && settings[0] ? settings[0].fio_token : null;
         
         if (!fioToken) {
             throw new Error("Fio token nebyl v tabulce system_settings nalezen.");
         }
 
-        // 2. Stažení dat z banky
-        const toDate = new Date().toISOString().split('T')[0];
-        const fromDateObj = new Date();
-        fromDateObj.setDate(fromDateObj.getDate() - 14);
-        const fromDate = fromDateObj.toISOString().split('T')[0];
-        
-        const cleanToken = fioToken.trim();
-        const fioUrl = `https://fioapi.fio.cz/v1/rest/periods/${encodeURIComponent(cleanToken)}/${fromDate}/${toDate}/transactions.json`;
-        
-        const fioController = new AbortController();
-        const fioTimeout = setTimeout(() => fioController.abort(), 15000);
-        let fioRes;
-        try {
-            fioRes = await fetch(fioUrl, { method: 'GET', headers: { 'Accept': 'application/json' }, signal: fioController.signal });
-        } catch (fetchErr) {
-            if (fetchErr.name === 'AbortError') {
-                throw new Error("Fio API neodpovědělo do 15 sekund (pravděpodobně porušeno pravidlo 30 sekund mezi dotazy na stejný token, nebo Fio momentálně nereaguje).");
+        // Sdílené hlídání pravidla 30 s se stránkou banka.html (api/fio.js). Cron neumí (a
+        // nemá) čekat desítky vteřin uvnitř jednoho běhu - je jednodušší a bezpečnější párování
+        // plateb pro TENTO běh přeskočit (proběhne příští hodinu) a rovnou pokračovat na
+        // upomínky/storna, která žádná data z Fio nepotřebují.
+        const lastCallStr = settings && settings[0] ? settings[0].fio_last_call_at : null;
+        if (lastCallStr && (Date.now() - new Date(lastCallStr).getTime()) / 1000 < 32) {
+            fioSkipped = true;
+        } else {
+            await supabaseRequest('PATCH', 'system_settings?id=eq.1', { fio_last_call_at: new Date().toISOString() });
+
+            // 2. Stažení dat z banky
+            const toDate = new Date().toISOString().split('T')[0];
+            const fromDateObj = new Date();
+            fromDateObj.setDate(fromDateObj.getDate() - 14);
+            const fromDate = fromDateObj.toISOString().split('T')[0];
+            
+            const cleanToken = fioToken.trim();
+            const fioUrl = `https://fioapi.fio.cz/v1/rest/periods/${encodeURIComponent(cleanToken)}/${fromDate}/${toDate}/transactions.json`;
+            
+            const fioController = new AbortController();
+            const fioTimeout = setTimeout(() => fioController.abort(), 25000);
+            let fioRes;
+            try {
+                fioRes = await fetch(fioUrl, { method: 'GET', headers: { 'Accept': 'application/json' }, signal: fioController.signal });
+            } catch (fetchErr) {
+                if (fetchErr.name === 'AbortError') {
+                    throw new Error("Fio API neodpovědělo do 25 sekund (pravidlo 30 s jsme už ošetřili výše, takže o to tentokrát nejde - Fio momentálně nereaguje).");
+                }
+                throw fetchErr;
+            } finally {
+                clearTimeout(fioTimeout);
             }
-            throw fetchErr;
-        } finally {
-            clearTimeout(fioTimeout);
+
+            if (!fioRes.ok) {
+                throw new Error(`Fio API vrátilo chybu HTTP ${fioRes.status}.`);
+            }
+
+            const fioData = await fioRes.json();
+            transactions = fioData?.accountStatement?.transactionList?.transaction || [];
         }
 
-        if (!fioRes.ok) {
-            throw new Error(`Fio API vrátilo chybu HTTP ${fioRes.status}. (Pravděpodobně porušeno pravidlo 30 sekund)`);
-        }
-
-        const fioData = await fioRes.json();
-        const transactions = fioData?.accountStatement?.transactionList?.transaction || [];
-
-        // 3. Načtení dat ze Supabase
+        // 3. Načtení dat ze Supabase (proběhne vždy - upomínky/storna Fio data nepotřebují;
+        // pokud bylo párování plateb výše přeskočeno kvůli pravidlu 30 s, transactions je
+        // prázdné pole a párování níže prostě nic nenajde, žádná chyba z toho nevznikne)
         // POZN.: is_substitute se natahuje rovnou, aby šlo náhradníky vyfiltrovat z párování
         // plateb a z 48h/72h připomínkového cyklu - náhradníci zatím nic platit nemají.
         const regs = await supabaseRequest('GET', 'registrations?payment_status=eq.false&select=*,tournaments(title,ID_T,capacity)');
@@ -216,7 +232,6 @@ export default async function handler(req, res) {
             }
         }));
 
-        // 5. HLÍDÁNÍ ČASU (Varování po 48h a smazání po 72h)
         // 5. HLÍDÁNÍ ČASU (Varování po 48h a smazání po 72h) - týká se jen skutečných
         // (neplacených) registrací, náhradníci (is_substitute) se sem vůbec nedostanou,
         // protože pro ně žádná platba zatím není vyžadována.
@@ -276,7 +291,7 @@ export default async function handler(req, res) {
             }));
         }
 
-        return res.status(200).send(`ÚDRŽBA DOKONČENA. Spárováno nových plateb: ${matchedCount}. Neodeslané potvrzovací e-maily: ${mailFailCount}. Upozorněno náhradníků: ${waitlistNotified}.`);
+        return res.status(200).send(`ÚDRŽBA DOKONČENA. ${fioSkipped ? 'Párování plateb PŘESKOČENO (Fio byla nedávno dotázána - proběhne příští běh). ' : ''}Spárováno nových plateb: ${matchedCount}. Neodeslané potvrzovací e-maily: ${mailFailCount}. Upozorněno náhradníků: ${waitlistNotified}.`);
     } catch (e) {
         console.error("Chyba automatu:", e);
         return res.status(500).send(`CHYBA AUTOMATU: ${e.message}`);
