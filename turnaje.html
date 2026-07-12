@@ -180,6 +180,27 @@
         return `${pad(d.getDate())}. ${pad(d.getMonth()+1)}. ${d.getFullYear()} v ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
+    // Každý příjemce dostává vlastní samostatný e-mail (žádné hromadné To/BCC se seznamem).
+    async function sendEmailNotification(predmet, zprava, prijemci) {
+        if (!prijemci || prijemci.length === 0) return [];
+        const list = Array.isArray(prijemci) ? prijemci : [prijemci];
+        const results = [];
+        for (let to of list) {
+            try {
+                const resp = await fetch('/api/mail', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ subject: predmet, message: zprava, to: to })
+                });
+                results.push({ email: to, success: resp.ok });
+            } catch (e) {
+                console.error('Mail fail', e);
+                results.push({ email: to, success: false });
+            }
+        }
+        return results;
+    }
+
     // ==========================================
     // --- 2. KONTROLA AUTENTIZACE ---
     // ==========================================
@@ -265,9 +286,12 @@
         grid.style.display = 'grid';
 
         tours.forEach(t => {
-            // Spočítáme registrace pro tento konkrétní turnaj
+            // Spočítáme registrace pro tento konkrétní turnaj - do kapacity se počítají
+            // pouze řádní účastníci, náhradníci (waitlist) na volná místa nečekají v čísle.
             const tRegs = allRegistrations.filter(r => r.tournament_id === t.id);
-            const currentRegCount = tRegs.length;
+            const activeRegs = tRegs.filter(r => !r.is_substitute);
+            const substituteRegs = tRegs.filter(r => r.is_substitute);
+            const currentRegCount = activeRegs.length;
             const maxCap = t.capacity || 50; // defaultní záloha, pokud by chyběla
             
             // Výpočet procenta naplnění pro kapacitní bar
@@ -336,6 +360,7 @@
                             <div class="capacity-bar">
                                 <div class="capacity-fill ${barClass}" style="width: ${pct}%"></div>
                             </div>
+                            ${substituteRegs.length > 0 ? `<div style="font-size:0.8rem; color:var(--orange); margin-top:0.3rem; font-weight:bold;">🕐 Náhradníků čeká: ${substituteRegs.length}</div>` : ''}
                         </div>
 
                         <div class="registration-zone">
@@ -377,22 +402,50 @@
             return;
         }
 
+        // Přepočet aktuální obsazenosti TĚSNĚ před zápisem (jen řádní účastníci se počítají
+        // do kapacity, náhradníci ne) - podle toho se rozhodne, jestli jde o řádnou
+        // registraci, nebo o zápis na čekací listinu náhradníků.
+        const { data: tData } = await db.from('tournaments').select('title, event_date, fee, ID_T, capacity').eq('id', tournamentId).single();
+        const capacity = tData?.capacity || 0;
+        const activeCount = allRegistrations.filter(r => r.tournament_id === tournamentId && !r.is_substitute).length;
+        const isFull = activeCount >= capacity;
+
         // 2. ODESLÁNÍ DO DATABÁZE SUPABASE
         const { error } = await db.from('registrations').insert({
             tournament_id: tournamentId,
             player_id_card: selectedPlayerCard,
             registered_by: loggedInUser.id,
-            payment_status: false // začíná jako neuhrazené, vygeneruje QR kód na dashboardu
+            payment_status: false, // začíná jako neuhrazené, vygeneruje QR kód na dashboardu
+            is_substitute: isFull
         });
 
         if (error) {
             alert('Chyba při komunikaci s databází: ' + error.message);
-        } else {
-            alert(`Skvělé! Hráč ${selectedPlayerName} byl úspěšně zaregistrován na turnaj "${tournamentTitle}".\n\nPodklady k platbě a QR kód byly bleskově vygenerovány a najdete je po návratu v sekci "Můj Profil -> Moje přihlášky". Těšíme se u karetního stolu! ♠️`);
-            
-            // Znovu načteme celou stránku, aby se aktualizoval kapacitní ukazatel
-            window.location.reload();
+            return;
         }
+
+        // 3. E-MAIL (potvrzení registrace, nebo zápisu na čekací listinu)
+        const { data: recipientProf } = await db.from('profiles').select('email').eq('player_id_card', selectedPlayerCard).maybeSingle();
+        const recipientEmail = recipientProf?.email || (selectedPlayerCard === myProfileData.player_id_card ? myProfileData.email : null);
+
+        if (recipientEmail && tData) {
+            let msg, subject;
+            if (isFull) {
+                subject = `Zápis na čekací listinu (náhradník) - ${tData.title}`;
+                msg = `Dobrý den,\n\nturnaj "${tData.title}" (${formatDateTime(tData.event_date)}) je již kapacitně naplněný, takže jsme ${selectedPlayerName === myProfileData.full_name ? 'Vás' : 'hráče ' + selectedPlayerName} zapsali jako náhradníka na čekací listinu.\n\nPokud se uvolní místo, budete o tom automaticky e-mailem informováni.\n\nČeská asociace v karetní hře prší z.s.`;
+            } else {
+                subject = `Potvrzení registrace: ${tData.title}`;
+                msg = `Dobrý den,\n\núspěšně jsme ${selectedPlayerName === myProfileData.full_name ? 'Vás' : 'hráče ' + selectedPlayerName} zaregistrovali na turnaj:\n🏆 ${tData.title}\n📅 ${formatDateTime(tData.event_date)}\n\nNezapomeňte prosím uhradit startovné ve výši ${tData.fee} Kč nejpozději do 72 hodin od této registrace. V opačném případě bude místo automaticky uvolněno dalším hráčům.\n\n🏦 Údaje k platbě:\nVariabilní symbol (VS): ${selectedPlayerCard}\nZpráva pro příjemce: ${tData.ID_T || ''}\n\n⚠️ Pokud nebude řádně vyplněná zpráva pro příjemce a ID hráče jako VS, bude platba považována za dar.\n\nQR kód pro rychlou platbu najdete po přihlášení do svého profilu na webu www.asociaceprsi.cz v sekci Turnaje.\n\nTěšíme se na Vás!`;
+            }
+            await sendEmailNotification(subject, msg, [recipientEmail]);
+        }
+
+        alert(isFull
+            ? `Turnaj "${tournamentTitle}" je plný. Hráč ${selectedPlayerName} byl zapsán jako NÁHRADNÍK na čekací listinu. Pokud se uvolní místo, přijde e-mail.`
+            : `Skvělé! Hráč ${selectedPlayerName} byl úspěšně zaregistrován na turnaj "${tournamentTitle}".\n\nPodklady k platbě a QR kód byly bleskově vygenerovány a najdete je po návratu v sekci "Můj Profil -> Moje přihlášky". Těšíme se u karetního stolu! ♠️`);
+
+        // Znovu načteme celou stránku, aby se aktualizoval kapacitní ukazatel
+        window.location.reload();
     };
 
     // Spuštění celé stránky při loadu
