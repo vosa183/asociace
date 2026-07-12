@@ -451,13 +451,14 @@
         return results;
     }
 
-    // Sestaví text oznámení o novém turnaji a rozešle ho všem členům (profiles.email) i
-    // přihlášeným odběratelům novinek (newsletter_subscribers) - stejný zdroj příjemců, jaký
-    // se používá i pro ostatní hromadná oznámení na webu (newsletter, reporty).
+    // Sestaví text oznámení o novém turnaji a rozešle ho JEN aktivním hráčům asociace - tedy
+    // profilům, které mají dokončenou registraci (přidělené ID hráče). Odběratelé novinek
+    // (newsletter_subscribers) tady záměrně NEJSOU - to jsou obecné kontakty (sponzoři, zájemci
+    // apod.), ne nutně hráči, a oznámení o turnaji se má týkat jen skutečných členů.
     async function sendTournamentAnnouncement(title, date, fee, kraj) {
         let emails = new Set();
-        const { data: p } = await db.from('profiles').select('email'); p?.forEach(x => { if (x.email) emails.add(x.email); });
-        const { data: s } = await db.from('newsletter_subscribers').select('email'); s?.forEach(x => { if (x.email) emails.add(x.email); });
+        const { data: p } = await db.from('profiles').select('email, player_id_card').not('player_id_card', 'is', null);
+        p?.forEach(x => { if (x.email) emails.add(x.email); });
 
         const arr = Array.from(emails);
         if (arr.length === 0) return { sent: 0, failed: 0, total: 0 };
@@ -470,7 +471,7 @@
             const batch = arr.slice(i, i + 50);
             const results = await Promise.all(batch.map(em => sendEmailNotification(
                 `📢 Nový turnaj: ${title}`,
-                body + `\n\nOdhlášení z odběru: https://www.asociaceprsi.cz?unsubscribe=${encodeURIComponent(em)}`,
+                body,
                 [em]
             )));
             results.forEach(r => r.forEach(item => { if (!item.success) failed++; }));
