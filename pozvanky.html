@@ -131,13 +131,24 @@
         .v-val-fee { color: #ffeb3b; }
         .v-extra { color: #ffffff; }
 
+        /* --- VLASTNÍ NAHRANÁ ŠABLONA (rozměry se dopočítávají v JS podle reálného obrázku,
+             takže background-size: 100% 100% nikdy nic neořízne ani nedoplní šedou/černou plochou) --- */
+        .poster-custom {
+            background-size: 100% 100%;
+            background-position: center; background-repeat: no-repeat; position: relative; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: none; overflow: hidden;
+            font-family: 'Arial Black', sans-serif; color: #ffffff;
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+        }
+        .cu-text-element { position: absolute; text-align: center; width: 100%; white-space: pre-wrap; line-height: 1.2; }
+
         #loadingOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.9); z-index: 1000; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: var(--primary); font-weight: bold; font-family: 'Inter', sans-serif; flex-direction: column; }
         
         @media print {
             body { background: white; margin: 0; padding: 0; }
             body * { visibility: hidden; }
-            #livePosterRetro, #livePosterRetro *, #livePosterKapka, #livePosterKapka *, #livePosterVtelenka, #livePosterVtelenka * { visibility: visible; }
-            .poster-retro, .poster-kapka, .poster-vtelenka { position: absolute; left: 0; top: 0; margin: 0; box-shadow: none; border: none;}
+            #livePosterRetro, #livePosterRetro *, #livePosterKapka, #livePosterKapka *, #livePosterVtelenka, #livePosterVtelenka *, #livePosterCustom, #livePosterCustom * { visibility: visible; }
+            .poster-retro, .poster-kapka, .poster-vtelenka, .poster-custom { position: absolute; left: 0; top: 0; margin: 0; box-shadow: none; border: none;}
         }
     </style>
 </head>
@@ -175,6 +186,7 @@
                 <option value="retro">Série RETRO (Základ clear.png)</option>
                 <option value="kapka">BUKOVENSKÁ KAPKA</option>
                 <option value="vtelenka" selected>VTELENKA</option>
+                <option value="custom">➕ Vlastní nahraná šablona</option>
             </select>
         </div>
 
@@ -252,6 +264,47 @@
                 <div class="tune-row"><label>Cena</label><div class="tune-inputs">X: <input type="number" id="t_vt_fee_x" value="0"> Y: <input type="number" id="t_vt_fee_y" value="720"> S: <input type="number" id="t_vt_fee_s" value="24"> C: <input type="color" id="t_vt_fee_c" value="#ffeb3b"></div></div>
                 <div class="tune-row"><label>Extra Text 1</label><div class="tune-inputs">X: <input type="number" id="t_vt_extra1_x" value="0"> Y: <input type="number" id="t_vt_extra1_y" value="760"> S: <input type="number" id="t_vt_extra1_s" value="18"> C: <input type="color" id="t_vt_extra1_c" value="#ffffff"></div></div>
                 <div class="tune-row"><label>Extra Text 2</label><div class="tune-inputs">X: <input type="number" id="t_vt_extra2_x" value="0"> Y: <input type="number" id="t_vt_extra2_y" value="785"> S: <input type="number" id="t_vt_extra2_s" value="18"> C: <input type="color" id="t_vt_extra2_c" value="#ffffff"></div></div>
+            </div>
+        </div>
+
+        <div id="customSettings" style="display: none;">
+            <div class="tuning-box" style="border-color:#2b6cb0; background:#ebf8ff;">
+                <h3 style="color:#2b6cb0;">🖼️ Podklad šablony</h3>
+                <div class="form-group">
+                    <label>Použít již dříve nahranou šablonu</label>
+                    <select id="customTplSelect"><option value="">-- Vyberte nahranou šablonu --</option></select>
+                </div>
+                <button type="button" class="btn-jpeg" onclick="useSelectedCustomTemplate()" style="margin-bottom:1rem;">🔄 Použít vybranou šablonu</button>
+
+                <div class="form-group">
+                    <label>Nebo nahrát nový obrázek (z počítače)</label>
+                    <input type="file" id="customTplUpload" accept="image/*">
+                </div>
+                <p style="font-size:0.75rem; color:#4a5568;">Rozměr plakátu se automaticky přizpůsobí nahranému obrázku, takže se nic neořízne a nevzniknou šedé/černé plochy.</p>
+                <input type="hidden" id="inCustomBgUrl" value="">
+                <input type="hidden" id="inCustomImgW" value="">
+                <input type="hidden" id="inCustomImgH" value="">
+            </div>
+
+            <div class="form-group"><label>Název turnaje</label><input type="text" id="inCustomTitle" value="NÁZEV TURNAJE"></div>
+            <div class="form-group"><label>Datum turnaje</label><input type="text" id="inCustomDate" value=""></div>
+            <div class="form-group"><label>Místo konání</label><input type="text" id="inCustomLoc" value=""></div>
+            <div class="form-group"><label>Čas začátku</label><input type="text" id="inCustomTime" value=""></div>
+            <div class="form-group"><label>Zápisné (Kč)</label><input type="text" id="inCustomFee" value=""></div>
+
+            <h3 style="margin-top: 1rem; color: #d69e2e;">Volitelné extra texty</h3>
+            <div class="form-group"><label>Extra Text 1</label><input type="text" id="inCustomExtra1" value=""></div>
+            <div class="form-group"><label>Extra Text 2</label><input type="text" id="inCustomExtra2" value=""></div>
+
+            <div class="tuning-box">
+                <h3>⚙️ Ladění polohy, velikosti (S) a barvy (C)</h3>
+                <div class="tune-row"><label>Název</label><div class="tune-inputs">X: <input type="number" id="t_cu_title_x" value="0"> Y: <input type="number" id="t_cu_title_y" value="40"> S: <input type="number" id="t_cu_title_s" value="34"> C: <input type="color" id="t_cu_title_c" value="#ffffff"></div></div>
+                <div class="tune-row"><label>Datum</label><div class="tune-inputs">X: <input type="number" id="t_cu_date_x" value="0"> Y: <input type="number" id="t_cu_date_y" value="90"> S: <input type="number" id="t_cu_date_s" value="28"> C: <input type="color" id="t_cu_date_c" value="#ffeb3b"></div></div>
+                <div class="tune-row"><label>Místo</label><div class="tune-inputs">X: <input type="number" id="t_cu_loc_x" value="0"> Y: <input type="number" id="t_cu_loc_y" value="140"> S: <input type="number" id="t_cu_loc_s" value="22"> C: <input type="color" id="t_cu_loc_c" value="#ffffff"></div></div>
+                <div class="tune-row"><label>Čas</label><div class="tune-inputs">X: <input type="number" id="t_cu_time_x" value="0"> Y: <input type="number" id="t_cu_time_y" value="180"> S: <input type="number" id="t_cu_time_s" value="22"> C: <input type="color" id="t_cu_time_c" value="#ffffff"></div></div>
+                <div class="tune-row"><label>Cena</label><div class="tune-inputs">X: <input type="number" id="t_cu_fee_x" value="0"> Y: <input type="number" id="t_cu_fee_y" value="220"> S: <input type="number" id="t_cu_fee_s" value="24"> C: <input type="color" id="t_cu_fee_c" value="#ffeb3b"></div></div>
+                <div class="tune-row"><label>Extra Text 1</label><div class="tune-inputs">X: <input type="number" id="t_cu_extra1_x" value="0"> Y: <input type="number" id="t_cu_extra1_y" value="260"> S: <input type="number" id="t_cu_extra1_s" value="18"> C: <input type="color" id="t_cu_extra1_c" value="#ffffff"></div></div>
+                <div class="tune-row"><label>Extra Text 2</label><div class="tune-inputs">X: <input type="number" id="t_cu_extra2_x" value="0"> Y: <input type="number" id="t_cu_extra2_y" value="290"> S: <input type="number" id="t_cu_extra2_s" value="18"> C: <input type="color" id="t_cu_extra2_c" value="#ffffff"></div></div>
             </div>
         </div>
 
@@ -355,6 +408,17 @@
             <div class="v-text-element v-extra" id="outVtExtra2"></div>
         </div>
 
+        <!-- VLASTNÍ NAHRANÁ ŠABLONA - rozměry se nastavují dynamicky v JS podle skutečné velikosti obrázku -->
+        <div id="livePosterCustom" class="poster-custom" style="display: none;">
+            <div class="cu-text-element" id="outCuTitle"></div>
+            <div class="cu-text-element" id="outCuDate"></div>
+            <div class="cu-text-element" id="outCuLoc"></div>
+            <div class="cu-text-element" id="outCuTime"></div>
+            <div class="cu-text-element" id="outCuFee"></div>
+            <div class="cu-text-element" id="outCuExtra1"></div>
+            <div class="cu-text-element" id="outCuExtra2"></div>
+        </div>
+
     </div>
 </main>
 
@@ -373,6 +437,7 @@
         document.getElementById('loadingOverlay').style.display = 'none';
         updateContent();
         loadDraftsList();
+        loadCustomTemplatesList();
     }
     checkAuth();
 
@@ -452,6 +517,70 @@
         document.getElementById('draftNameInput').value = '';
     }
 
+    // ==========================================
+    // --- KNIHOVNA VLASTNÍCH NAHRANÝCH ŠABLON (obrázky se ukládají do Supabase Storage,
+    // takže se s nimi dá pracovat odsud, aniž by bylo nutné je ručně kopírovat do kořenového
+    // adresáře webu a upravovat kvůli tomu kód.) ---
+    // ==========================================
+    const CUSTOM_TEMPLATES_BUCKET = 'templates';
+
+    async function loadCustomTemplatesList() {
+        const sel = document.getElementById('customTplSelect');
+        if (!sel) return;
+        const { data, error } = await db.storage.from(CUSTOM_TEMPLATES_BUCKET).list('', { sortBy: { column: 'created_at', order: 'desc' } });
+        if (error) { console.error('Nepodařilo se načíst seznam nahraných šablon:', error); return; }
+        sel.innerHTML = '<option value="">-- Vyberte nahranou šablonu --</option>' +
+            (data || []).filter(f => f.name && !f.name.endsWith('/')).map(f => `<option value="${f.name}">${f.name}</option>`).join('');
+    }
+
+    // Načte obrázek, zjistí jeho SKUTEČNÉ rozměry a podle nich nastaví plakát - žádné
+    // dopočítávání "na oko", takže nikde nevznikne ořez ani šedá/černá plocha.
+    function applyCustomTemplateUrl(url) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function() {
+            document.getElementById('inCustomBgUrl').value = url;
+            document.getElementById('inCustomImgW').value = img.naturalWidth;
+            document.getElementById('inCustomImgH').value = img.naturalHeight;
+            resizeCustomPosterToImage();
+            updateContent();
+        };
+        img.onerror = function() {
+            alert('Obrázek šablony se nepodařilo načíst.');
+        };
+        img.src = url;
+    }
+
+    async function useSelectedCustomTemplate() {
+        const sel = document.getElementById('customTplSelect');
+        if (!sel.value) { alert('Nejdřív vyberte nahranou šablonu ze seznamu.'); return; }
+        const { data } = db.storage.from(CUSTOM_TEMPLATES_BUCKET).getPublicUrl(sel.value);
+        applyCustomTemplateUrl(data.publicUrl);
+    }
+
+    document.getElementById('customTplUpload').addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const overlay = document.getElementById('loadingOverlay');
+        overlay.innerHTML = '☁️ Nahrávám šablonu do knihovny...';
+        overlay.style.display = 'flex';
+        try {
+            const fileName = `tpl_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+            const { error } = await db.storage.from(CUSTOM_TEMPLATES_BUCKET).upload(fileName, file);
+            if (error) throw new Error("Nelze nahrát šablonu do knihovny. Zkontrolujte, zda máte v Supabase vytvořený public bucket '" + CUSTOM_TEMPLATES_BUCKET + "'. Detail: " + error.message);
+            const { data } = db.storage.from(CUSTOM_TEMPLATES_BUCKET).getPublicUrl(fileName);
+            await loadCustomTemplatesList();
+            document.getElementById('customTplSelect').value = fileName;
+            applyCustomTemplateUrl(data.publicUrl);
+        } catch (err) {
+            console.error(err);
+            alert('❌ CHYBA: ' + err.message);
+        } finally {
+            overlay.style.display = 'none';
+            e.target.value = '';
+        }
+    });
+
     let mapTimeout;
     const searchInput = document.getElementById('inRetroPenzion');
     const acList = document.getElementById('autocompleteList');
@@ -500,10 +629,12 @@
         document.getElementById('retroSettings').style.display = 'none';
         document.getElementById('kapkaSettings').style.display = 'none';
         document.getElementById('vtelenkaSettings').style.display = 'none';
+        document.getElementById('customSettings').style.display = 'none';
         
         document.getElementById('livePosterRetro').style.display = 'none';
         document.getElementById('livePosterKapka').style.display = 'none';
         document.getElementById('livePosterVtelenka').style.display = 'none';
+        document.getElementById('livePosterCustom').style.display = 'none';
 
         if(val === 'retro') {
             document.getElementById('retroSettings').style.display = 'block';
@@ -520,6 +651,15 @@
             document.getElementById('livePosterVtelenka').style.display = 'block';
             pageStyle.innerHTML = "@page { size: A4 portrait; margin: 0; }"; 
             document.getElementById('dbTitle').value = document.getElementById('inVtTitle').value;
+        } else if (val === 'custom') {
+            document.getElementById('customSettings').style.display = 'block';
+            document.getElementById('livePosterCustom').style.display = 'block';
+            // Orientace tisku se odvodí od skutečného poměru stran nahraného obrázku.
+            const w = parseFloat(document.getElementById('inCustomImgW').value) || 0;
+            const h = parseFloat(document.getElementById('inCustomImgH').value) || 0;
+            pageStyle.innerHTML = (h >= w) ? "@page { size: A4 portrait; margin: 0; }" : "@page { size: A4 landscape; margin: 0; }";
+            document.getElementById('dbTitle').value = document.getElementById('inCustomTitle').value;
+            resizeCustomPosterToImage();
         }
         updateContent();
     }
@@ -594,6 +734,48 @@
                 el.style.color = inC.value; // Zápis barvy do stylu elementu
             }
         });
+
+        // --- 4. Aktualizace VLASTNÍ NAHRANÉ ŠABLONY ---
+        const customBgUrl = document.getElementById('inCustomBgUrl').value;
+        document.getElementById('livePosterCustom').style.backgroundImage = customBgUrl ? `url('${customBgUrl}')` : 'none';
+
+        document.getElementById('outCuTitle').innerText = document.getElementById('inCustomTitle').value;
+        document.getElementById('outCuDate').innerText = document.getElementById('inCustomDate').value;
+        document.getElementById('outCuLoc').innerText = document.getElementById('inCustomLoc').value;
+        document.getElementById('outCuTime').innerText = document.getElementById('inCustomTime').value;
+        document.getElementById('outCuFee').innerText = document.getElementById('inCustomFee').value;
+        document.getElementById('outCuExtra1').innerText = document.getElementById('inCustomExtra1').value;
+        document.getElementById('outCuExtra2').innerText = document.getElementById('inCustomExtra2').value;
+
+        const customIds = ['Title', 'Date', 'Loc', 'Time', 'Fee', 'Extra1', 'Extra2'];
+        customIds.forEach(id => {
+            const el = document.getElementById('outCu' + id);
+            const inX = document.getElementById('t_cu_' + id.toLowerCase() + '_x');
+            const inY = document.getElementById('t_cu_' + id.toLowerCase() + '_y');
+            const inS = document.getElementById('t_cu_' + id.toLowerCase() + '_s');
+            const inC = document.getElementById('t_cu_' + id.toLowerCase() + '_c');
+
+            if(el && inX && inY && inS && inC) {
+                el.style.left = inX.value + 'px';
+                el.style.top = inY.value + 'px';
+                el.style.fontSize = inS.value + 'px';
+                el.style.color = inC.value;
+            }
+        });
+    }
+
+    // Nastaví reálné rozměry plakátu podle nahraného obrázku (max. 900px na delší straně kvůli
+    // pohodlnému zobrazení v editoru), takže background-size: 100% 100% nikdy nic neořízne
+    // ani nedoplní šedou/černou plochou - poměr stran přesně odpovídá originálu.
+    function resizeCustomPosterToImage() {
+        const w = parseFloat(document.getElementById('inCustomImgW').value) || 0;
+        const h = parseFloat(document.getElementById('inCustomImgH').value) || 0;
+        const el = document.getElementById('livePosterCustom');
+        if (!w || !h) return;
+        const MAX_DIM = 900;
+        const scale = Math.min(1, MAX_DIM / w, MAX_DIM / h);
+        el.style.width = Math.round(w * scale) + 'px';
+        el.style.height = Math.round(h * scale) + 'px';
     }
 
     document.querySelectorAll('input, select').forEach(input => {
@@ -609,6 +791,7 @@
         let activePosterId = 'livePosterRetro';
         if(val === 'kapka') activePosterId = 'livePosterKapka';
         if(val === 'vtelenka') activePosterId = 'livePosterVtelenka';
+        if(val === 'custom') activePosterId = 'livePosterCustom';
         
         html2canvas(document.getElementById(activePosterId), { scale: 2, useCORS: true, allowTaint: true }).then(canvas => {
             const link = document.createElement('a');
@@ -647,6 +830,7 @@
             let elementId = 'livePosterRetro';
             if(val === 'kapka') elementId = 'livePosterKapka';
             if(val === 'vtelenka') elementId = 'livePosterVtelenka';
+            if(val === 'custom') elementId = 'livePosterCustom';
 
             const element = document.getElementById(elementId);
             
