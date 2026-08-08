@@ -270,17 +270,18 @@
         <div class="card">
             <h2>Uspořádejte s námi turnaj</h2>
             <p style="margin-bottom: 2rem;">Máte k dispozici sál nebo hospodu a chcete k vám přivést oficiální turnaj naší asociace? Napište nám a domluvíme se!</p>
-            <form action="https://formspree.io/f/TVUJ_KOD" method="POST" style="max-width: 500px;">
+            <form id="hostForm" style="max-width: 500px;">
                 <label>Jméno nebo název podniku</label>
-                <input type="text" name="jmeno" required>
-                
+                <input type="text" id="hostJmeno" required>
+
                 <label>Váš e-mail</label>
-                <input type="email" name="email" required>
-                
+                <input type="email" id="hostEmail" required>
+
                 <label>Město a předpokládaná kapacita hráčů</label>
-                <textarea name="misto" rows="4" required></textarea>
-                
+                <textarea id="hostMisto" rows="4" required></textarea>
+
                 <button type="submit">Odeslat poptávku</button>
+                <div id="hostMsg" class="msg"></div>
             </form>
         </div>
     </section>
@@ -1308,6 +1309,37 @@
         e.preventDefault(); const msg = document.getElementById('regMsg'); msg.className = 'msg'; msg.innerText = 'Zpracovávám...'; msg.style.display = 'block';
         const { error } = await db.auth.signUp({ email: document.getElementById('regEmail').value, password: document.getElementById('regPassword').value });
         if (error) { msg.className = 'msg error'; msg.innerText = error.message; } else { msg.className = 'msg success'; msg.innerText = 'Účet vytvořen. Nyní se můžete přihlásit.'; }
+    });
+
+    document.getElementById('hostForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const msg = document.getElementById('hostMsg');
+        const jmeno = document.getElementById('hostJmeno').value.trim();
+        const email = document.getElementById('hostEmail').value.trim();
+        const misto = document.getElementById('hostMisto').value.trim();
+        const btn = e.target.querySelector('button[type="submit"]');
+
+        btn.disabled = true;
+        msg.className = 'msg'; msg.innerText = 'Odesílám...'; msg.style.display = 'block';
+
+        try {
+            const r = await fetch('/api/mail', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    to: 'info@asociaceprsi.cz',
+                    subject: `📣 Nová poptávka na spolupořadatelství - ${jmeno}`,
+                    message: `Jméno / podnik: ${jmeno}\nE-mail: ${email}\nMísto a kapacita: ${misto}`
+                })
+            });
+            if (!r.ok) throw new Error('Odeslání selhalo.');
+            msg.className = 'msg success'; msg.innerText = 'Děkujeme, poptávku jsme přijali a brzy se ozveme!';
+            e.target.reset();
+        } catch (err) {
+            msg.className = 'msg error'; msg.innerText = 'Nepodařilo se odeslat poptávku, zkuste to prosím znovu nebo napište přímo na info@asociaceprsi.cz.';
+        } finally {
+            btn.disabled = false;
+        }
     });
 
     document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
