@@ -1543,9 +1543,16 @@
     }
 
     async function loadMyRegistrations() {
+        // Kromě přihlášek, které jsem vytvořil já sám (registered_by) nebo jsou na mou vlastní
+        // kartu, chceme i přihlášky členů rodiny, které si udělali SAMI přes svůj vlastní účet -
+        // ty mají registered_by = jejich vlastní ID, takže je musíme dohledat podle karty.
+        const familyCards = myFamily.map(f => f.player_id_card).filter(Boolean);
+        const orFilters = [`registered_by.eq.${currentUser.id}`, `player_id_card.eq.${myProfileData.player_id_card}`];
+        if (familyCards.length > 0) orFilters.push(`player_id_card.in.(${familyCards.join(',')})`);
+
         const { data: myRegs, error } = await db.from('registrations')
             .select(`id, player_id_card, registered_by, payment_status, is_substitute, tournaments ( id, title, event_date, fee, ID_T )`)
-            .or(`registered_by.eq.${currentUser.id},player_id_card.eq.${myProfileData.player_id_card}`);
+            .or(orFilters.join(','));
             
         const list = document.getElementById('myRegistrationsList'); list.innerHTML = '';
         if (error) { list.innerHTML = '<p class="error">Chyba při načítání přihlášek.</p>'; return; }
