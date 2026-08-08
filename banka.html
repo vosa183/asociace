@@ -24,6 +24,12 @@
         .error-msg { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; padding: 1.5rem; border-radius: 8px; font-weight: bold; }
         .debug-log { background: #1a202c; color: #48bb78; padding: 1.5rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; white-space: pre-wrap; margin-top: 2rem; text-align: left; border: 2px solid #4a5568; }
         .warning-box { background: #fffbeb; border: 1px solid #f6e05e; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; color: #b7791f; text-align: center; }
+        .range-bar { margin-bottom: 1.5rem; display: flex; gap: 0.8rem; align-items: flex-end; flex-wrap: wrap; }
+        .range-bar label { display: block; font-size: 0.85rem; margin-bottom: 0.3rem; color: #4a5568; }
+        .range-bar input[type="date"] { padding: 0.5rem; border: 1px solid #cbd5e0; border-radius: 6px; }
+        .range-bar button { padding: 0.55rem 1rem; border: none; border-radius: 6px; background: var(--blue); color: white; font-weight: bold; cursor: pointer; }
+        .range-bar button:disabled { opacity: 0.6; cursor: not-allowed; }
+        .range-bar button.full-history { background: var(--primary); }
     </style>
 </head>
 <body>
@@ -41,6 +47,19 @@
             Mezi každým načtením dat z banky musíte <strong>počkat minimálně 30 vteřin</strong>.
         </div>
         
+        <div class="range-bar">
+            <div>
+                <label for="bankFrom">Od</label>
+                <input type="date" id="bankFrom">
+            </div>
+            <div>
+                <label for="bankTo">Do</label>
+                <input type="date" id="bankTo">
+            </div>
+            <button type="button" id="btnLoadRange" onclick="reloadBankRange()">🔍 Zobrazit období</button>
+            <button type="button" id="btnFullHistory" class="full-history" onclick="reloadFullHistory()">📜 Celá historie účtu</button>
+        </div>
+
         <div id="bankContent" class="loading">Spojuji se s bankou... ⏳</div>
     </div>
 </main>
@@ -50,10 +69,12 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
     const db = window.supabase.createClient(supabaseUrl, supabaseKey);
 
+    let currentToken = null;
+
     window.addEventListener('DOMContentLoaded', async function() {
         const { data: { user } } = await db.auth.getUser();
         if (!user) { window.location.href = 'index.html'; return; }
-        
+
         const { data: prof } = await db.from('profiles').select('role').eq('id', user.id).single();
         if (!prof || prof.role !== 'superadmin') {
             alert('Přístup povolen pouze pro Super Admina.');
@@ -67,8 +88,34 @@
             return;
         }
 
-        fetchAndRenderBankData(settings.fio_token);
+        currentToken = settings.fio_token;
+
+        var toDate = new Date();
+        var fromDate = new Date();
+        fromDate.setDate(toDate.getDate() - 14);
+        document.getElementById('bankFrom').value = getLocalDateString(fromDate);
+        document.getElementById('bankTo').value = getLocalDateString(toDate);
+
+        fetchAndRenderBankData(currentToken, getLocalDateString(fromDate), getLocalDateString(toDate));
     });
+
+    window.reloadBankRange = function() {
+        var f = document.getElementById('bankFrom').value;
+        var t = document.getElementById('bankTo').value;
+        if (!f || !t) { alert('Vyplňte prosím obě data (Od i Do).'); return; }
+        if (f > t) { alert('Datum "Od" musí být dřív než datum "Do".'); return; }
+        fetchAndRenderBankData(currentToken, f, t);
+    };
+
+    window.reloadFullHistory = function() {
+        // Fio API teoreticky neomezuje rozsah dotazu, takže jdeme klidně až k roku
+        // založení účtu - "2015-01-01" je bezpečně dost daleko do minulosti.
+        var f = '2015-01-01';
+        var t = getLocalDateString(new Date());
+        document.getElementById('bankFrom').value = f;
+        document.getElementById('bankTo').value = t;
+        fetchAndRenderBankData(currentToken, f, t);
+    };
 
     function getLocalDateString(d) {
         var year = d.getFullYear();
@@ -81,22 +128,22 @@
         return (unsafe || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
-    async function fetchAndRenderBankData(token) {
+    async function fetchAndRenderBankData(token, fStr, tStr) {
         let diagnostika = "START DIAGNOSTIKY\n=================\n";
+        var btnRange = document.getElementById('btnLoadRange');
+        var btnFull = document.getElementById('btnFullHistory');
+        btnRange.disabled = true;
+        btnFull.disabled = true;
+        document.getElementById('bankContent').className = 'loading';
+        document.getElementById('bankContent').innerHTML = 'Načítám data z banky... ⏳';
         try {
-            var cleanToken = token.trim(); 
-            var toDate = new Date();
-            var fromDate = new Date();
-            fromDate.setDate(toDate.getDate() - 14);
-            
-            var fStr = getLocalDateString(fromDate);
-            var tStr = getLocalDateString(toDate);
-            
+            var cleanToken = token.trim();
+
             var proxyUrl = "/api/fio?token=" + encodeURIComponent(cleanToken) + "&from=" + encodeURIComponent(fStr) + "&to=" + encodeURIComponent(tStr);
-            
+
             var response = await fetch(proxyUrl);
             var rawText = await response.text();
-            
+
             var data;
             try {
                 data = JSON.parse(rawText);
@@ -110,11 +157,13 @@
             var info = data.accountStatement.info;
             var trans = data.accountStatement.transactionList.transaction || [];
 
+            var rangeLabel = fStr.split('-').reverse().join('.') + ' – ' + tStr.split('-').reverse().join('.');
+
             var html = '<div class="balance-box"><h3>' + info.closingBalance.toLocaleString('cs-CZ') + ' ' + info.currency + '</h3><p>Zůstatek k dnešnímu dni (' + info.iban + ')</p></div>';
-            html += '<h3>Historie pohybů (posledních 14 dní)</h3>';
-            
+            html += '<h3>Historie pohybů (' + rangeLabel + ')</h3>';
+
             if (trans.length === 0) {
-                html += '<p style="color:#718096; padding-top:1rem;">Za posledních 14 dní neproběhly na účtu žádné pohyby.</p>';
+                html += '<p style="color:#718096; padding-top:1rem;">Za zvolené období neproběhly na účtu žádné pohyby.</p>';
             } else {
                 html += '<table class="stats-table"><tr><th>Datum</th><th>Odesílatel</th><th>VS</th><th>Zpráva</th><th>Částka</th></tr>';
                 
@@ -136,13 +185,18 @@
                 html += '</table>';
             }
             
+            document.getElementById('bankContent').className = '';
             document.getElementById('bankContent').innerHTML = html;
 
         } catch (err) {
             diagnostika += "\n>>> CHYBA: " + err.message + "\n";
-            var errorHtml = '<div class="error-msg">❌ Aplikaci se nepodařilo přečíst data z bankovního API.</div>';
+            var errorHtml = '<div class="error-msg">❌ ' + escapeHtml(err.message) + '</div>';
             errorHtml += '<div class="debug-log">' + diagnostika + '</div>';
+            document.getElementById('bankContent').className = '';
             document.getElementById('bankContent').innerHTML = errorHtml;
+        } finally {
+            btnRange.disabled = false;
+            btnFull.disabled = false;
         }
     }
 </script>

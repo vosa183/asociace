@@ -2564,8 +2564,11 @@ window.loadApiKeys = async function() {
 
         let finalDateObj = new Date(eventDate.replace(' ', 'T'));
 
-        // Automatické vygenerování ID-T turnaje (vždy +1 oproti poslednímu, start od 100)
-        const { data: maxIdData } = await db.from('tournaments').select('ID_T').order('ID_T', { ascending: false }).limit(1);
+        // Automatické vygenerování ID-T turnaje (vždy +1 oproti poslednímu, start od 100).
+        // POZOR: starší turnaje bez ID-T mají ID_T = null a u sestupného řazení se null v
+        // Postgresu řadí PRVNÍ - proto se null řádky musí z dotazu vyloučit, jinak by se
+        // omylem vzal jako "poslední" turnaj bez ID-T a nextIdT by spadl zpátky na 100.
+        const { data: maxIdData } = await db.from('tournaments').select('ID_T').not('ID_T', 'is', null).order('ID_T', { ascending: false }).limit(1);
         const nextIdT = (maxIdData && maxIdData.length > 0 && maxIdData[0].ID_T) ? maxIdData[0].ID_T + 1 : 100;
         
         const { error } = await db.from('tournaments').insert({
