@@ -92,7 +92,7 @@
 
         var toDate = new Date();
         var fromDate = new Date();
-        fromDate.setDate(toDate.getDate() - 14);
+        fromDate.setFullYear(fromDate.getFullYear() - 1);
         document.getElementById('bankFrom').value = getLocalDateString(fromDate);
         document.getElementById('bankTo').value = getLocalDateString(toDate);
 
