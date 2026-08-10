@@ -306,6 +306,28 @@
                 posterUI = `<img src="${t.image_url}" alt="Plakát k turnaji ${t.title}" onerror="this.style.display='none'">`;
             }
 
+            // Přehled, kdo z vlastní rodiny (a já sám) je na TENTO konkrétní turnaj přihlášený -
+            // bez ohledu na to, jestli přihlášku vytvořil vlastník rodiny, nebo si ji člen udělal
+            // sám přes svůj vlastní účet (matchuje se čistě podle karty hráče).
+            let familyRegHtml = '';
+            if (loggedInUser && myProfileData) {
+                const myCards = [myProfileData.player_id_card, ...myFamily.map(f => f.player_id_card)];
+                const myRegsHere = tRegs.filter(r => myCards.includes(r.player_id_card));
+                if (myRegsHere.length > 0) {
+                    const items = myRegsHere.map(r => {
+                        const name = r.player_id_card === myProfileData.player_id_card
+                            ? 'Já'
+                            : (myFamily.find(f => f.player_id_card === r.player_id_card)?.full_name || 'Rodina');
+                        const stav = r.is_substitute ? 'náhradník' : (r.payment_status ? 'uhrazeno' : 'čeká na platbu');
+                        return `<li>${name} <span style="color:#718096;">(${stav})</span></li>`;
+                    }).join('');
+                    familyRegHtml = `<div style="background:#f0fff4; border:1px solid #9ae6b4; border-radius:8px; padding:0.7rem 1rem; margin-bottom:1rem; font-size:0.85rem;">
+                        <strong style="color:var(--green);">✅ Z mé rodiny přihlášeni:</strong>
+                        <ul style="margin:0.3rem 0 0 1.1rem; padding:0;">${items}</ul>
+                    </div>`;
+                }
+            }
+
             // Příprava registrační zóny na základě přihlášení
             let regZoneUI = '';
             
@@ -364,6 +386,7 @@
                         </div>
 
                         <div class="registration-zone">
+                            ${familyRegHtml}
                             ${regZoneUI}
                         </div>
                     </div>
