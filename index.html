@@ -2165,6 +2165,49 @@
             headStyles: { fillStyle: [26, 54, 93] }
         });
 
+        // Do protokolu patří i to, KDO nehlasoval - jinak by z něj nebylo poznat, že některý
+        // z oprávněných členů se k některé otázce vůbec nevyjádřil.
+        try {
+            const { data: eligible } = await db.from('profiles').select('id, full_name').in('role', ['zc', 'zcp', 'superadmin']);
+            const { data: voteRow } = await db.from('votes').select('answers').eq('id', vid).single();
+            let qs = [];
+            try { qs = JSON.parse(voteRow?.answers || '[]'); } catch(e) {}
+
+            if (Array.isArray(qs) && qs.length > 0) {
+                const answered = {};
+                resultsData.forEach(r => {
+                    const m = String(r.choice).match(/^q(\d+):/);
+                    if (!m) return;
+                    if (!answered[r.voter_id]) answered[r.voter_id] = new Set();
+                    answered[r.voter_id].add(parseInt(m[1]));
+                });
+
+                const missingRows = [];
+                (eligible || []).forEach(u => {
+                    const a = answered[u.id] || new Set();
+                    const miss = qs.map((_, i) => i).filter(i => !a.has(i));
+                    if (miss.length > 0) {
+                        missingRows.push([
+                            u.full_name || 'Neznámý člen',
+                            miss.length === qs.length ? 'nehlasoval vůbec' : miss.map(i => 'č. ' + (i + 1)).join(', ')
+                        ]);
+                    }
+                });
+
+                if (missingRows.length > 0) {
+                    doc.autoTable({
+                        startY: doc.lastAutoTable.finalY + 10,
+                        head: [['Oprávněný člen, který nehlasoval', 'Nezodpovězené otázky']],
+                        body: missingRows,
+                        theme: 'grid',
+                        headStyles: { fillColor: [197, 48, 48] }
+                    });
+                }
+            }
+        } catch (e) {
+            console.error('Nepodařilo se doplnit přehled nehlasujících do protokolu:', e);
+        }
+
         const finalY = doc.lastAutoTable.finalY + 20;
         doc.setFontSize(9);
         doc.setTextColor(100, 100, 100);
@@ -2364,8 +2407,14 @@
         let pMap = {}; 
         try { const { data } = await db.from('profiles').select('id, full_name'); data?.forEach(p => pMap[p.id] = p.full_name); } catch(e) {}
         
-        let reqV = 1; 
-        try { const { count } = await db.from('profiles').select('*', { count: 'exact', head: true }).in('role', ['zc', 'zcp', 'superadmin']); if (count) reqV = count; } catch(e) {}
+        // Načteme rovnou celý SEZNAM oprávněných voličů (ne jen jejich počet) - díky tomu jde
+        // u ostrého hlasování ukázat konkrétně, kdo ještě nedohlasoval a která otázka mu chybí.
+        let eligibleVoters = [];
+        let reqV = 1;
+        try {
+            const { data: elig } = await db.from('profiles').select('id, full_name').in('role', ['zc', 'zcp', 'superadmin']);
+            if (elig && elig.length) { eligibleVoters = elig; reqV = elig.length; }
+        } catch(e) {}
         
         const { data: vs } = await db.from('votes').select('*').order('created_at', { ascending: false }); 
         if (!vs) return;
@@ -2388,8 +2437,30 @@
                     logAction('Auto-uzavření', `Hlasování ${displayTitle} bylo automaticky uzavřeno (vypršel čas).`);
                 }
                 
-                let questions = JSON.parse(v.answers || '[]'); 
-                let uniqueVotersCount = recs ? new Set(recs.map(r => r.voter_id)).size : 0; 
+                let questions = JSON.parse(v.answers || '[]');
+                let uniqueVotersCount = recs ? new Set(recs.map(r => r.voter_id)).size : 0;
+
+                // Kdo na které otázky odpověděl. Hlasování se uzavře až když KAŽDÝ oprávněný
+                // volič odpoví na KAŽDOU otázku - proto se sleduje kompletnost lístku, ne jen
+                // to, jestli dotyčný vůbec někdy klikl (to dřív mátlo: počítadlo hlásilo 3 z 3,
+                // i když jednomu členovi chyběla odpověď na jednu otázku a hlasování tak
+                // správně zůstávalo otevřené).
+                const answeredMap = {};
+                recs?.forEach(r => {
+                    const m = String(r.choice).match(/^q(\d+):/);
+                    if (!m) return;
+                    if (!answeredMap[r.voter_id]) answeredMap[r.voter_id] = new Set();
+                    answeredMap[r.voter_id].add(parseInt(m[1]));
+                });
+                const voterProgress = eligibleVoters.map(u => {
+                    const answered = answeredMap[u.id] || new Set();
+                    return {
+                        name: u.full_name || 'Neznámý člen',
+                        missingQs: questions.map((_, i) => i).filter(i => !answered.has(i))
+                    };
+                });
+                const pendingVoters = voterProgress.filter(p => p.missingQs.length > 0);
+                const completeBallots = voterProgress.length - pendingVoters.length;
                 let missingVotes = Math.max(0, reqV - uniqueVotersCount);
                 
                 let questionsHtml = questions.map((q, idx) => {
@@ -2419,7 +2490,21 @@
                 let timeBadge = !v.is_closed ? `<span style="color:#c53030; font-size:0.85rem; font-weight:bold; margin-left:10px;">(Zbývá dnů: ${Math.ceil((15 * 24 * 60 * 60 * 1000 - ageMs) / 86400000)})</span>` : '';
                 let pdfBtn = v.is_closed ? `<button class="btn-small btn-blue" style="margin-top:1rem; width:100%;" onclick="exportPDF('${v.id}', '${displayTitle.replace(/'/g, "\\'")}')">📥 Stáhnout Oficiální PDF Protokol</button>` : '';
 
-                redZone.innerHTML += `<div class="card vote-card-red"><span class="badge" style="background:${v.is_closed ? '#c53030' : 'var(--secondary)'};">${v.is_closed ? 'UZAVŘENO' : 'OSTRÉ HLASOVÁNÍ'}</span>${timeBadge}<h3>${displayTitle}</h3><p style="color:#2b6cb0;font-weight:bold;">Odevzdáno: ${uniqueVotersCount} z ${reqV} ZČ</p>${questionsHtml}${pdfBtn}</div>`;
+                // Průběh hlasování: kdo má lístek kompletní a komu co chybí. Záměrně se ukazuje
+                // POUZE kdo (ne)dohlasoval, NIKOLIV jak kdo hlasoval - konkrétní volby by během
+                // otevřeného hlasování mohly ovlivnit ty, kdo ještě nehlasovali. Rozpis voleb
+                // je až v PDF protokolu po uzavření.
+                let progressHtml = `<p style="color:#2b6cb0;font-weight:bold;">Kompletně odevzdáno: ${completeBallots} z ${reqV} ZČ${questions.length > 1 ? ` (každý odpovídá na ${questions.length} otázky)` : ''}</p>`;
+                if (pendingVoters.length > 0) {
+                    progressHtml += `<div style="background:#fffbeb; border:1px solid #f6e05e; border-radius:8px; padding:0.7rem 1rem; margin-bottom:1rem; font-size:0.9rem;">
+                        <strong style="color:#b7791f;">⏳ ${v.is_closed ? 'Nedohlasovali' : 'Chybí k uzavření'}:</strong>
+                        <ul style="margin:0.4rem 0 0 1.1rem; padding:0;">
+                            ${pendingVoters.map(p => `<li>${p.name} — nezodpověděl/a ${p.missingQs.length === questions.length ? 'žádnou otázku' : 'otázku č. ' + p.missingQs.map(i => i + 1).join(', ')}</li>`).join('')}
+                        </ul>
+                    </div>`;
+                }
+
+                redZone.innerHTML += `<div class="card vote-card-red"><span class="badge" style="background:${v.is_closed ? '#c53030' : 'var(--secondary)'};">${v.is_closed ? 'UZAVŘENO' : 'OSTRÉ HLASOVÁNÍ'}</span>${timeBadge}<h3>${displayTitle}</h3>${progressHtml}${questionsHtml}${pdfBtn}</div>`;
             } 
             else if (isBlue) {
                 const opts = v.answers ? v.answers.split(',').map(s => s.trim()) : ['ANO', 'NE'];
