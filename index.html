@@ -121,6 +121,13 @@
         .modal-close { position: absolute; top: 15px; right: 15px; background: transparent; color: var(--secondary); border: none; font-size: 1.5rem; cursor: pointer; width: auto; padding: 0; }
 
         footer { text-align: center; padding: 2rem; color: #718096; border-top: 1px solid var(--gray); margin-top: 2rem; background: var(--white); }
+
+        /* Zpetny odkaz na partnersky portal Kudy z nudy (publikacni podminky) */
+        .footer-partners { margin-top: 1.5rem; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+        .footer-partners .fp-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: #a0aec0; }
+        .footer-partners a { display: inline-block; opacity: 0.9; transition: opacity 0.2s; }
+        .footer-partners a:hover { opacity: 1; }
+        .footer-partners img { height: 33px; width: 150px; display: block; }
         footer p { margin-bottom: 0.3rem; }
         
         .progress-bar-bg { position: relative; width: 100%; background-color: #e2e8f0; border-radius: 8px; height: 10px; overflow: hidden; margin-top: 5px; }
@@ -945,6 +952,12 @@
 <footer>
     <p><strong>Česká asociace v karetní hře prší z.s.</strong><br>
     Sídlo: Kurzova 2222/16, Stodůlky, 155 00 Praha 5 | IČO: 29650186</p>
+    <div class="footer-partners">
+        <span class="fp-label">Spolupracujeme</span>
+        <a href="https://www.kudyznudy.cz/?utm_source=kzn&amp;utm_medium=partneri_kzn&amp;utm_campaign=banner" title="Kudyznudy.cz &ndash; tipy na v&yacute;let" target="_blank" rel="noopener">
+            <img src="https://www.kudyznudy.cz/App_Themes/KzN/CSS/Images/svg/new-logo.svg" width="150" height="33" border="0" alt="Kudyznudy.cz &ndash; tipy na v&yacute;let">
+        </a>
+    </div>
 </footer>
 <script>
     // ==========================================
