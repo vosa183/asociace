@@ -135,11 +135,12 @@
         .progress-bar-paid { position: absolute; left: 0; top: 0; height: 100%; background-color: var(--green); z-index: 2; border-radius: 8px; }
         
         /* Banner partnerskeho portalu Kudy z nudy v levem volnem pruhu (publikacni podminky) */
-        .kzn-banner { position: fixed; top: 150px; left: calc(50% - 640px); z-index: 50; display: block; border-radius: 8px; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,0.12); transition: transform 0.2s, box-shadow 0.2s; }
-        .kzn-banner:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(0,0,0,0.18); }
-        .kzn-banner img { display: block; width: 120px; height: 300px; }
+        /* Banner se roztahne podle volneho mista vlevo od obsahu (max 300x600) */
+        .kzn-banner { position: fixed; top: 150px; right: calc(50% + 516px); width: min(300px, calc((100vw - 1000px) / 2 - 48px), calc((100vh - 200px) / 2)); z-index: 50; display: block; border-radius: 10px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.15); transition: transform 0.2s, box-shadow 0.2s; }
+        .kzn-banner:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,0.22); }
+        .kzn-banner img { display: block; width: 100%; height: auto; aspect-ratio: 1 / 2; }
         /* Uzsi okna: vedle obsahu uz neni misto, banner zustava jen v paticce */
-        @media (max-width: 1320px) { .kzn-banner { display: none; } }
+        @media (max-width: 1340px) { .kzn-banner { display: none; } }
 
         .social-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 24px; border-radius: 8px; color: white; text-decoration: none; font-weight: bold; transition: transform 0.2s, opacity 0.2s; }
         .social-btn:hover { transform: translateY(-2px); opacity: 0.9; }
@@ -216,7 +217,7 @@
 </header>
 
 <a href="https://www.kudyznudy.cz/?utm_source=kzn&amp;utm_medium=partneri_kzn&amp;utm_campaign=banner" target="_blank" rel="noopener" class="kzn-banner" title="Kudyznudy.cz &ndash; tipy na v&yacute;let">
-    <img src="https://www.kudyznudy.cz/getmedia/6e615ff9-ea7f-4123-879a-c21afb844123/1012102023-online-bannery-hq-120x300.jpg.aspx" width="120" height="300" alt="Kudyznudy.cz &ndash; nejlep&scaron;&iacute; za&ccaron;&aacute;tek v&yacute;letu">
+    <img src="https://www.kudyznudy.cz/getmedia/cc1c716c-5127-4089-ad0c-d264dd031bf0/1012102023-online-bannery-hq-300x600.jpg.aspx" width="300" height="600" alt="Kudyznudy.cz &ndash; nejlep&scaron;&iacute; za&ccaron;&aacute;tek v&yacute;letu">
 </a>
 
 <main>
