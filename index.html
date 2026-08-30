@@ -134,6 +134,12 @@
         .progress-bar-fill { position: absolute; left: 0; top: 0; height: 100%; background-color: var(--blue); border-radius: 8px; }
         .progress-bar-paid { position: absolute; left: 0; top: 0; height: 100%; background-color: var(--green); z-index: 2; border-radius: 8px; }
         
+        /* Banner partnerskeho portalu Kudy z nudy (publikacni podminky) */
+        .kzn-banner { float: right; display: block; margin: 0 0 1.2rem 1.5rem; border-radius: 8px; overflow: hidden; box-shadow: 0 6px 18px rgba(0,0,0,0.25); transition: transform 0.2s; }
+        .kzn-banner:hover { transform: translateY(-3px); }
+        .kzn-banner img { display: block; width: 120px; height: 300px; }
+        @media (max-width: 768px) { .kzn-banner { float: none; margin: 0 auto 1.5rem; width: 120px; } }
+
         .social-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 24px; border-radius: 8px; color: white; text-decoration: none; font-weight: bold; transition: transform 0.2s, opacity 0.2s; }
         .social-btn:hover { transform: translateY(-2px); opacity: 0.9; }
         .btn-fb { background: #1877F2; }
@@ -212,6 +218,10 @@
     <section id="home" class="page-section active">
         <div class="card" style="background: linear-gradient(135deg, var(--primary), #2a4365); color: white;">
             <h3 style="margin-bottom: 1rem; font-size: 1.5rem; color: #ff6b6b;">Vítejte na oficiálních stránkách České asociace v karetní hře prší z.s.! ♠️♥️♣️♦️</h3>
+
+            <a href="https://www.kudyznudy.cz/?utm_source=kzn&amp;utm_medium=partneri_kzn&amp;utm_campaign=banner" target="_blank" rel="noopener" class="kzn-banner" title="Kudyznudy.cz &ndash; tipy na v&yacute;let">
+                <img src="https://www.kudyznudy.cz/getmedia/6e615ff9-ea7f-4123-879a-c21afb844123/1012102023-online-bannery-hq-120x300.jpg.aspx" width="120" height="300" alt="Kudyznudy.cz &ndash; nejlep&scaron;&iacute; za&ccaron;&aacute;tek v&yacute;letu">
+            </a>
             
             <p style="margin-bottom: 1rem; font-size: 1.1rem;"><strong>Prší je pro nás víc než jen hra.</strong> Naším cílem je sdružovat nadšence této legendární české karetní klasiky z celé republiky a posunout ji na úplně novou úroveň. Naší největší vizí je totiž uspořádat historicky první celorepublikový turnaj v Prší!</p>
             
