@@ -171,8 +171,9 @@ function render(st){
   }
   else if (st.screen_mode === 'quiz'){
     const q = st.quiz || {};
+    h += `<div style="text-align:center;margin-bottom:.8rem"><a href="kviz.html?t=${tid}" class="btn btn-seat" style="display:inline-block;text-decoration:none;padding:.9rem 1.6rem;font-size:1.2rem">🧠 HRAJEŠ KVÍZ? Vstup zde</a></div>`;
     if (q.state === 'registration'){
-      h += '<div class="center-msg">🧠 Kvíz – přihlas se na svém telefonu (naskenuj kartičku).</div>';
+      h += '<div class="center-msg">Kvíz začíná – klikni nahoře a přihlas se kartičkou.</div>';
     } else if (q.state === 'question'){
       h += `<div class="title" style="font-size:1.5rem">${esc(q.question)}</div>`;
       if (!q.numeric){ h += '<div class="rows">'; [['A',q.a],['B',q.b],['C',q.c],['D',q.d]].forEach(([k,v])=>{ if(v) h+=`<div class="row"><span><span class="r">${k})</span>${esc(v)}</span></div>`; }); h += '</div>'; }

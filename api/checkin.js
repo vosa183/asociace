@@ -43,9 +43,9 @@ export default async function handler(req, res) {
 
   const vs = ('' + player_id_card).replace(/\D/g, '');
 
-  // --- Vyhledání hráče (jméno + platba) ---
+  // --- Vyhledání hráče (jméno + částka k vybrání) ---
   if (mode === 'lookup') {
-    let name = '', paid = false, fee = 100, registered = false;
+    let name = '', paid = false, registered = false, fee = 0, due = null;
     try {
       const rr = await fetch(URL + '/rest/v1/registrations?tournament_id=eq.' + tournament_id + '&player_id_card=eq.' + vs + '&select=payment_status', { headers: svcHeaders });
       const rj = await rr.json(); if (rj && rj[0]) { registered = true; paid = !!rj[0].payment_status; }
@@ -55,10 +55,17 @@ export default async function handler(req, res) {
         const dr = await fetch(URL + '/rest/v1/player_database?player_id_card=eq.' + vs + '&select=full_name', { headers: svcHeaders });
         const dj = await dr.json(); if (dj && dj[0] && dj[0].full_name) name = dj[0].full_name;
       }
-      const tr = await fetch(URL + '/rest/v1/tournaments?id=eq.' + tournament_id + '&select=fee', { headers: svcHeaders });
-      const tj = await tr.json(); if (tj && tj[0] && tj[0].fee != null) fee = tj[0].fee;
+      // Částka řízená APLIKACÍ (startovné a doplatky pushuje appka do live_state).
+      const lr = await fetch(URL + '/rest/v1/live_state?tournament_id=eq.' + tournament_id + '&select=entry_fee,pay', { headers: svcHeaders });
+      const lj = await lr.json();
+      if (lj && lj[0]) {
+        if (lj[0].entry_fee != null) fee = Number(lj[0].entry_fee);
+        const p = lj[0].pay || {};
+        if (p[vs] != null) due = Number(p[vs]);
+      }
+      if (due == null) due = fee; // z ulice / bez záznamu → plná částka
     } catch (e) { return res.status(500).json({ error: 'Chyba vyhledání: ' + e.message }); }
-    return res.status(200).json({ found: registered || !!name, name: name || ('Hráč ' + vs), paid, fee, registered });
+    return res.status(200).json({ found: registered || !!name, name: name || ('Hráč ' + vs), paid, fee, due, registered });
   }
 
   // --- Zápis odbavení (check-in) ---
