@@ -94,6 +94,9 @@
         .footer-partners a { display: inline-block; opacity: 0.9; transition: opacity 0.2s; }
         .footer-partners a:hover { opacity: 1; }
         .footer-partners img { height: 33px; width: 150px; display: block; }
+        .btn-watch-live { display:block; text-align:center; text-decoration:none; background:#c0392b; color:#fff; font-weight:bold; padding:0.7rem; border-radius:8px; margin:0.2rem 0 0.8rem; animation: watchBlink 1.1s infinite; }
+        .btn-watch-live:hover { background:#a93226; }
+        @keyframes watchBlink { 0%,100%{ box-shadow:0 0 0 0 rgba(192,57,43,0.6);} 50%{ box-shadow:0 0 0 8px rgba(192,57,43,0);} }
     </style>
 </head>
 <body>
@@ -298,6 +301,13 @@
         grid.innerHTML = '';
         grid.style.display = 'grid';
 
+        // Které turnaje právě běží (živý přenos + čerstvý tep do 20 s)?
+        let liveIds = new Set();
+        try {
+            const { data: live } = await db.from('live_state').select('tournament_id, updated_at').eq('is_active', true);
+            (live || []).forEach(l => { if (!l.updated_at || (Date.now() - new Date(l.updated_at).getTime()) < 20000) liveIds.add(l.tournament_id); });
+        } catch (e) {}
+
         tours.forEach(t => {
             // Spočítáme registrace pro tento konkrétní turnaj - do kapacity se počítají
             // pouze řádní účastníci, náhradníci (waitlist) na volná místa nečekají v čísle.
@@ -354,7 +364,8 @@
                     </div>
                     <div class="card-body">
                         <div class="card-title">${t.title}</div>
-                        
+                        ${liveIds.has(t.id) ? `<a href="sledovani.html?t=${t.id}" class="btn-watch-live">🔴 SLEDUJ TURNAJ ŽIVĚ</a>` : ''}
+
                         <div class="info-row">
                             📅 <span><strong>Datum:</strong> ${formatDateTime(t.event_date)}</span>
                         </div>
