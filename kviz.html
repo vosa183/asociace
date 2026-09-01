@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kvíz – Česká asociace prší</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
+<style>
+  :root{ --bg:#1e1e1e; --card:#2d2d2d; --gold:#f1c40f; --blue:#3498db; --green:#27ae60; --red:#c0392b; --purple:#9b59b6; }
+  *{box-sizing:border-box;} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:#fff;padding:16px;}
+  h1{color:var(--gold);text-align:center;font-size:1.5rem;margin:.4rem 0;}
+  .msg{text-align:center;color:#bdc3c7;font-size:1.1rem;margin-top:1.5rem;}
+  .btn{border:none;border-radius:10px;padding:1rem;font-weight:bold;font-size:1.1rem;cursor:pointer;width:100%;margin-top:.6rem;color:#fff;}
+  .btn-scan{background:var(--gold);color:#111;}
+  #reader{width:100%;max-width:340px;margin:.8rem auto;}
+  .me{background:#222;border-radius:8px;padding:.5rem;text-align:center;color:var(--green);font-weight:bold;margin-bottom:.6rem;}
+  .qtext{font-size:1.5rem;font-weight:bold;text-align:center;margin:1rem 0;color:var(--gold);}
+  .opt{display:block;width:100%;background:#34495e;color:#fff;border:2px solid #2c3e50;border-radius:12px;padding:1.1rem;font-size:1.2rem;font-weight:bold;margin:.5rem 0;cursor:pointer;text-align:left;}
+  .opt:disabled{opacity:.5;}
+  .opt.correct{background:var(--green);} .opt.mine{outline:3px solid var(--gold);}
+  .numwrap input{width:100%;padding:1rem;font-size:1.6rem;text-align:center;border-radius:8px;border:1px solid #555;background:#222;color:var(--gold);font-weight:bold;}
+  .timer{font-size:2rem;font-weight:bold;color:var(--red);text-align:center;}
+  .done{background:var(--green);border-radius:12px;padding:1rem;text-align:center;font-size:1.3rem;font-weight:bold;margin-top:1rem;}
+  .rows{margin-top:1rem;}
+  .barrow{display:flex;align-items:center;gap:.5rem;margin:.35rem 0;transition:all .6s ease;}
+  .barrow .nm{width:38%;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .barwrap{flex:1;background:#222;border-radius:6px;overflow:hidden;height:26px;position:relative;}
+  .bar{height:100%;background:linear-gradient(90deg,var(--purple),var(--blue));width:0;transition:width .8s cubic-bezier(.2,.8,.2,1);}
+  .barrow .pts{width:44px;text-align:right;font-weight:bold;color:var(--gold);}
+  .barrow.top .bar{background:linear-gradient(90deg,#f39c12,var(--gold));}
+</style>
+</head>
+<body>
+<h1>🧠 Turnajový kvíz</h1>
+<div id="app"><div class="msg">Načítám…</div></div>
+
+<script>
+const supabaseUrl='https://gqciprgrzdpckhhqcsjx.supabase.co';
+const supabaseKey='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
+const db=window.supabase.createClient(supabaseUrl,supabaseKey);
+const app=document.getElementById('app');
+const tid=new URLSearchParams(location.search).get('t');
+let myCard=null, myName=null, qr=null, scanning=false;
+let lastState=null, lastIndex=-1, qShownAt=0, answeredIndex=-1;
+
+function esc(s){return (''+(s??'')).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+
+function start(){
+  if(!tid){ app.innerHTML='<div class="msg">Chybí turnaj v odkazu.</div>'; return; }
+  myCard=lsGet('quizCard_'+tid); myName=lsGet('quizName_'+tid);
+  if(myCard){ subscribe(); } else { renderJoin(); }
+}
+
+function renderJoin(){
+  app.innerHTML='<div class="msg">Přihlas se do kvízu naskenováním své kartičky.</div><button class="btn btn-scan" onclick="startScan()">📷 Naskenovat kartičku</button><div id="reader"></div><div id="jout"></div>';
+}
+function startScan(){
+  const r=document.getElementById('reader');
+  if(qr==null) qr=new Html5Qrcode('reader');
+  qr.start({facingMode:'environment'},{fps:10,qrbox:240}, tx=>{ if(scanning)return; scanning=true; qr.stop().then(()=>{scanning=false; join(tx);}).catch(()=>{scanning=false;}); }, ()=>{}).catch(e=>{document.getElementById('jout').innerHTML='<div class="msg" style="color:var(--red)">Chyba kamery: '+esc(e)+'</div>';});
+}
+async function join(raw){
+  const vs=(''+raw).replace(/\D/g,''); const o=document.getElementById('jout');
+  if(!vs){ if(o)o.innerHTML='<div class="msg">Neplatná kartička.</div>'; renderJoin(); return; }
+  if(o) o.innerHTML='<div class="msg">Přihlašuji…</div>';
+  try{
+    const r=await fetch('/api/quiz',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'join',tournament_id:tid,player_id_card:vs})});
+    const d=await r.json();
+    if(r.ok&&d.ok){ myCard=vs; myName=d.name; lsSet('quizCard_'+tid,vs); lsSet('quizName_'+tid,d.name); subscribe(); }
+    else { renderJoin(); document.getElementById('jout').innerHTML='<div class="msg" style="color:var(--red)">'+esc(d.error||'Chyba')+'</div>'; }
+  }catch(e){ renderJoin(); document.getElementById('jout').innerHTML='<div class="msg" style="color:var(--red)">Chyba spojení.</div>'; }
+}
+
+function subscribe(){
+  render(lastState);
+  fetchState();
+  db.channel('quiz-'+tid).on('postgres_changes',{event:'*',schema:'public',table:'live_state',filter:'tournament_id=eq.'+tid},p=>{ if(p.new) render(p.new); }).subscribe();
+  setInterval(fetchState, 3000);
+}
+async function fetchState(){ const {data}=await db.from('live_state').select('quiz,is_active,updated_at').eq('tournament_id',tid).maybeSingle(); render(data); }
+
+function render(st){
+  if(!st){ app.innerHTML=meHeader()+'<div class="msg">Čekej na pořadatele…</div>'; return; }
+  const stale = st.updated_at && (Date.now()-new Date(st.updated_at).getTime())>25000;
+  const q = st.quiz;
+  if(stale || !st.is_active || !q){ app.innerHTML=meHeader()+'<div class="msg">Kvíz právě neběží.</div>'; return; }
+  lastState=st;
+
+  if(q.state==='registration'){ app.innerHTML=meHeader()+'<div class="msg">✅ Jsi přihlášen. Čekej na první otázku…</div>'; return; }
+
+  if(q.state==='question'){
+    if(q.index!==lastIndex){ lastIndex=q.index; qShownAt=Date.now(); } // férový čas: od zobrazení u MĚ
+    const already = (answeredIndex===q.index);
+    let h=meHeader()+`<div class="qtext">${esc(q.question)}</div>`;
+    if(already){ h+='<div class="done">Odpověď odeslána ✔<br><span style="font-size:.9rem;font-weight:normal">Čekej na vyhodnocení</span></div>'; app.innerHTML=h; return; }
+    if(q.numeric){
+      h+=`<div class="numwrap"><input type="number" id="numAns" placeholder="Napiš číslo"></div><button class="btn btn-scan" onclick="answerNum(${q.index})">Odeslat</button>`;
+    } else {
+      [['A',q.a],['B',q.b],['C',q.c],['D',q.d]].forEach(([k,v])=>{ if(v) h+=`<button class="opt" onclick="answer(${q.index},'${k}')">${k}) ${esc(v)}</button>`; });
+    }
+    app.innerHTML=h;
+    return;
+  }
+
+  if(q.state==='answer'){
+    let h=meHeader();
+    if(q.numeric){ h+=`<div class="qtext">Správně: ${esc(q.correct)}</div>`; }
+    else {
+      h+=`<div class="qtext">${esc(q.question)}</div>`;
+      [['A',q.a],['B',q.b],['C',q.c],['D',q.d]].forEach(([k,v])=>{ if(v) h+=`<div class="opt ${k===q.correct?'correct':''}" >${k}) ${esc(v)}</div>`; });
+    }
+    if(q.fastest) h+=`<div class="done" style="background:var(--purple)">⚡ Nejrychlejší správně: ${esc(q.fastest)}</div>`;
+    h+=standingsHtml(q.standings);
+    app.innerHTML=h;
+    return;
+  }
+
+  if(q.state==='finished'){
+    app.innerHTML=meHeader()+'<div class="qtext">🏁 Konec kvízu!</div>'+standingsHtml(q.standings);
+    return;
+  }
+  app.innerHTML=meHeader()+'<div class="msg">Čekej…</div>';
+}
+
+function meHeader(){ return myName?`<div class="me">Hraješ jako: ${esc(myName)}</div>`:''; }
+function standingsHtml(st){
+  if(!st||!st.length) return '';
+  const max=Math.max.apply(null, st.map(s=>s.points))||1;
+  let h='<div class="rows">';
+  st.forEach((s,i)=>{ const w=Math.round((s.points/max)*100); h+=`<div class="barrow ${i===0?'top':''}"><span class="nm">${esc(s.name)}</span><span class="barwrap"><span class="bar" style="width:${w}%"></span></span><span class="pts">${esc(s.points)}</span></div>`; });
+  return h+'</div>';
+}
+
+async function answer(index, key){
+  if(answeredIndex===index) return; answeredIndex=index;
+  const rt=Date.now()-qShownAt;
+  send(index, key, rt);
+}
+async function answerNum(index){
+  if(answeredIndex===index) return;
+  const v=document.getElementById('numAns'); const val=v&&v.value; if(val===''||val==null){ return; }
+  answeredIndex=index; const rt=Date.now()-qShownAt; send(index, val, rt);
+}
+async function send(index, ans, rt){
+  render(lastState); // překreslí na „odesláno"
+  try{ await fetch('/api/quiz',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'answer',tournament_id:tid,player_id_card:myCard,question_index:index,answer:ans,reaction_ms:rt})}); }catch(e){}
+}
+
+start();
+</script>
+</body>
+</html>

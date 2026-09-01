@@ -85,6 +85,13 @@ let currentState = null;
 let tid = new URLSearchParams(location.search).get('t');
 
 function esc(s){ return (''+ (s??'')).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function quizStandings(st){
+  if(!st || !st.length) return '';
+  const max = Math.max.apply(null, st.map(s=>s.points)) || 1;
+  let h='<div class="rows">';
+  st.forEach((s,i)=>{ const w=Math.round((s.points/max)*100); h+=`<div class="row" style="display:block;transition:all .6s ease"><div style="display:flex;justify-content:space-between"><span><span class="r">${i+1}.</span>${esc(s.name)}</span><span class="pts">${esc(s.points)} b.</span></div><div style="height:12px;background:#222;border-radius:6px;margin-top:6px;overflow:hidden"><div style="height:100%;width:${w}%;background:${i===0?'linear-gradient(90deg,#f39c12,var(--gold))':'linear-gradient(90deg,var(--blue),var(--gold))'};transition:width .8s cubic-bezier(.2,.8,.2,1)"></div></div></div>`; });
+  return h+'</div>';
+}
 
 // Turnaj je „živý" jen když je aktivní A jeho stav je čerstvý (appka posílá tep každé 3 s).
 const STALE_MS = 20000;
@@ -162,7 +169,24 @@ function render(st){
     h += `<div class="winner"><div class="h">🏆 VÍTĚZ KOLA 🏆</div><div class="n">${esc(w.name)}</div><div class="p">${esc(w.points)} bodů</div></div>`;
   }
   else if (st.screen_mode === 'quiz'){
-    h += '<div class="center-msg">Probíhá kvíz – hraj na svém zařízení.</div>';
+    const q = st.quiz || {};
+    if (q.state === 'registration'){
+      h += '<div class="center-msg">🧠 Kvíz – přihlas se na svém telefonu (naskenuj kartičku).</div>';
+    } else if (q.state === 'question'){
+      h += `<div class="title" style="font-size:1.5rem">${esc(q.question)}</div>`;
+      if (!q.numeric){ h += '<div class="rows">'; [['A',q.a],['B',q.b],['C',q.c],['D',q.d]].forEach(([k,v])=>{ if(v) h+=`<div class="row"><span><span class="r">${k})</span>${esc(v)}</span></div>`; }); h += '</div>'; }
+      else { h += '<div class="center-msg">Odpovídej číslem na telefonu.</div>'; }
+      h += `<div style="text-align:center;color:#bdc3c7;margin-top:.6rem">Odpovědělo: ${esc(q.answered||0)} / ${esc(q.registered||0)}</div>`;
+    } else if (q.state === 'answer'){
+      if(q.numeric) h += `<div class="title">Správně: ${esc(q.correct)}</div>`;
+      else { h += `<div class="title" style="font-size:1.4rem">${esc(q.question)}</div><div class="rows">`; [['A',q.a],['B',q.b],['C',q.c],['D',q.d]].forEach(([k,v])=>{ if(v) h+=`<div class="row ${k===q.correct?'top':''}"><span><span class="r">${k})</span>${esc(v)}</span></div>`; }); h += '</div>'; }
+      if(q.fastest) h += `<div class="center-msg" style="color:var(--gold);font-size:1.2rem;margin-top:.5rem">⚡ Nejrychlejší: ${esc(q.fastest)}</div>`;
+      h += quizStandings(q.standings);
+    } else if (q.state === 'finished'){
+      h += '<div class="title">🏁 Výsledky kvízu</div>' + quizStandings(q.standings);
+    } else {
+      h += '<div class="center-msg">Probíhá kvíz…</div>';
+    }
   }
   else {
     const arr = st.standings || [];
