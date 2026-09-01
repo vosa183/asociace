@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sledování turnaje – Česká asociace prší</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
+<style>
+  :root{ --bg:#1e1e1e; --card:#2d2d2d; --seat:#34495e; --line:#444; --text:#fff; --gold:#f1c40f; --blue:#3498db; --red:#c0392b; --green:#27ae60; }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);}
+  header{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.8rem 1rem;background:#171717;position:sticky;top:0;z-index:50;box-shadow:0 2px 10px rgba(0,0,0,.4);}
+  header .brand{font-weight:bold;color:var(--gold);font-size:1.1rem;}
+  header a.home{color:#bdc3c7;text-decoration:none;font-size:.85rem;}
+  .btn{border:none;border-radius:8px;padding:.8rem 1rem;font-weight:bold;font-size:1rem;cursor:pointer;}
+  .btn-seat{background:var(--gold);color:#111;}
+  .wrap{max-width:1100px;margin:0 auto;padding:1rem;}
+  .title{text-align:center;color:var(--gold);font-size:1.8rem;font-weight:bold;margin:.5rem 0 1.2rem;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;}
+  .table-card{background:var(--seat);border:2px solid var(--gold);border-radius:12px;padding:.8rem;}
+  .table-card h3{margin:0 0 .6rem;text-align:center;color:var(--gold);}
+  .seats{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;}
+  .seat{background:var(--bg);border-radius:8px;padding:.5rem;text-align:center;min-height:64px;display:flex;flex-direction:column;justify-content:center;}
+  .seat .num{color:var(--gold);font-size:1.6rem;font-weight:bold;line-height:1;}
+  .seat .nm{font-size:.85rem;}
+  .seat .sc{color:var(--blue);font-weight:bold;font-size:.8rem;}
+  .rows{max-width:640px;margin:0 auto;}
+  .row{display:flex;justify-content:space-between;align-items:center;background:var(--card);margin:.35rem 0;padding:.7rem .9rem;border-radius:8px;border-left:4px solid var(--line);}
+  .row.top{border-left-color:var(--gold);}
+  .row .r{color:var(--gold);font-weight:bold;margin-right:.6rem;}
+  .row .pts{color:var(--blue);font-weight:bold;}
+  .center-msg{text-align:center;font-size:1.6rem;color:var(--blue);margin-top:3rem;}
+  .winner{text-align:center;margin-top:2rem;}
+  .winner .h{color:var(--gold);font-size:2rem;font-weight:bold;}
+  .winner .n{font-size:2.6rem;font-weight:bold;margin:1rem 0;}
+  .winner .p{color:var(--blue);font-size:1.6rem;font-weight:bold;}
+  .live-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);margin-right:.4rem;animation:blink 1.2s infinite;}
+  @keyframes blink{50%{opacity:.3;}}
+  /* modal kde sedím */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;z-index:100;padding:1rem;}
+  .modal .box{background:var(--card);border-radius:14px;padding:1.5rem;max-width:420px;width:100%;text-align:center;}
+  .modal input{width:100%;padding:1rem;font-size:1.4rem;text-align:center;border-radius:8px;border:1px solid #555;background:#222;color:var(--gold);font-weight:bold;margin:.6rem 0;}
+  #reader{width:100%;max-width:340px;margin:.6rem auto;display:none;}
+  .seat-result{background:var(--green);border-radius:14px;padding:1.5rem;margin-top:1rem;}
+  .seat-result .big{font-size:5rem;font-weight:bold;line-height:1;}
+  .close{color:#bdc3c7;background:none;border:none;font-size:.9rem;margin-top:1rem;cursor:pointer;}
+  .picker a{display:block;background:var(--card);border:2px solid var(--gold);border-radius:12px;padding:1rem;margin:.6rem auto;max-width:520px;color:var(--text);text-decoration:none;font-weight:bold;}
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">🃏 Sledování turnaje</span>
+  <div style="display:flex;gap:.6rem;align-items:center;">
+    <button class="btn btn-seat" onclick="openSeat()">📷 Kde sedím?</button>
+    <a class="home" href="index.html">← web</a>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="live-label" style="text-align:center;margin-bottom:.4rem;display:none;"><span class="live-dot"></span><span style="color:#e74c3c;font-weight:bold;">PRÁVĚ PROBÍHÁ</span></div>
+  <div id="content"><div class="center-msg">Načítám…</div></div>
+</div>
+
+<!-- Modal: kde sedím -->
+<div class="modal" id="seatModal">
+  <div class="box">
+    <h2 style="color:var(--gold);margin-top:0;">Kde sedím?</h2>
+    <p style="color:#bdc3c7;margin:.2rem 0;">Naskenuj QR z kartičky nebo zadej svoje číslo.</p>
+    <input type="number" id="seatVs" placeholder="Číslo z kartičky">
+    <button class="btn btn-seat" style="width:100%;" onclick="findSeat(document.getElementById('seatVs').value)">Zobrazit stůl</button>
+    <button class="btn" id="scanBtn" style="width:100%;background:#3498db;color:#fff;margin-top:.5rem;" onclick="startScan()">📷 Naskenovat QR</button>
+    <div id="reader"></div>
+    <div id="seatOut"></div>
+    <button class="close" onclick="closeSeat()">Zavřít</button>
+  </div>
+</div>
+
+<script>
+const supabaseUrl = 'https://gqciprgrzdpckhhqcsjx.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
+const db = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+let currentState = null;
+let tid = new URLSearchParams(location.search).get('t');
+
+function esc(s){ return (''+ (s??'')).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function init(){
+  if (!tid) { return showPicker(); }
+  document.getElementById('live-label').style.display = 'block';
+  // první načtení
+  const { data } = await db.from('live_state').select('*').eq('tournament_id', tid).maybeSingle();
+  if (data) render(data);
+  // realtime
+  db.channel('live-'+tid)
+    .on('postgres_changes', { event:'*', schema:'public', table:'live_state', filter:'tournament_id=eq.'+tid }, p => { if (p.new) render(p.new); })
+    .subscribe();
+  // pojistka: pravidelné dotažení, kdyby realtime zaškobrtl
+  setInterval(async () => {
+    const { data } = await db.from('live_state').select('*').eq('tournament_id', tid).maybeSingle();
+    if (data) render(data);
+  }, 4000);
+}
+
+async function showPicker(){
+  document.getElementById('live-label').style.display = 'none';
+  const { data } = await db.from('live_state').select('tournament_id, tournaments(title,event_date)').eq('is_active', true);
+  const c = document.getElementById('content');
+  if (!data || data.length === 0){ c.innerHTML = '<div class="center-msg">Právě neprobíhá žádný turnaj.</div>'; return; }
+  if (data.length === 1){ tid = data[0].tournament_id; return init(); }
+  let h = '<div class="title">Vyber probíhající turnaj</div><div class="picker">';
+  data.forEach(d => { h += `<a href="sledovani.html?t=${d.tournament_id}">🃏 ${esc(d.tournaments?.title || 'Turnaj')}</a>`; });
+  c.innerHTML = h + '</div>';
+}
+
+function render(st){
+  currentState = st;
+  const c = document.getElementById('content');
+  const title = esc(st.screen_title || 'Turnaj');
+  let h = `<div class="title">${title}</div>`;
+
+  if (st.screen_mode === 'seating'){
+    const tables = st.seating || [];
+    if (!tables.length){ h += '<div class="center-msg">Losujeme stoly…</div>'; }
+    else {
+      h += '<div class="grid">';
+      tables.forEach(t => {
+        h += `<div class="table-card"><h3>STŮL ${esc(t.table)}</h3><div class="seats">`;
+        (t.players||[]).forEach(p => {
+          h += `<div class="seat"><div class="num">${esc(p.start)}</div><div class="nm">${esc(p.name)}</div><div class="sc">${esc(p.score)}</div></div>`;
+        });
+        h += '</div></div>';
+      });
+      h += '</div>';
+    }
+  }
+  else if (st.screen_mode === 'standings' || st.screen_mode === 'final'){
+    const arr = st.standings || [];
+    h += '<div class="rows">';
+    arr.forEach(p => { h += `<div class="row ${p.rank===1?'top':''}"><span><span class="r">${esc(p.rank)}.</span>${esc(p.name)}</span><span class="pts">${esc(p.points)} b.</span></div>`; });
+    h += '</div>';
+  }
+  else if (st.screen_mode === 'round_winner'){
+    const w = st.round_winner || {};
+    h += `<div class="winner"><div class="h">🏆 VÍTĚZ KOLA 🏆</div><div class="n">${esc(w.name)}</div><div class="p">${esc(w.points)} bodů</div></div>`;
+  }
+  else if (st.screen_mode === 'quiz'){
+    h += '<div class="center-msg">Probíhá kvíz – hraj na svém zařízení.</div>';
+  }
+  else {
+    h += '<div class="center-msg">Připravujeme turnaj…</div>';
+  }
+  c.innerHTML = h;
+}
+
+/* ---- Kde sedím ---- */
+let qr=null, scanning=false;
+function openSeat(){ document.getElementById('seatModal').style.display='flex'; document.getElementById('seatOut').innerHTML=''; }
+function closeSeat(){ document.getElementById('seatModal').style.display='none'; if(qr&&scanning){qr.stop().catch(()=>{});scanning=false;} document.getElementById('reader').style.display='none'; document.getElementById('scanBtn').style.display='block'; }
+function startScan(){
+  const r=document.getElementById('reader'); r.style.display='block'; document.getElementById('scanBtn').style.display='none';
+  if(qr==null) qr=new Html5Qrcode('reader');
+  qr.start({facingMode:'environment'},{fps:10,qrbox:220}, tx=>{ if(scanning)return; scanning=true; qr.stop().then(()=>{scanning=false;r.style.display='none';findSeat(tx);}).catch(()=>{scanning=false;}); }, ()=>{}).catch(e=>alert('Chyba kamery: '+e));
+}
+function findSeat(raw){
+  const vs = (''+raw).replace(/\D/g,'');
+  const out = document.getElementById('seatOut');
+  if(!vs){ out.innerHTML=''; return; }
+  if(!currentState || !currentState.seating || !currentState.seating.length){ out.innerHTML='<div class="seat-result" style="background:#7f2b2b;">Rozsazení ještě není k dispozici.</div>'; return; }
+  for(const t of currentState.seating){
+    const arr=t.players||[]; const idx=arr.findIndex(p=>(''+p.vs)===vs);
+    if(idx>=0){ out.innerHTML=`<div class="seat-result"><div>${esc(arr[idx].name)}</div><div class="big">${esc(t.table)}</div><div>STŮL (místo ${idx+1})</div></div>`; return; }
+  }
+  out.innerHTML='<div class="seat-result" style="background:#7f2b2b;">Toto číslo u žádného stolu nesedí.</div>';
+}
+
+init();
+</script>
+</body>
+</html>

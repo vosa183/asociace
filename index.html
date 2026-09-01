@@ -3417,5 +3417,34 @@ window.loadApiKeys = async function() {
     };
 
 </script>
+
+<!-- ŽIVÝ TURNAJ: baner „právě probíhá" (samostatný, nezávislý na zbytku stránky) -->
+<style>
+  #live-now-banner{position:fixed;left:0;right:0;bottom:0;z-index:9999;display:none;background:#c0392b;color:#fff;text-align:center;padding:.7rem 1rem;font-weight:bold;box-shadow:0 -2px 12px rgba(0,0,0,.3);}
+  #live-now-banner a{color:#fff;text-decoration:underline;white-space:nowrap;}
+  #live-now-banner .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#fff;margin-right:.4rem;animation:lnbBlink 1.1s infinite;}
+  @keyframes lnbBlink{50%{opacity:.3;}}
+</style>
+<div id="live-now-banner"></div>
+<script>
+(function(){
+  try{
+    var c = window.supabase.createClient('https://gqciprgrzdpckhhqcsjx.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k');
+    async function check(){
+      try{
+        var r = await c.from('live_state').select('tournament_id, tournaments(title)').eq('is_active', true);
+        var d = r.data || []; var b = document.getElementById('live-now-banner');
+        if(!b) return;
+        if(d.length === 0){ b.style.display='none'; return; }
+        var href = d.length === 1 ? ('sledovani.html?t=' + d[0].tournament_id) : 'sledovani.html';
+        var label = d.length === 1 ? ('PRÁVĚ PROBÍHÁ: ' + ((d[0].tournaments && d[0].tournaments.title) || 'turnaj')) : ('PRÁVĚ PROBÍHAJÍ ' + d.length + ' turnaje');
+        b.innerHTML = '<span class="dot"></span>' + label + ' &nbsp; <a href="' + href + '">Sleduj turnaj →</a>';
+        b.style.display = 'block';
+      }catch(e){}
+    }
+    check(); setInterval(check, 15000);
+  }catch(e){}
+})();
+</script>
 </body>
 </html>
