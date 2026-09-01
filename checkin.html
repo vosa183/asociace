@@ -54,8 +54,8 @@ async function init(){
   // Aktivní turnaje, KDE JSEM PŘIŘAZENÝ POŘADATEL (superadmin vidí všechny).
   const { data: live } = await db.from('live_state').select('tournament_id, updated_at, organizer_id, tournaments(title)').eq('is_active', true);
   let fresh = (live||[]).filter(l=>!l.updated_at || (Date.now()-new Date(l.updated_at).getTime())<20000);
-  if(role!=='superadmin') fresh = fresh.filter(l => l.organizer_id === myId);
-  if(fresh.length===0){ app.innerHTML='<div class="msg">Nejsi přiřazený pořadatel žádného právě běžícího turnaje.<br><span style="font-size:.9rem">(Pořadatele nastaví v aplikaci před startem turnaje.)</span></div>'; return; }
+  fresh = fresh.filter(l => (l.organizer_id||'').split(',').map(s=>s.trim()).includes(myId));
+  if(fresh.length===0){ app.innerHTML='<div class="msg">Nejsi přiřazený pořadatel žádného právě běžícího turnaje.<br><span style="font-size:.9rem">(Pořadatele nastaví v aplikaci při načtení turnaje – klidně i sebe.)</span></div>'; return; }
   if(fresh.length===1){ tid=fresh[0].tournament_id; tname=fresh[0].tournaments?.title||''; return renderScanner(); }
   let h='<div class="msg">Vyber turnaj:</div><div class="picker">';
   fresh.forEach(f=>{ h+=`<a href="#" onclick="pick('${f.tournament_id}','${esc((f.tournaments?.title||'').replace(/'/g,"\\'"))}');return false;">🃏 ${esc(f.tournaments?.title||'Turnaj')}</a>`; });
@@ -86,20 +86,23 @@ async function lookup(raw){
     const r = await fetch('/api/checkin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'lookup',tournament_id:tid,player_id_card:vs,organizer_token:token})});
     const d = await r.json();
     if(!r.ok){ out.innerHTML='<div class="card" style="border:1px solid var(--red)">'+esc(d.error||'Chyba')+'</div>'; return; }
-    const doplatek = Math.max(0, (d.fee||0) - (d.paid ? (d.fee||0) : 0));
-    let statusTag = d.paid ? '<span class="tag paid">ZAPLACENO</span>' : '<span class="tag debt">DOPLATIT '+(d.fee||0)+' Kč</span>';
+    let statusTag = d.paid ? '<span class="tag paid">ZAPLACENO PŘEDEM (banka)</span>' : '<span class="tag debt">NEZAPLACENO PŘEDEM</span>';
     if(!d.registered) statusTag += ' <span class="tag warn">NENÍ V SEZNAMU (z ulice)</span>';
-    let btns = '';
-    if(d.paid){
-      btns = `<button class="btn btn-green" onclick="commit('${vs}',0,'card')">✅ Odbavit (zaplaceno)</button>`;
-    } else {
-      btns = `<button class="btn btn-green" onclick="commit('${vs}',${d.fee||0},'card')">💰 Zaplatil ${d.fee||0} Kč → Odbavit</button>`;
-    }
-    btns += `<button class="btn btn-orange" onclick="commit('${vs}',0,'manual')">👤 Odbavit ručně (bez platby)</button>`;
-    btns += `<button class="btn btn-grey" onclick="document.getElementById('out').innerHTML='';document.getElementById('manVs').value='';">Zrušit</button>`;
-    out.innerHTML = `<div class="card"><div class="big">${esc(d.name)}</div><div style="margin:.5rem 0">${statusTag}</div>${btns}</div>`;
+    // Předvyplní částku k vybrání na místě: zaplaceno předem → 0, jinak celé startovné. Organizátor může přepsat.
+    const prefill = d.paid ? 0 : (d.fee||0);
+    out.innerHTML = `<div class="card">
+        <div class="big">${esc(d.name)}</div>
+        <div style="margin:.5rem 0">${statusTag}</div>
+        <label style="display:block;color:#bdc3c7;font-size:.9rem;margin:.4rem 0 .2rem;">Vybráno na místě (Kč) — uprav podle reality:</label>
+        <input type="number" id="amt" value="${prefill}">
+        <button class="btn btn-green" onclick="commitAmt('${vs}','card')">✅ Odbavit</button>
+        <button class="btn btn-orange" onclick="commitAmt('${vs}','manual')">👤 Odbavit ručně</button>
+        <button class="btn btn-grey" onclick="clearOut()">Zrušit</button>
+      </div>`;
   }catch(e){ out.innerHTML='<div class="card" style="border:1px solid var(--red)">Chyba spojení.</div>'; }
 }
+function clearOut(){ const o=document.getElementById('out'); if(o) o.innerHTML=''; const m=document.getElementById('manVs'); if(m) m.value=''; }
+async function commitAmt(vs, method){ const el=document.getElementById('amt'); const amt=parseInt(el&&el.value,10)||0; return commit(vs, amt, method); }
 async function commit(vs, amount, method){
   const out=document.getElementById('out'); out.innerHTML='<div class="msg">Odbavuji…</div>';
   try{
