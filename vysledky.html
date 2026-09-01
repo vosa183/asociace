@@ -89,7 +89,7 @@ async function send(){
   try{
     const r=await fetch('/api/results',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'submit',tournament_id:tid,player_id_card:myCard,round:tbl.round,table:tbl.table,data})});
     const dd=await r.json();
-    if(r.ok&&dd.ok){ app.innerHTML='<div class="who" style="color:var(--green);font-size:1.3rem">✅ Výsledky odeslány. Děkujeme!</div><button class="btn btn-scan" onclick="renderScan()">Zadat další stůl</button>'; }
+    if(r.ok&&dd.ok){ app.innerHTML='<div class="who" style="color:var(--green);font-size:1.3rem">✅ Výsledky odeslány. Děkujeme!</div><button class="btn btn-send" onclick="location.href=\'sledovani.html?t='+encodeURIComponent(tid)+'\'">📺 Zpět na sledování</button><button class="btn btn-scan" onclick="renderScan()">Zadat další stůl</button>'; }
     else { err.innerHTML=esc(dd.error||'Chyba zápisu'); }
   }catch(e){ err.innerHTML='Chyba spojení.'; }
 }
