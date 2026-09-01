@@ -86,7 +86,11 @@ function render(st){
   if(!st){ app.innerHTML=meHeader()+'<div class="msg">Čekej na pořadatele…</div>'; return; }
   const stale = st.updated_at && (Date.now()-new Date(st.updated_at).getTime())>25000;
   const q = st.quiz;
-  if(stale || !st.is_active || !q){ app.innerHTML=meHeader()+'<div class="msg">Kvíz právě neběží.</div>'; return; }
+  if(stale || !st.is_active || !q){
+    app.innerHTML=meHeader()+'<div class="msg">Kvíz skončil.</div><button class="btn btn-scan" onclick="goWatch()">📺 Sledovat turnaj</button>';
+    setTimeout(goWatch, 4000);
+    return;
+  }
   lastState=st;
 
   if(q.state==='registration'){ app.innerHTML=meHeader()+'<div class="msg">✅ Jsi přihlášen. Čekej na první otázku…</div>'; return; }
@@ -119,12 +123,13 @@ function render(st){
   }
 
   if(q.state==='finished'){
-    app.innerHTML=meHeader()+'<div class="qtext">🏁 Konec kvízu!</div>'+standingsHtml(q.standings);
+    app.innerHTML=meHeader()+'<div class="qtext">🏁 Konec kvízu!</div>'+standingsHtml(q.standings)+'<button class="btn btn-scan" style="margin-top:1rem" onclick="goWatch()">📺 Sledovat turnaj →</button>';
     return;
   }
   app.innerHTML=meHeader()+'<div class="msg">Čekej…</div>';
 }
 
+function goWatch(){ location.href='sledovani.html?t='+encodeURIComponent(tid); }
 function meHeader(){ return myName?`<div class="me">Hraješ jako: ${esc(myName)}</div>`:''; }
 function standingsHtml(st){
   if(!st||!st.length) return '';
