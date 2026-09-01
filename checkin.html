@@ -86,17 +86,16 @@ async function lookup(raw){
     const r = await fetch('/api/checkin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'lookup',tournament_id:tid,player_id_card:vs,organizer_token:token})});
     const d = await r.json();
     if(!r.ok){ out.innerHTML='<div class="card" style="border:1px solid var(--red)">'+esc(d.error||'Chyba')+'</div>'; return; }
-    let statusTag = d.paid ? '<span class="tag paid">ZAPLACENO PŘEDEM (banka)</span>' : '<span class="tag debt">NEZAPLACENO PŘEDEM</span>';
-    if(!d.registered) statusTag += ' <span class="tag warn">NENÍ V SEZNAMU (z ulice)</span>';
-    // Předvyplní částku k vybrání na místě: zaplaceno předem → 0, jinak celé startovné. Organizátor může přepsat.
-    const prefill = d.paid ? 0 : (d.fee||0);
+    const due = Math.max(0, Math.round(d.due != null ? d.due : (d.fee||0)));
+    let statusTag = d.registered ? (d.paid ? '<span class="tag paid">ZAPLACENO PŘEDEM</span>' : '<span class="tag debt">PŘIHLÁŠEN</span>') : '<span class="tag warn">NENÍ V SEZNAMU (z ulice)</span>';
+    const bigAmt = due>0
+      ? `<div style="font-size:2.2rem;font-weight:bold;color:var(--gold);margin:.5rem 0">VYBRAT: ${due} Kč</div>`
+      : `<div style="font-size:1.5rem;font-weight:bold;color:var(--green);margin:.5rem 0">✅ Nic nevybírat (zaplaceno)</div>`;
     out.innerHTML = `<div class="card">
         <div class="big">${esc(d.name)}</div>
-        <div style="margin:.5rem 0">${statusTag}</div>
-        <label style="display:block;color:#bdc3c7;font-size:.9rem;margin:.4rem 0 .2rem;">Vybráno na místě (Kč) — uprav podle reality:</label>
-        <input type="number" id="amt" value="${prefill}">
-        <button class="btn btn-green" onclick="commitAmt('${vs}','card')">✅ Odbavit</button>
-        <button class="btn btn-orange" onclick="commitAmt('${vs}','manual')">👤 Odbavit ručně</button>
+        <div style="margin:.4rem 0">${statusTag}</div>
+        ${bigAmt}
+        <button class="btn btn-green" onclick="commit('${vs}',${due},'card')">✅ ODBAVIT (vybráno ${due} Kč)</button>
         <button class="btn btn-grey" onclick="clearOut()">Zrušit</button>
       </div>`;
   }catch(e){ out.innerHTML='<div class="card" style="border:1px solid var(--red)">Chyba spojení.</div>'; }
@@ -108,7 +107,11 @@ async function commit(vs, amount, method){
   try{
     const r = await fetch('/api/checkin', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'commit',tournament_id:tid,player_id_card:vs,amount_paid:amount,method:method,organizer_token:token})});
     const d = await r.json();
-    if(r.ok && d.ok){ out.innerHTML='<div class="card" style="text-align:center;border:2px solid var(--green)"><div class="big" style="color:var(--green)">✅ ODBAVENO</div><button class="btn btn-scan" onclick="document.getElementById(\'out\').innerHTML=\'\';document.getElementById(\'manVs\').value=\'\';">Další</button></div>'; }
+    if(r.ok && d.ok){
+      out.innerHTML='<div class="card" style="text-align:center;border:2px solid var(--green)"><div class="big" style="color:var(--green)">✅ ODBAVENO</div><div style="color:#bdc3c7;font-size:.9rem">Otevírám skener pro dalšího…</div></div>';
+      const m=document.getElementById('manVs'); if(m) m.value='';
+      setTimeout(()=>{ const o=document.getElementById('out'); if(o)o.innerHTML=''; startScan(); }, 1200);
+    }
     else { out.innerHTML='<div class="card" style="border:1px solid var(--red)">'+esc(d.error||'Chyba zápisu')+'</div>'; }
   }catch(e){ out.innerHTML='<div class="card" style="border:1px solid var(--red)">Chyba spojení.</div>'; }
 }
