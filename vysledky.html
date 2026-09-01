@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zápis výsledků stolu – Česká asociace prší</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
+<style>
+  :root{ --bg:#1e1e1e; --card:#2d2d2d; --gold:#f1c40f; --blue:#3498db; --green:#27ae60; --red:#c0392b; }
+  *{box-sizing:border-box;} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:#fff;padding:14px;}
+  h1{color:var(--gold);text-align:center;font-size:1.4rem;margin:.3rem 0;}
+  .msg{text-align:center;color:#bdc3c7;margin-top:1.2rem;font-size:1.05rem;}
+  .btn{border:none;border-radius:10px;padding:1rem;font-weight:bold;font-size:1.1rem;cursor:pointer;width:100%;margin-top:.6rem;color:#fff;}
+  .btn-scan{background:var(--gold);color:#111;} .btn-send{background:var(--green);}
+  #reader{width:100%;max-width:340px;margin:.6rem auto;}
+  .who{background:#222;border-radius:8px;padding:.5rem;text-align:center;color:var(--green);font-weight:bold;margin-bottom:.6rem;}
+  table{width:100%;border-collapse:collapse;margin-top:.4rem;}
+  th,td{border:1px solid #444;padding:4px;text-align:center;}
+  th{background:#34495e;font-size:.8rem;}
+  input{width:100%;padding:8px 2px;box-sizing:border-box;background:#2d2d2d;color:var(--gold);border:1px solid #555;text-align:center;font-weight:bold;font-size:1rem;}
+  .sum{font-weight:bold;color:var(--green);} #tot{color:var(--gold);font-weight:bold;font-size:1.2rem;}
+</style>
+</head>
+<body>
+<h1>📝 Zápis výsledků stolu</h1>
+<div id="app"><div class="msg">Načítám…</div></div>
+
+<script>
+const supabaseUrl='https://gqciprgrzdpckhhqcsjx.supabase.co';
+const supabaseKey='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k';
+const db=window.supabase.createClient(supabaseUrl,supabaseKey);
+const app=document.getElementById('app');
+const tid=new URLSearchParams(location.search).get('t');
+let myCard=null, qr=null, scanning=false, wakeLock=null, tbl=null;
+
+function esc(s){return (''+(s??'')).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+async function keepAwake(){ try{ if('wakeLock' in navigator) wakeLock=await navigator.wakeLock.request('screen'); }catch(e){} }
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') keepAwake(); });
+
+function start(){
+  if(!tid){ app.innerHTML='<div class="msg">Chybí turnaj v odkazu.</div>'; return; }
+  renderScan();
+}
+function renderScan(){
+  app.innerHTML='<div class="msg">Naskenuj SVOU kartičku – najdeme tvůj stůl.</div><button class="btn btn-scan" onclick="startScan()">📷 Naskenovat kartičku</button><div id="reader"></div><div id="out"></div>';
+}
+function startScan(){
+  const r=document.getElementById('reader');
+  if(qr==null) qr=new Html5Qrcode('reader');
+  qr.start({facingMode:'environment'},{fps:10,qrbox:240}, tx=>{ if(scanning)return; scanning=true; qr.stop().then(()=>{scanning=false; lookup(tx);}).catch(()=>{scanning=false;}); }, ()=>{}).catch(e=>{document.getElementById('out').innerHTML='<div class="msg" style="color:var(--red)">Chyba kamery: '+esc(e)+'</div>';});
+}
+async function lookup(raw){
+  const vs=(''+raw).replace(/\D/g,''); if(!vs){ renderScan(); return; }
+  myCard=vs; keepAwake();
+  app.innerHTML='<div class="msg">Hledám tvůj stůl…</div>';
+  try{
+    const r=await fetch('/api/results',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'table',tournament_id:tid,player_id_card:vs})});
+    const d=await r.json();
+    if(!r.ok){ app.innerHTML='<div class="msg" style="color:var(--red)">'+esc(d.error||'Chyba')+'</div><button class="btn btn-scan" onclick="renderScan()">Zkusit znovu</button>'; return; }
+    tbl=d; renderGrid(d);
+  }catch(e){ app.innerHTML='<div class="msg" style="color:var(--red)">Chyba spojení.</div><button class="btn btn-scan" onclick="renderScan()">Zkusit znovu</button>'; }
+}
+function renderGrid(d){
+  const ps=d.players||[]; const n=ps.length;
+  let h=`<div class="who">Stůl ${esc(d.table)} · Kolo ${esc(d.round)} · zapisuje ID ${esc(myCard)}</div>`;
+  h+='<table><tr><th>Hra</th>';
+  ps.forEach((p,i)=>{ h+=`<th>${esc(p.start)}.<br>${esc(p.name)}</th>`; });
+  h+='</tr>';
+  for(let g=1;g<=8;g++){ h+=`<tr><td>${g}.</td>`; for(let i=0;i<n;i++){ h+=`<td><input type="number" id="p${i}g${g}" oninput="calc()"></td>`; } h+='</tr>'; }
+  h+='<tr><td class="sum">Σ</td>'; for(let i=0;i<n;i++){ h+=`<td class="sum" id="s${i}">0</td>`; } h+='</tr>';
+  h+=`</table><div style="text-align:center;margin:.6rem 0">Celkem: <span id="tot">0</span> / ${n===3?72:80}</div>`;
+  h+=`<button class="btn btn-send" onclick="send()">✅ ODESLAT VÝSLEDKY</button><div id="err" style="color:var(--red);text-align:center;margin-top:.5rem"></div>`;
+  app.innerHTML=h;
+}
+function calc(){
+  const n=(tbl.players||[]).length; let total=0; const rows=new Array(8).fill(0);
+  for(let i=0;i<n;i++){ let s=0; for(let g=1;g<=8;g++){ const el=document.getElementById('p'+i+'g'+g); const v=parseInt(el&&el.value,10)||0; s+=v; rows[g-1]+=v; } const se=document.getElementById('s'+i); if(se)se.innerHTML=s; total+=s; }
+  const te=document.getElementById('tot'); if(te)te.innerHTML=total;
+  return {total, rows, n};
+}
+async function send(){
+  const {total,rows,n}=calc(); const err=document.getElementById('err');
+  const exRow=n===3?9:10, ex=n===3?72:80;
+  for(let g=0;g<8;g++){ if(rows[g]!==exRow){ err.innerHTML=`Součet v ${g+1}. hře musí být ${exRow} (teď ${rows[g]}).`; return; } }
+  if(total!==ex){ err.innerHTML=`Celkový součet musí být ${ex} (teď ${total}).`; return; }
+  const data=(tbl.players||[]).map((p,i)=>{ let s=0; for(let g=1;g<=8;g++){ s+=parseInt(document.getElementById('p'+i+'g'+g).value,10)||0; } return {vs:p.vs, body:s}; });
+  err.innerHTML='Odesílám…';
+  try{
+    const r=await fetch('/api/results',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'submit',tournament_id:tid,player_id_card:myCard,round:tbl.round,table:tbl.table,data})});
+    const dd=await r.json();
+    if(r.ok&&dd.ok){ app.innerHTML='<div class="who" style="color:var(--green);font-size:1.3rem">✅ Výsledky odeslány. Děkujeme!</div><button class="btn btn-scan" onclick="renderScan()">Zadat další stůl</button>'; }
+    else { err.innerHTML=esc(dd.error||'Chyba zápisu'); }
+  }catch(e){ err.innerHTML='Chyba spojení.'; }
+}
+start();
+</script>
+</body>
+</html>
