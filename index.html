@@ -1438,10 +1438,22 @@
         else { msg.style.display = 'none'; authInitialized = false; checkAuthState(currentUser); }
     });
 
+    async function refreshCheckinMenu() {
+        const mc = document.getElementById('menu-checkin'); if (!mc) return;
+        let show = (actualUserRole === 'superadmin');
+        try {
+            if (!show && myProfileData && myProfileData.id) {
+                const { data } = await db.from('live_state').select('tournament_id').eq('is_active', true).eq('organizer_id', myProfileData.id);
+                show = !!(data && data.length);
+            }
+        } catch (e) {}
+        mc.style.display = show ? 'block' : 'none';
+    }
+
     function updateMenuByRole() {
         const isZcPlus = ['zc','zcp','superadmin'].includes(simulatedRole);
         document.getElementById('menu-admin').style.display = isZcPlus ? 'block' : 'none';
-        var mc = document.getElementById('menu-checkin'); if (mc) mc.style.display = isZcPlus ? 'block' : 'none';
+        refreshCheckinMenu();
 
         document.getElementById('zcZone').style.display = isZcPlus ? 'block' : 'none';
         document.getElementById('zcpZone').style.display = ['zcp','superadmin'].includes(simulatedRole) ? 'block' : 'none';
