@@ -13,21 +13,31 @@ export default async function handler(req, res) {
 
   const svcHeaders = { apikey: SVC, Authorization: 'Bearer ' + SVC, 'Content-Type': 'application/json' };
 
-  // --- Ověření organizátora přes jeho přihlašovací token ---
-  let role = null, byName = '';
+  // --- Ověření volajícího přes jeho přihlašovací token ---
+  let role = null, byName = '', callerId = null;
   try {
     if (organizer_token) {
       const ur = await fetch(URL + '/auth/v1/user', { headers: { apikey: ANON, Authorization: 'Bearer ' + organizer_token } });
       if (ur.ok) {
         const u = await ur.json();
+        callerId = u.id;
         const pr = await fetch(URL + '/rest/v1/profiles?id=eq.' + u.id + '&select=role,full_name', { headers: svcHeaders });
         const pj = await pr.json();
         if (pj && pj[0]) { role = pj[0].role; byName = pj[0].full_name || ''; }
       }
     }
   } catch (e) {}
-  if (!['zc', 'zcp', 'superadmin'].includes(role)) {
-    return res.status(403).json({ error: 'Odbavovat smí jen organizátor (ZC / ZCP / superadmin). Přihlas se na webu.' });
+  if (!callerId) return res.status(403).json({ error: 'Nejsi přihlášen. Přihlas se na webu.' });
+
+  // Přístup: buď jsi přiřazený POŘADATEL tohoto turnaje, nebo jsi superadmin.
+  let organizerId = null;
+  try {
+    const lr = await fetch(URL + '/rest/v1/live_state?tournament_id=eq.' + tournament_id + '&select=organizer_id', { headers: svcHeaders });
+    const lj = await lr.json(); if (lj && lj[0]) organizerId = lj[0].organizer_id;
+  } catch (e) {}
+  const allowed = (role === 'superadmin') || (organizerId && organizerId === callerId);
+  if (!allowed) {
+    return res.status(403).json({ error: 'Nejsi přiřazený pořadatel tohoto turnaje.' });
   }
 
   const vs = ('' + player_id_card).replace(/\D/g, '');

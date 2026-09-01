@@ -45,15 +45,17 @@ document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState=
 
 async function init(){
   const { data:{ session } } = await db.auth.getSession();
-  if(!session){ app.innerHTML='<div class="msg">Nejsi přihlášen. Přihlas se na <a href="index.html" style="color:var(--gold)">webu</a> svým členským účtem (organizátor) a otevři tuto stránku znovu.</div>'; return; }
+  if(!session){ app.innerHTML='<div class="msg">Nejsi přihlášen. Přihlas se na <a href="index.html" style="color:var(--gold)">webu</a> svým členským účtem a otevři tuto stránku znovu.</div>'; return; }
   token = session.access_token;
-  const { data: prof } = await db.from('profiles').select('role,full_name').eq('id', session.user.id).maybeSingle();
+  const myId = session.user.id;
+  const { data: prof } = await db.from('profiles').select('role,full_name').eq('id', myId).maybeSingle();
   role = prof?.role;
-  if(!['zc','zcp','superadmin'].includes(role)){ app.innerHTML='<div class="msg">Tvůj účet nemá oprávnění odbavovat (role: '+esc(role||'—')+').<br>Odbavovat smí jen ZC / ZCP / superadmin.</div>'; return; }
   keepAwake();
-  const { data: live } = await db.from('live_state').select('tournament_id, updated_at, tournaments(title)').eq('is_active', true);
-  const fresh = (live||[]).filter(l=>!l.updated_at || (Date.now()-new Date(l.updated_at).getTime())<20000);
-  if(fresh.length===0){ app.innerHTML='<div class="msg">Právě neprobíhá žádný turnaj.<br>Spusť ho v aplikaci (Načíst turnaj), pak obnov tuto stránku.</div>'; return; }
+  // Aktivní turnaje, KDE JSEM PŘIŘAZENÝ POŘADATEL (superadmin vidí všechny).
+  const { data: live } = await db.from('live_state').select('tournament_id, updated_at, organizer_id, tournaments(title)').eq('is_active', true);
+  let fresh = (live||[]).filter(l=>!l.updated_at || (Date.now()-new Date(l.updated_at).getTime())<20000);
+  if(role!=='superadmin') fresh = fresh.filter(l => l.organizer_id === myId);
+  if(fresh.length===0){ app.innerHTML='<div class="msg">Nejsi přiřazený pořadatel žádného právě běžícího turnaje.<br><span style="font-size:.9rem">(Pořadatele nastaví v aplikaci před startem turnaje.)</span></div>'; return; }
   if(fresh.length===1){ tid=fresh[0].tournament_id; tname=fresh[0].tournaments?.title||''; return renderScanner(); }
   let h='<div class="msg">Vyber turnaj:</div><div class="picker">';
   fresh.forEach(f=>{ h+=`<a href="#" onclick="pick('${f.tournament_id}','${esc((f.tournaments?.title||'').replace(/'/g,"\\'"))}');return false;">🃏 ${esc(f.tournaments?.title||'Turnaj')}</a>`; });
