@@ -3432,8 +3432,9 @@ window.loadApiKeys = async function() {
     var c = window.supabase.createClient('https://gqciprgrzdpckhhqcsjx.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxY2lwcmdyemRwY2toaHFjc2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU5OTk4MDksImV4cCI6MjA5MTU3NTgwOX0.6ptq3mzu-RmWn2pKJFDY7Wk3syckQObPFjEfYRgEK-k');
     async function check(){
       try{
-        var r = await c.from('live_state').select('tournament_id, tournaments(title)').eq('is_active', true);
-        var d = r.data || []; var b = document.getElementById('live-now-banner');
+        var r = await c.from('live_state').select('tournament_id, updated_at, tournaments(title)').eq('is_active', true);
+        var d = (r.data || []).filter(function(x){ return !x.updated_at || (Date.now() - new Date(x.updated_at).getTime()) < 20000; });
+        var b = document.getElementById('live-now-banner');
         if(!b) return;
         if(d.length === 0){ b.style.display='none'; return; }
         var href = d.length === 1 ? ('sledovani.html?t=' + d[0].tournament_id) : 'sledovani.html';

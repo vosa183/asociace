@@ -301,9 +301,12 @@
         grid.innerHTML = '';
         grid.style.display = 'grid';
 
-        // Které turnaje právě běží (živý přenos)?
+        // Které turnaje právě běží (živý přenos + čerstvý tep do 20 s)?
         let liveIds = new Set();
-        try { const { data: live } = await db.from('live_state').select('tournament_id').eq('is_active', true); (live || []).forEach(l => liveIds.add(l.tournament_id)); } catch (e) {}
+        try {
+            const { data: live } = await db.from('live_state').select('tournament_id, updated_at').eq('is_active', true);
+            (live || []).forEach(l => { if (!l.updated_at || (Date.now() - new Date(l.updated_at).getTime()) < 20000) liveIds.add(l.tournament_id); });
+        } catch (e) {}
 
         tours.forEach(t => {
             // Spočítáme registrace pro tento konkrétní turnaj - do kapacity se počítají
