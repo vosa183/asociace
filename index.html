@@ -210,6 +210,7 @@
             <li id="menu-auth"><a onclick="switchTab('auth')" id="nav-auth">Pro členy</a></li>
             <li id="menu-profile" style="display:none;"><a onclick="switchTab('dashboard')" id="nav-dashboard">Můj profil</a></li>
             <li id="menu-admin" style="display:none; color:var(--gold);"><a onclick="switchTab('admin')" id="nav-admin">Administrace</a></li>
+            <li id="menu-checkin" style="display:none; color:var(--green,#27ae60);"><a href="checkin.html" style="color:#27ae60; font-weight:bold;">🎫 Odbavení</a></li>
             <li id="menu-logout" style="display:none;"><a onclick="logOutUser()" style="color: var(--secondary);">Odhlásit</a></li>
             <li><a href="sponzori.html">Sponzoři</a></li>
         </ul>
@@ -1440,7 +1441,8 @@
     function updateMenuByRole() {
         const isZcPlus = ['zc','zcp','superadmin'].includes(simulatedRole);
         document.getElementById('menu-admin').style.display = isZcPlus ? 'block' : 'none';
-        
+        var mc = document.getElementById('menu-checkin'); if (mc) mc.style.display = isZcPlus ? 'block' : 'none';
+
         document.getElementById('zcZone').style.display = isZcPlus ? 'block' : 'none';
         document.getElementById('zcpZone').style.display = ['zcp','superadmin'].includes(simulatedRole) ? 'block' : 'none';
         
