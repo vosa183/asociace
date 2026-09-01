@@ -1440,11 +1440,12 @@
 
     async function refreshCheckinMenu() {
         const mc = document.getElementById('menu-checkin'); if (!mc) return;
-        let show = (actualUserRole === 'superadmin');
+        let show = false;
         try {
-            if (!show && myProfileData && myProfileData.id) {
-                const { data } = await db.from('live_state').select('tournament_id').eq('is_active', true).eq('organizer_id', myProfileData.id);
-                show = !!(data && data.length);
+            if (myProfileData && myProfileData.id) {
+                const me = myProfileData.id;
+                const { data } = await db.from('live_state').select('organizer_id').eq('is_active', true);
+                show = (data || []).some(r => (r.organizer_id || '').split(',').map(s => s.trim()).includes(me));
             }
         } catch (e) {}
         mc.style.display = show ? 'block' : 'none';

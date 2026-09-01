@@ -35,7 +35,8 @@ export default async function handler(req, res) {
     const lr = await fetch(URL + '/rest/v1/live_state?tournament_id=eq.' + tournament_id + '&select=organizer_id', { headers: svcHeaders });
     const lj = await lr.json(); if (lj && lj[0]) organizerId = lj[0].organizer_id;
   } catch (e) {}
-  const allowed = (role === 'superadmin') || (organizerId && organizerId === callerId);
+  const organizers = (organizerId || '').split(',').map(s => s.trim()).filter(Boolean);
+  const allowed = organizers.includes(callerId);
   if (!allowed) {
     return res.status(403).json({ error: 'Nejsi přiřazený pořadatel tohoto turnaje.' });
   }
